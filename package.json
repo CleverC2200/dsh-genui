@@ -1,7 +1,7 @@
 {
   "name": "@changfenhuang/dsh-genui",
   "description": "GenUI for DeepSeek Harness: interactive UI components rendered inline in assistant replies via the ```dsh-ui fence — layout, charts, plots, forms, quizzes, mermaid, 3D scenes, and an action event loop back to the model. Ships the fence-teaching host plugin, the browser renderer (client half), and the genui skill.",
-  "version": "0.16.0",
+  "version": "0.16.0-company.1",
   "icon": "./assets/genui-icon.svg",
   "type": "module",
   "main": "lib/index.js",
@@ -53,19 +53,17 @@
     "ICON-NAMES.md",
     "THIRD_PARTY_NOTICES.md",
     "lib/assets/maplibre.js",
-    "docs/map.md"
+    "docs/map.md",
+    "docs/company-dsh.md"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/omdsh-dev/dsh-genui.git"
+    "url": "https://github.com/CleverC2200/dsh-genui.git"
   },
-  "homepage": "https://github.com/omdsh-dev/dsh-genui",
+  "homepage": "https://github.com/CleverC2200/dsh-genui",
   "bugs": {
-    "url": "https://github.com/omdsh-dev/dsh-genui/issues"
+    "url": "https://github.com/CleverC2200/dsh-genui/issues"
   },
   "keywords": [
     "dsh",
@@ -198,7 +196,8 @@
     "test": "vitest run",
     "check": "node scripts/clean.mjs && tsc -p tsconfig.json && vitest run && tsdown && node scripts/check-standalone.mjs && node scripts/check-map-assets.mjs",
     "check:host-api": "node scripts/check-host-api.mjs",
-    "prepack": "node scripts/prepack.mjs"
+    "prepack": "node scripts/prepack.mjs",
+    "check:company-dsh": "node scripts/check-host-api.mjs dsh-v0.2.0-rc.2"
   },
   "dsh": {
     "bundle": {
@@ -302,5 +301,6 @@
         }
       ]
     }
-  }
+  },
+  "private": true
 }

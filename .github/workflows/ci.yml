@@ -12,6 +12,7 @@ concurrency:
 
 jobs:
   check:
+    if: github.repository == 'omdsh-dev/dsh-genui'
     strategy:
       fail-fast: false
       matrix:
@@ -170,6 +171,7 @@ jobs:
           if-no-files-found: ignore
 
   browser-text-newlines:
+    if: github.repository == 'omdsh-dev/dsh-genui'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -226,6 +228,7 @@ jobs:
           if-no-files-found: ignore
 
   windows-pack:
+    if: github.repository == 'omdsh-dev/dsh-genui'
     strategy:
       fail-fast: false
       matrix:
@@ -252,6 +255,7 @@ jobs:
         run: npm pack --json
 
   published-alpha:
+    if: github.repository == 'omdsh-dev/dsh-genui'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -304,6 +308,7 @@ jobs:
           if-no-files-found: ignore
 
   published-current:
+    if: github.repository == 'omdsh-dev/dsh-genui'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:

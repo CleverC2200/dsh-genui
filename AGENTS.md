@@ -1,3 +1,7 @@
+## 本仓库归属
+
+本仓库独立维护插件本体与公司 DSH 适配。上游以只读来源保留，源码、PR、标签和构建产物仅写入 CleverC2200/dsh-genui。公司版本与目标宿主从 package.json 的 version 和 check:company-dsh 读取，操作入口见 [公司 DSH 适配](docs/company-dsh.md)。GEA 仓库只负责依赖与宿主装配。
+
 # dsh-genui 协作守则
 
 面向在本仓库里改东西的 agent。只写会被反复违反、且有具体代价的规则；风格偏好不进来。
