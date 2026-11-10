@@ -1,3 +1,11 @@
+# 独立维护版本
+
+本仓库为 [CleverC2200/dsh-genui](https://github.com/CleverC2200/dsh-genui)，基于 [omdsh-dev/dsh-genui v0.16.0](https://github.com/omdsh-dev/dsh-genui/tree/92209256d3c27f99a7b363823f4d654679e97204)，保留上游源码历史、MIT 许可和贡献署名。
+
+插件本体、公司 DSH 兼容性检查和独立构建产物在此维护。GEA 仅引用固定产物并完成宿主装配。维护与验证入口见 [公司 DSH 适配](docs/company-dsh.md)。
+
+---
+
 <div align="center">
 
 <img src="./assets/genui-logo.svg" width="380" alt="GenUI for DeepSeek Harness">
