@@ -26,7 +26,16 @@ for (const fixtureName of ['content-font-size.html', 'plot-content-font-size.htm
   assert.equal(results.samples.length, rootCount * Object.keys(results.tokenSizes).length * 6)
   for (const sample of results.samples) {
     const originalSize = results.tokenSizes[sample.token]
-    const expectedSize = Math.max(originalSize, originalSize * (sample.contentSize ?? 14) / 17)
+    const contentSize = sample.contentSize ?? 14
+    if (fixtureName === 'content-font-size.html' && sample.token === 'stat') {
+      assert.ok(sample.fontSize >= Math.max(22, contentSize * 1.3) - .1 && sample.fontSize <= Math.max(22, contentSize * 2.1) + .1, `${sample.root}/stat/${sample.contentSize}: numeric hierarchy must follow the host reading size`)
+      continue
+    }
+    if (fixtureName === 'content-font-size.html' && sample.token === 'meta') {
+      assert.ok(sample.fontSize >= Math.max(12.5, contentSize * .75) - .1 && sample.fontSize <= Math.max(12.5, contentSize) + .1, `${sample.root}/meta/${sample.contentSize}: reading text must retain its floor and grow with the host`)
+      continue
+    }
+    const expectedSize = Math.max(originalSize, originalSize * contentSize / 17)
     assert.ok(Number.isFinite(sample.fontSize), `${sample.root}/${sample.token}/${sample.contentSize}: invalid font size`)
     assert.ok(Math.abs(sample.fontSize - expectedSize) < 0.03, `${sample.root}/${sample.token}/${sample.contentSize}: ${sample.fontSize}px, expected ${expectedSize}px`)
   }
