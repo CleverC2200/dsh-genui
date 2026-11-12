@@ -171,16 +171,29 @@ try {
     const screenshot = `${id}-${width}-${hostFontSize}.png`
     const layout = await command('Page.getLayoutMetrics')
     await writeFile(join(out, screenshot), Buffer.from((await command('Page.captureScreenshot', { captureBeyondViewport:true, clip:{ x:0, y:0, width, height:Math.ceil(layout.cssContentSize.height), scale:1 } })).data, 'base64'))
+    const clicks = []
     const actions = fixtures.specs[id].items.flatMap(item => item.type === 'button' ? [item] : item.type === 'row' ? item.items : []).filter(item => item.type === 'button')
     for (let index = 0; index < actions.length; index++) {
-      const point = await evaluate(`(() => { const button=[...document.querySelectorAll('button')].find(b => b.textContent === ${JSON.stringify(actions[index].label)}); button.scrollIntoView({block:'center'}); const r=button.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2} })()`)
-      for (const type of ['mousePressed', 'mouseReleased']) await command('Input.dispatchMouseEvent', { type, ...point, button:'left', clickCount:1 })
+      const target = `[...document.querySelectorAll('button')].find(button => button.textContent === ${JSON.stringify(actions[index].label)})`
+      await evaluate(`${target}.scrollIntoView({behavior:'instant', block:'center', inline:'center'})`)
+      await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+      const point = await evaluate(`(() => {
+        const button = ${target}
+        const rect = button.getBoundingClientRect()
+        const x = rect.x + rect.width / 2, y = rect.y + rect.height / 2
+        return {x, y, width:rect.width, height:rect.height, disabled:button.disabled,
+          viewportWidth:innerWidth, viewportHeight:innerHeight, scrollY,
+          hit:button.contains(document.elementFromPoint(x, y))}
+      })()`)
+      assert.ok(point.width > 0 && point.height > 0 && !point.disabled && point.x > 0 && point.x < point.viewportWidth && point.y > 0 && point.y < point.viewportHeight && point.hit, `${id}/${width}/${hostFontSize}/${actions[index].action}: pointer target is not hittable: ${JSON.stringify(point)}`)
+      for (const type of ['mousePressed', 'mouseReleased']) await command('Input.dispatchMouseEvent', { type, x:point.x, y:point.y, button:'left', clickCount:1 })
+      clicks.push({action:actions[index].action, ...point})
       const events = await evaluate('window.genuiPresentation.events')
       assert.equal(events.length, index + 1, `${id}: one event per real click`)
       assert.equal(events[index].action, actions[index].action, `${id}: preserve action name`)
       assert.deepEqual(events[index].payload.fields ?? {}, {}, `${id}: no hidden fields`)
     }
-    results.push({ id, width, hostFontSize, deviceScaleFactor:1, screenshot, input:fixtures.specs[id], ...result, events:await evaluate('window.genuiPresentation.events') })
+    results.push({ id, width, hostFontSize, deviceScaleFactor:1, screenshot, input:fixtures.specs[id], ...result, clicks, events:await evaluate('window.genuiPresentation.events') })
   }
   await evaluate(`window.genuiPresentation.mount(${JSON.stringify({ items:[{type:'grid',cols:2,items:[{type:'text',content:'Short'},{type:'text',content:'A longer nonstat item that occupies multiple lines at this width. '.repeat(6)}]},{type:'stat',label:'Numeric prefix status',value:'2 pages remain to be read'},{type:'stat',label:'Currency amount',value:'¥1,024'},{type:'stat',label:'Compact number',value:'1.2k'},{type:'stat',label:'Scientific notation',value:'1e6'},{type:'stat',label:'Localized decimal',value:'1,6328 $'},{type:'stat',label:'Bottle count',value:'20 瓶'},{type:'stat',label:'Transfer rate',value:'8 MB/s'},{type:'stat',label:'Multiplier',value:'3.2x'}] })}, {width:960,hostFontSize:17})`)
   await evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))')

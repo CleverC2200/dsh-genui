@@ -54,6 +54,10 @@ jobs:
           version: 11.7.0
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Install Chinese browser fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fonts-noto-cjk
       - name: Check real browser newline layout and selection
         run: node scripts/check-text-newlines-browser.mjs
       - name: Check host content font size in real browser
