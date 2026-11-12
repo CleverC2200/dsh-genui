@@ -1,6 +1,7 @@
 // The render_ui tool definition: schema shape, execute behavior (guard-backed
 // repair + caps), and the presentation projections (call/result cards + meta
 // spec for the browser toolview).
+import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import { createRenderUiTool, createValidateDshUiTool } from '../src/plugin/tool.ts'
 import { GENUI_LIMITS } from '../src/client/genui-runtime/index.ts'
@@ -11,6 +12,72 @@ const tool = createRenderUiTool()
 const text = (content: string) => ({ type: 'text', content })
 
 describe('render_ui tool definition', () => {
+  it('limits presentation content to the requested data scope', () => {
+    for (const definition of [tool, createValidateDshUiTool()]) {
+      expect(definition.description).toMatch(/字段和指标.*用户所问/)
+      expect(definition.description).toMatch(/数值和单位.*来源一致/)
+      expect(definition.description).toMatch(/短答.*只给所问结果/)
+      expect(definition.description).toContain('比较任务可补直接回答所需差额')
+      expect(definition.description).toContain('用户限定名次、原值或单个对象时，仅给限定字段，不加衍生指标')
+      expect(definition.description).toContain('只问谁/哪个时只答名称')
+      expect(definition.description).toContain('只问数值时只答数值及原单位')
+      expect(definition.description).toContain('不附其他字段或解释')
+    }
+  })
+
+  it('requires successful calculation receipts across presentation formats when business rules require tools', () => {
+    const skill = readFileSync('SKILL.md', 'utf8')
+    for (const guidance of [tool.description, createValidateDshUiTool().description, skill]) {
+      expect(guidance).toContain('短答约束仅限最终可见文本')
+      expect(guidance).toContain('原输入值可直接呈现')
+      expect(guidance).toContain('当前业务规则要求工具验证的计算，无论短答、纯文字建议或组件')
+      expect(guidance).toContain('须先取得所需计算工具真实成功回执才呈现派生值')
+      expect(guidance).toContain('无成功回执则保留未完成，不把拟算值写成已核实')
+      expect(guidance.match(/当前业务规则要求工具验证的计算/gu)).toHaveLength(1)
+      expect(guidance).not.toContain('派生数值交付前按当前业务规则验证')
+    }
+  })
+
+  it('separates UI validation and publication from calculation while preserving comparison inputs', () => {
+    const skill = readFileSync('SKILL.md', 'utf8')
+    for (const guidance of [tool.description, createValidateDshUiTool().description, skill]) {
+      expect(guidance).toContain('validate_dsh_ui 仅校验结构/字段，不验算业务数值')
+      expect(guidance).toContain('校验或渲染成功不代表计算完成；渲染仅发布组件')
+      expect(guidance).toContain('引用原值保留指标含义和单位')
+      expect(guidance).toContain('比较建议保留支撑取舍的关键原值，不用未验证差值替换')
+    }
+    expect(createValidateDshUiTool().description).toContain('validation_scope=ui_structure_only')
+    expect(createValidateDshUiTool().description).toContain('numerical_calculation=not_performed')
+  })
+
+  it('presents each fact once across nodes and keeps source notes to provenance', () => {
+    const skill = readFileSync('SKILL.md', 'utf8')
+    for (const guidance of [tool.description, createValidateDshUiTool().description, skill]) {
+      expect(guidance).toContain('整个答复内同一信息只呈现一次')
+      expect(guidance).toContain('包括正文、Markdown、内联围栏、工具卡及同卡多个节点')
+      expect(guidance).toContain('来源说明只标注来源/口径，不复列已呈现数值、名次或状态')
+    }
+  })
+
+  it('keeps facts and source states consistent across reply and UI channels', () => {
+    const skill = readFileSync('SKILL.md', 'utf8')
+    for (const guidance of [tool.description, createValidateDshUiTool().description, skill]) {
+      expect(guidance).toContain('所需结论、来源和限制放进组件，组件本身就是回答')
+      expect(guidance).toContain('工具卡与内联围栏择一交付')
+      expect(guidance).toContain('工具卡交付成功且无组件外的所问新信息时，结束本轮，不再输出正文或围栏')
+      expect(guidance).toContain('内联围栏已承载全答时，闭合后结束')
+      expect(guidance).toContain('正文只补所问新信息')
+      expect(guidance).toContain('unknown 保持未知，不改未完成')
+      expect(guidance).toContain('未完成不等于未开始')
+      expect(guidance).toContain('下一页条数和结果未知时保留未知，不作承诺')
+      expect(guidance).toContain('完整工具卡答复用 final:true')
+      expect(guidance).toContain('先完成必要工具和校验')
+      expect(guidance).toContain('缺省或 false 继续本轮')
+    }
+    expect(skill).not.toContain('文字照常穿插在前后')
+    expect(skill).not.toContain('不要用工具')
+  })
+
   it('keeps presentation guidance visible without a global prompt section', () => {
     for (const definition of [tool, createValidateDshUiTool()]) {
       expect(definition.description).toMatch(/状态总览.*库存对比.*排行.*用组件/)
@@ -30,6 +97,8 @@ describe('render_ui tool definition', () => {
     expect(tool.description.length).toBeGreaterThan(50)
     const parameters = tool.parameters as { required?: string[]; properties?: Record<string, unknown> }
     expect(parameters.required).toContain('spec')
+    expect(parameters.required).not.toContain('final')
+    expect(parameters.properties?.final).toEqual(expect.objectContaining({ type: 'boolean' }))
     const spec = parameters.properties?.spec as { type?: string } | undefined
     expect(spec).toBeDefined()
     // spec must be schema-typed as an object: a serialized JSON string (the
@@ -57,6 +126,102 @@ describe('render_ui tool definition', () => {
 })
 
 describe('render_ui execute', () => {
+  it('delivers a complete card at the node budget when it explicitly opts in', async () => {
+    const concludeTurn = vi.fn()
+    const args = { final: true, spec: { items: Array.from({ length: 200 }, (_, i) => text(`n${i}`)) } }
+    const value = await tool.execute(args, { concludeTurn } as never)
+    expect(String(value)).toContain('status=rendered')
+    expect(String(value)).toContain('rendered=200')
+    expect(tool.output.presentationMeta!(args, value)).toEqual(expect.objectContaining(args.spec))
+    expect(concludeTurn).toHaveBeenCalledTimes(1)
+    expect(String(value)).toContain('turn=concluded')
+    expect(String(value)).toContain('next=turn_completed')
+  })
+
+  it.each([undefined, false])('keeps the existing continuation when final is %s', async (final) => {
+    const concludeTurn = vi.fn()
+    const spec = { items: [text('继续')] }
+    const args = final === undefined ? { spec } : { spec, final }
+    const value = await tool.execute(args, { concludeTurn } as never)
+    expect(concludeTurn).not.toHaveBeenCalled()
+    expect(String(value)).toContain('next=reply_only_missing_information')
+    expect(String(value)).not.toContain('turn=')
+  })
+
+  it('keeps older hosts usable when they do not support concluding a turn', async () => {
+    const args = { final: true, spec: { items: [text('兼容')] } }
+    for (const exec of [undefined, {}, { concludeTurn: true }]) {
+      const value = await tool.execute(args, exec as never)
+      expect(String(value)).toContain('status=rendered')
+      expect(String(value)).toContain('turn=continued reason=host_unsupported')
+      expect(String(value)).toContain('next=reply_only_missing_information')
+    }
+  })
+
+  it('does not conclude invalid cards or failed executions', async () => {
+    const concludeTurn = vi.fn()
+    const exec = { concludeTurn } as never
+    const invalid = await tool.execute({ final: true, spec: {} }, exec)
+    expect(String(invalid)).toContain('status=invalid')
+    await expect(tool.execute({ final: true, spec: { items: [{ type: 'table', rows: 42 }] } }, exec)).rejects.toThrow()
+    expect(concludeTurn).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [{ type: 'text', content: '信息', unsupported: true }, 'warning=unknown_field'],
+    [{ type: 'text', content: '| A | B |\n|---|---|\n| x | y |' }, 'warning=block_markdown'],
+  ])('keeps diagnostics actionable before final delivery for %j', async (node, warning) => {
+    const concludeTurn = vi.fn()
+    const value = await tool.execute({ final: true, spec: { items: [node] } }, { concludeTurn } as never)
+    expect(concludeTurn).not.toHaveBeenCalled()
+    expect(String(value)).toContain(warning)
+    expect(String(value)).toContain('turn=continued reason=pending_diagnostics')
+    expect(String(value)).toContain('next=fix_and_retry')
+  })
+
+  it('withholds a final card with diagnostics and publishes only the corrected delivery', async () => {
+    const concludeTurn = vi.fn()
+    const exec = { concludeTurn } as never
+    const table = { type: 'table', columns: ['仓库', '库存（件）'], rows: [['甲仓', 120]] }
+    const invalid = { final: true, spec: { items: [{ ...table, caption: '库存' }] } }
+    const fixed = { final: true, spec: { items: [table] } }
+    const rejected = await tool.execute(invalid, exec)
+    expect(String(rejected)).toContain('status=needs_repair')
+    expect(String(rejected)).toContain('warning=unknown_field')
+    expect(String(rejected)).toContain('next=fix_and_retry')
+    expect(String(rejected)).not.toContain('status=rendered')
+    expect(String(rejected)).not.toContain('组件已作为回答交付')
+    expect(tool.output.presentationMeta!(invalid, rejected)).toBeNull()
+    expect(tool.output.presentationMeta!(fixed, rejected)).toBeNull()
+    expect(concludeTurn).not.toHaveBeenCalled()
+
+    const delivered = await tool.execute(fixed, exec)
+    expect(String(delivered)).toContain('status=rendered')
+    expect(String(delivered)).toContain('turn=concluded')
+    expect(tool.output.presentationMeta!(fixed, delivered)).toEqual(expect.objectContaining({ items: [table] }))
+    expect(concludeTurn).toHaveBeenCalledTimes(1)
+
+    const continuing = { ...invalid, final: false }
+    const continued = await tool.execute(continuing, exec)
+    expect(String(continued)).toContain('status=rendered')
+    expect(tool.output.presentationMeta!(continuing, continued)).not.toBeNull()
+    expect(concludeTurn).toHaveBeenCalledTimes(1)
+  })
+
+  it('withholds a final card when the node budget truncates otherwise valid content', async () => {
+    const concludeTurn = vi.fn()
+    const args = { final: true, spec: { items: Array.from({ length: 201 }, (_, i) => text(`n${i}`)) } }
+    const value = await tool.execute(args, { concludeTurn } as never)
+    expect(String(value)).toContain('status=needs_repair')
+    expect(String(value)).toContain('diagnostic="spec exceeds 200 nodes; tail elided"')
+    expect(String(value)).toContain('diagnostic="repair dropped 1 declared native node(s): declared 201, rendered 200"')
+    expect(String(value)).toContain('turn=continued reason=pending_diagnostics')
+    expect(String(value)).toContain('next=fix_and_retry')
+    expect(String(value)).not.toContain('status=rendered')
+    expect(tool.output.presentationMeta!(args, value)).toBeNull()
+    expect(concludeTurn).not.toHaveBeenCalled()
+  })
+
   it('rejects oversized SVG with its path and lengths before reporting a valid delivery', async () => {
     const code = `<svg>${' '.repeat(GENUI_LIMITS.maxCode)}</svg>`
     const spec = { items: [{ type: 'svg', code }] }
@@ -74,9 +239,32 @@ describe('render_ui execute', () => {
     expect(String(value)).toContain('reply_language=conversation')
   })
 
-  it('repairs oversized specs before summarizing (caps apply)', async () => {
-    const value = await tool.execute({ spec: { items: Array.from({ length: 500 }, (_, i) => text(`n${i}`)) } })
+  it('guides the model to finish without repeating a delivered card, while invalid specs still require retry', async () => {
+    const args = { spec: { items: [{ type: 'table', columns: ['项目', '数量（件）'], rows: [['样品', 7]] }] } }
+    const value = await tool.execute(args)
+    const blocks = tool.output.render(args, value)
+    expect(blocks).toEqual([{ type: 'text', text: expect.stringContaining('next=reply_only_missing_information') }])
+    expect(String(value)).toContain('reply=组件已作为回答交付')
+    expect(String(value)).toContain('若无组件外的所问新信息或待处理诊断，立即结束本轮，不再输出正文或 dsh-ui 围栏')
+    expect(String(value)).toContain('需要补充时只补所问新信息或处理诊断')
+    expect(String(value)).toContain('不得以结论、摘要或来源说明重列组件已有数值、排序')
+
+    const invalid = String(await tool.execute({ spec: {} }))
+    expect(invalid).toContain('status=invalid')
+    expect(invalid).toContain('next=fix_and_retry')
+    expect(invalid).not.toContain('next=reply_only_missing_information')
+    expect(invalid).not.toContain('组件已作为回答交付')
+  })
+
+  it.each([undefined, false])('keeps repaired oversized cards visible when final is %s', async (final) => {
+    const concludeTurn = vi.fn()
+    const spec = { items: Array.from({ length: 500 }, (_, i) => text(`n${i}`)) }
+    const args = final === undefined ? { spec } : { spec, final }
+    const value = await tool.execute(args, { concludeTurn } as never)
+    expect(String(value)).toContain('status=rendered')
     expect(String(value)).toContain(`rendered=${GENUI_LIMITS.maxNodes}`)
+    expect(tool.output.presentationMeta!(args, value)).toEqual(expect.objectContaining({ items: spec.items.slice(0, GENUI_LIMITS.maxNodes) }))
+    expect(concludeTurn).not.toHaveBeenCalled()
   })
 
   it('returns a corrective message for an unusable spec', async () => {
@@ -223,6 +411,22 @@ describe('validate_dsh_ui tool', () => {
     expect(vtool.description).toContain('dsh-ui fence')
     const parameters = vtool.parameters as { required?: string[] }
     expect(parameters.required).toContain('spec')
+  })
+
+  it.each([
+    { args: { spec: { items: [text('正文')] } }, status: 'valid', next: 'emit_fence' },
+    { args: { spec: '{"items":[{"type":"text","content":"正文",}],}' }, status: 'invalid', next: 'emit_repaired_fence' },
+    { args: { spec: { items: [{ type: 'callout', title: '只有标题' }] } }, status: 'invalid', next: 'fix_and_revalidate' },
+    { args: { spec: { items: [{ type: 'chart', kind: 'area', data: [] }] } }, status: 'invalid', next: 'fix_and_revalidate' },
+    { args: {}, status: 'invalid', next: 'provide_spec' },
+  ])('limits the $status / $next receipt to UI structure validation', async ({ args, status, next }) => {
+    const value = String(await vtool.execute(args))
+    expect(value).toContain('[genui-validation]')
+    expect(value).toContain('validation_scope=ui_structure_only')
+    expect(value).toContain('numerical_calculation=not_performed')
+    expect(value).toContain(`status=${status}`)
+    expect(value).toContain(`next=${next}`)
+    expect(value).toContain('reply_language=conversation')
   })
 
   it('approves a valid fence body (string or object)', async () => {

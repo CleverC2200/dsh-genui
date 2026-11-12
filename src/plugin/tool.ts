@@ -48,6 +48,10 @@ import { GENUI_PRESENTATION_POLICY } from './presentation-policy.ts'
 const RENDER_UI_PARAMETERS: Record<string, unknown> = {
   type: 'object',
   properties: {
+    final: {
+      type: 'boolean',
+      description: 'Set true only when this card completes the answer and all necessary tools, business-rule calculations and validation have finished. Ends the current turn only on a supported host with no pending diagnostics. Default false permits follow-up information.',
+    },
     spec: {
       type: 'object',
       description: [
@@ -151,7 +155,7 @@ function processRenderableValue(value: unknown): GenuiProcessResult {
 
 /** Wrap model-facing validation fields in the stable GenUI protocol envelope. */
 function validationProtocol(lines: string[]): string {
-  return ['[genui-validation]', ...lines, 'reply_language=conversation'].join('\n')
+  return ['[genui-validation]', ...lines, 'validation_scope=ui_structure_only', 'numerical_calculation=not_performed', 'reply_language=conversation'].join('\n')
 }
 
 /** Render process diagnostics as stable model-facing warning fields. */
@@ -215,7 +219,8 @@ export function createRenderUiTool(): ToolDefinition {
       render(_args: unknown, value: JsonValue): ContentBlock[] {
         return [{ type: 'text', text: String(value) }]
       },
-      presentationMeta(args: unknown): JsonValue {
+      presentationMeta(args: unknown, value?: JsonValue): JsonValue {
+        if (typeof value === 'string' && value.startsWith('[genui-render]\nstatus=needs_repair\n')) return null
         // The browser toolview reads the repaired spec from result meta. The
         // spec is JSON-safe by construction (only string/number/boolean/array
         // fields after repair), so the widening cast is lossless.
@@ -229,7 +234,7 @@ export function createRenderUiTool(): ToolDefinition {
         }) as unknown as JsonValue
       },
     },
-    async execute(args: unknown): Promise<JsonValue> {
+    async execute(args: unknown, exec?: unknown): Promise<JsonValue> {
       const processed = processRenderableValue(specOf(args))
       if (processed.spec === null) {
         return ['[genui-render]', 'status=invalid', 'error=invalid_spec', 'required=items', 'next=fix_and_retry', 'reply_language=conversation'].join('\n')
@@ -239,6 +244,22 @@ export function createRenderUiTool(): ToolDefinition {
       }
       const spec = processed.spec
       const warnings = formatProcessWarnings(processed)
+      const final = typeof args === 'object' && args !== null && 'final' in args && args.final === true
+      if (final) warnings.push(...formatInlineContentWarnings(spec))
+      if (final && (processed.errors.length > 0 || warnings.length > 0)) {
+        return [
+          '[genui-render]',
+          'status=needs_repair',
+          ...processed.errors.map(error => `diagnostic=${JSON.stringify(error)}`),
+          ...warnings,
+          'turn=continued reason=pending_diagnostics',
+          'next=fix_and_retry',
+          'reply_language=conversation',
+        ].join('\n')
+      }
+      const concludeTurn = typeof exec === 'object' && exec !== null && 'concludeTurn' in exec && typeof exec.concludeTurn === 'function' ? exec.concludeTurn : undefined
+      const concluded = final && concludeTurn !== undefined
+      if (concluded) concludeTurn.call(exec)
       return [
         '[genui-render]',
         'status=rendered',
@@ -246,6 +267,9 @@ export function createRenderUiTool(): ToolDefinition {
         `rendered=${processed.renderedCount}`,
         'action_feedback=[genui-action]',
         ...warnings,
+        ...(final ? [concluded ? 'turn=concluded' : 'turn=continued reason=host_unsupported'] : []),
+        concluded ? 'next=turn_completed' : 'next=reply_only_missing_information',
+        'reply=组件已作为回答交付。若无组件外的所问新信息或待处理诊断，立即结束本轮，不再输出正文或 dsh-ui 围栏。需要补充时只补所问新信息或处理诊断；不得以结论、摘要或来源说明重列组件已有数值、排序。',
         'reply_language=conversation',
       ].join('\n')
     },
@@ -272,7 +296,7 @@ export function createRenderUiTool(): ToolDefinition {
 const VALIDATE_DESCRIPTION =
   GENUI_PRESENTATION_POLICY + ' Validate the JSON body of a ```dsh-ui fence BEFORE emitting it — use for non-trivial specs (≥3 nodes or containing a table); skip for trivial ones (≤2 nodes). '
   + 'Pass the exact JSON text you are about to put inside the fence as the "spec" argument (a string). '
-  + 'Returns a [genui-validation] protocol block with status, diagnostics, next action, and reply_language=conversation. '
+  + 'Returns a [genui-validation] protocol block with status, diagnostics, next action, validation_scope=ui_structure_only, numerical_calculation=not_performed, and reply_language=conversation. '
   + 'When invalid JSON is repairable, repaired_json contains the fixed body; emit it only with next=emit_repaired_fence. '
   + 'A warning=unknown_field requires fixing the indicated path and another validation call. '
   + 'A warning=block_markdown requires the indicated replacement node and another validation call. '

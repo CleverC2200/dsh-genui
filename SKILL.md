@@ -7,7 +7,15 @@ description: "Render structured interactive UI inline through the dsh-ui fence. 
 
 **Language:** Match the user's requested language (otherwise the language of their message) in both surrounding prose and all user-visible UI text: titles, labels, content, options, and explanations. Chinese examples below illustrate the schema only; do not switch the conversation to Chinese after loading this skill. Keep JSON keys, component types, IDs, and actions unchanged. An English request gets English prose and UI text; a Chinese request gets Chinese prose and UI text. `<user-language ...>` tokens are meta-placeholders only. Replace every one with actual content in the conversation language; never emit these placeholders literally.
 
-你可以**在回答正文中间**输出可交互 UI 组件：写一个 `dsh-ui` 围栏（fenced block with language tag `dsh-ui`），内含 JSON 规格，渲染器会把这一整块画成真实组件，文字照常穿插在前后。围栏内联于回答；同一 spec 也可交给 `render_ui`，显示为工具行卡片。选择一种渠道即可。
+## 表达选择与事实范围
+
+按 show-me 的判断选择最省阅读和操作的形式。用户明确要组件时用组件；状态总览、库存对比、排行需要逐项查看、比较高低或交互时用组件，即使未点名 UI。简单建议或短步骤可用正文或组件；单个状态含义、差额或第一名直接短答，只给所问结果，遵守纯文字要求。只问谁/哪个时只答名称；只问数值时只答数值及原单位；不附其他字段或解释。短答约束仅限最终可见文本。数量和主题关键词不是触发配额。
+
+正文和组件都只呈现用户所问的事实、字段和指标。比较任务可补直接回答所需差额；用户限定名次、原值或单个对象时，仅给限定字段，不加衍生指标。数值和单位与来源一致。原输入值可直接呈现。引用原值保留指标含义和单位；比较建议保留支撑取舍的关键原值，不用未验证差值替换。validate_dsh_ui 仅校验结构/字段，不验算业务数值；校验或渲染成功不代表计算完成；渲染仅发布组件。当前业务规则要求工具验证的计算，无论短答、纯文字建议或组件，须先取得所需计算工具真实成功回执才呈现派生值；无成功回执则保留未完成，不把拟算值写成已核实。未要求且非比较所需的合计、占比或趋势不补充。单期数据只支持当期事实，不据此推断变化趋势或未来结果。整个答复内同一信息只呈现一次，包括正文、Markdown、内联围栏、工具卡及同卡多个节点；所需结论、来源和限制放进组件，组件本身就是回答。工具卡与内联围栏择一交付；工具卡交付成功且无组件外的所问新信息时，结束本轮，不再输出正文或围栏；内联围栏已承载全答时，闭合后结束。正文只补所问新信息。来源说明只标注来源/口径，不复列已呈现数值、名次或状态。
+
+模型选择表达形式和语义字段，渲染器负责字号和间距。保留来源状态和数据范围；unknown 保持未知，不改未完成；未完成不等于未开始。partial 只表示部分数据，不能据此计算全量指标或标记成功。下一页条数和结果未知时保留未知，不作承诺。数值指标可用 stat，状态文字用 table/keyvalue/list；只添加有用的操作，结论在前。
+
+内联 UI 使用回答正文中的 `dsh-ui` 围栏，内含 JSON 规格；工具行卡片使用 `render_ui` 传同一规格。按上面的交付规则选择一种渠道，正文仅补缺失的所问新信息。完整工具卡答复用 final:true；先完成必要工具和校验。有诊断先修复再发布。仅可渲染且无待处理诊断时终结本轮；缺省或 false 继续本轮。宿主不支持终结接口时保留继续回执。后续 [genui-action] 可开启新一轮。
 
 ```dsh-ui
 {"title":"<user-language text>","gap":14,"items":[...]}
@@ -144,9 +152,7 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 
 ## 什么时候用：内容类型 → 组件映射
 
-按 show-me 的判断选择最省阅读和操作的形式。用户明确要组件时用组件；状态总览、库存对比、排行需要逐项查看、比较高低或交互时用组件，即使未点名 UI。简单建议或短步骤可用正文或组件；单个状态含义、差额或第一名直接短答，遵守纯文字要求。数量和主题关键词不是触发配额。
-
-模型选择表达形式和语义字段，渲染器负责字号和间距。保留单位、数据范围和未完成/未知语义；partial 只表示部分数据，不能据此计算全量指标或标记成功。数值指标可用 stat，状态文字用 table/keyvalue/list；只添加有用的操作。同一信息只表达一次，结论在前。以下映射帮助选组件，不是每类内容都要套一套布局。
+以下映射帮助选组件，不是每类内容都要套一套布局。
 
 | 你要呈现的内容 | 用这些组件 |
 |---|---|
@@ -155,7 +161,7 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 | 多项风险 / 注意事项 | `list`；需要统一风险底色时用 `card.tone` + `list` |
 | 数据对比 / 趋势 / 占比 | `chart`（bars/line/donut）、`echart`（ECharts 全功能）、`table` |
 | 数值指标 / 已知进度 | `stat`、`progress`，保留单位和范围 |
-| 库存对比 / 排行 | `table` 或 `chart`，明确差额、名次和单位 |
+| 库存对比 / 排行 | `table` 或 `chart`，保留所问字段和原始单位 |
 | 需要并排查看的不同信息 | `grid` + 子节点 `span` |
 | 数据多、需要读者自己找 | `input`（id）+ `table`/`chart`/`list` 的 `filter` 绑定 |
 | 流程 / 步骤 / 阶段 / 时间线 | `steps`、`timeline`、`mermaid`（flowchart/sequence/gantt） |
@@ -305,7 +311,7 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 {"title":"库存对比（合成示例）","items":[{"type":"table","columns":["仓库","可用库存（箱）","安全库存（箱）","差额（箱）","状态"],"rows":[["甲仓",120,100,20,"高于安全量"],["乙仓",40,60,-20,"低于安全量"]]},{"type":"button","label":"查看明细","action":"show_inventory_details"}]}
 ```
 
-差额为可用库存减安全库存；明细入口不代表执行调拨。已有总量、同比等真实数值可使用 stat，状态文字留在表内。
+差额为可用库存减安全库存；明细入口不代表执行调拨。用户所问的总量、同比等真实数值可使用 stat，状态文字留在表内。
 
 ### 排行与月份切换
 
@@ -358,13 +364,13 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 
 ## 使用规则
 
-1. **围栏放哪，组件就出现在哪** —— 文字在前后自然流动，不要用工具、不要解释"这是一个围栏"。**围栏一闭合就立即渲染**（不等整条回答结束），所以可以边写文字边出组件
+1. **交付渠道择一**：内联围栏在正文所在位置闭合即渲染；`render_ui` 在工具行交付卡片。组件承载全答时，按上面的交付规则结束本轮。
 2. **组合优先**：复杂界面用 `grid`+`card`+`stat`+`table` 拼，不要追求单一巨型组件
 3. **JSON 必须严格合法，发出前完成 4 步自检**：插件**只**修标点级小错（字符串内半角引号、尾随逗号）；**缺括号/错括号等结构错误一律不修**，直接红横幅退化成代码块——写错就重发，别指望兜底。**最容易犯的错：字符串值里用了半角引号 `"`**——中文引语一律写 `“”` 或 `「」`。发出围栏前自检 4 条：① 括号配对：`{` 与 `}`、`[` 与 `]` 数量相等，**收尾序列逐个核对**（长表格最易在最后几行错位：把 `]]}]}` 写成 `]}]}]}`）② 无尾随逗号 ③ 值内引号用中文引号 ④ 最后一个字符必须是 `}`（**`}` 之后不要再写任何字符**——实测常见错误是习惯性追加 `</p>` 或一句解释，整条围栏就解析不了）。不要在 JSON 字符串里放 markdown；超长表格/列表拆成多个组件分开发，宁短勿长
 3.5. **字段名逐个核对**：未知组件类型（包括 `Card` / `Text` 等大小写误写）以及缺失必填字段会被校验工具拒绝。正文可保留其余有效组件；无法修复时展示源码和诊断，不会假报渲染成功。`tabs[].items` 必须提供（允许显式空数组），`content` 可作为别名；`card.body` / `card.content` 会归一化为 `items` 并提示。高频误写：`callout` 正文是 `content`（不是 text/body）；`table` 要 `columns` + `rows`（只给二维 rows 时首行会当表头）；`keyvalue` 要 `pairs:[{key,value}]`；`diff` 是 `diffs`；图片/音视频是 `src`；`code` 是 `code`、`copy` 是 `text`。拿不准就调 `validate_dsh_ui`，不要凭直觉命名。
 4. **不要嵌套围栏**：dsh-ui 里不要再包 ``` 代码围栏
 5. **深色主题友好**：配色选深底亮色；UI 主题跟随应用
-6. **场景判断**：先查上面的映射表 —— 内容类型命中就上对应组件；只有纯文字问答、一句话能说清时才不用
+6. **场景判断**：表达形式遵循开头的“表达选择与事实范围”；映射表只用于选组件，不扩大所问范围。
 7. **图表范围**：`plot` 给合理 xMin/xMax（如 -3.14 到 3.14）；3D 场景 mesh 少而精
 8. **规格要紧凑**：整棵组件树 ≤200 节点、≤8 层嵌套；单个 `table` ≤50 行、≤12 列，`list` ≤50 项，`file-tree` 每层 ≤50 个节点；单个 `tabs` ≤12 个标签页、`accordion` ≤24 项。超出限制的内容会被截断，并由 `validate_dsh_ui` 报告；长内容请分成多个组件，并在发出围栏前调用 `validate_dsh_ui` 检查。
 9. **一个主题选一个主组件**：命中映射表后选**一种**组件承载，同一信息不要用两种组件重复表达（同一批数据又画 bars 又画 donut = 冗余）

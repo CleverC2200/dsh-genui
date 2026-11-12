@@ -1,5 +1,7 @@
 # T5 业务展示验收记录
 
+当前隔离候选的后续结果见 [v8 验收补充](business-presentation-v8.ACCEPTANCE.md)。以下保留本轮早期失败原记录。
+
 2026-11-12。本轮未通过完整验收，PR 保持 draft，不能关闭 [#7](https://github.com/CleverC2200/dsh-genui/issues/7)。组件触发、渲染通过不代表内容或业务边界通过。
 
 ## 输入与运行边界

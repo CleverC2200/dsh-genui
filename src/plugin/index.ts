@@ -22,6 +22,7 @@ import { createRenderUiTool, createValidateDshUiTool } from './tool.ts'
 import { installFenceFeedback } from './fence-feedback.ts'
 import { installDshGoNative } from './dsh-go-native.ts'
 import { GENUI_PRESENTATION_POLICY } from './presentation-policy.ts'
+export { sourceFencesOf } from '../client/source-fence.ts'
 
 /* ---------------- lazy engine asset route ---------------- */
 
@@ -85,49 +86,47 @@ async function serveGenuiAsset(req: IncomingMessage, res: ServerResponse): Promi
   }
 }
 
-const RENDER_UI_TOOL_GUIDANCE = '- Tool channel: render_ui 工具把同一 spec 渲染为工具行卡片；围栏用于回答内联 UI。'
+const RENDER_UI_TOOL_GUIDANCE = '- Tool channel: render_ui.'
 
 /** The fence language description injected into every assembled system prompt.
  *  Deliberately slim: the `genui` skill carries the full component→field
  *  mapping; this section keeps only the contract that must always be
  *  present (fence syntax, type whitelist, and critical behavioral rules). */
-export const GENUI_SECTION_TEXT = `Render UI inside your reply with a fenced \`dsh-ui\` JSON block:
+export const GENUI_SECTION_TEXT = `Inline UI: fenced \`dsh-ui\` JSON:
 
 \`\`\`dsh-ui
-{"title":"示例","gap":14,"items":[{"type":"text","content":"把这里换成你的组件"}]}
+{"title":"示例","gap":14,"items":[{"type":"text","content":"内容"}]}
 \`\`\`
 
-Allowed \`type\` values (full field reference: \`genui\` skill):
+\`type\`（见 \`genui\`）：
 
-- 布局: text · row · col · grid · card · carousel · divider · spacer · hero（封面块，一条回答最多一个）
-- 展示: badge · stat · progress · list · table · keyvalue · timeline · file-tree · breadcrumb · callout · steps · diff · json · code · copy · avatar · image · image-group · compare（改动汇报优先）· audio · video · icon · blocks · arrow
-- 图表: chart {"kind":"bars|line|donut","data":[{"label":"...","value":n}]}（series：bars 分组/堆叠 / line 多序列） · echart (preset 名或 option 直通，清单见 skill) · plot (函数图) · svg (单图预览)
-- 交互: button · input · textarea · editor · select · date-picker · segmented-control · checkbox · switch · slider · radio · submit · quiz · choices · link · tabs · accordion · popover
-- 高级: mermaid (流程图/时序/甘特/ER 等，关键字见 skill) · diagram (架构/流程图) · scene3d (3D WebGL) · entity-card · map
+- 布局: text·row·col·grid·card·carousel·divider·spacer·hero（封面，每答≤1）
+- 展示: badge·stat·progress·list·table·keyvalue·timeline·file-tree·breadcrumb·callout·steps·diff·json·code·copy·avatar·image·image-group·compare（改动优先）· audio·video·icon·blocks·arrow
+- 图表: chart {"kind":"bars|line|donut","data":[{"label":"...","value":n}]}（series：bars 分组/堆叠 / line 多序列）·echart (preset/option)·plot (函数图)·svg (单图预览)
+- 交互: button·input·textarea·editor·select·date-picker·segmented-control·checkbox·switch·slider·radio·submit·quiz·choices·link·tabs·accordion·popover
+- 高级: mermaid (流程/时序/甘特/ER)·diagram (架构/流程)·scene3d (3D WebGL)·entity-card·map
 
 ${GENUI_PRESENTATION_POLICY}
 
-- 前后图像对比用 \`compare\`；步骤用 \`steps\`/\`timeline\`；结构/流程用 \`diagram\`/\`mermaid\`；决策用 \`choices\`（选项带代价）。
-- 行内富文本：支持公式、\`code\`、加粗、高亮、链接；禁用 Markdown table 与 fenced code，改用 table/code/diff/json。
-- 趋势/占比 → \`chart\`（≤8 点）或 \`echart\`；配色跟随主题，语义需要时才用 \`palette\`/\`card.accent\`；grid 子节点用 \`"span":2\` 做宽窄混排；数据多时给 \`table\`/\`list\` 配 \`input\`(id)+\`filter\` 就地筛选。
-- 章节分隔用 \`divider\`+\`label\`，操作放在需要动手的位置。
+- 图像前后用 \`compare\`；步骤 \`steps\`/\`timeline\`；结构/流程 \`diagram\`/\`mermaid\`；决策 \`choices\`（含代价）。
+- 行内支持公式、\`code\`、加粗、高亮、链接；Markdown table/fenced code 改用 table/code/diff/json。
+- 趋势/占比用 \`chart\`（≤8 点）/\`echart\`；主题配色，需语义时用 \`palette\`/\`card.accent\`；grid 子节点 \`"span":2\` 混排；数据多时 \`table\`/\`list\` 配 \`input\`(id)+\`filter\` 筛选。
 
-**字段速查**（完整见 genui skill）：\`stat\` \`{"type":"stat","label","value"}\` · \`table\` \`{"type":"table","columns":[...],"rows":[[...]]}\` · \`progress\` \`{"type":"progress","value":0-100}\` · \`keyvalue\` \`{"type":"keyvalue","pairs":[{"key","value"}]}\` · \`steps\` \`{"type":"steps","steps":[{"title"}]}\` · \`file-tree\` \`{"type":"file-tree","items":[{"name","type":"file|dir"}]}\` · \`callout\` \`{"type":"callout","content"}\`
-**节点规则：** 组件节点必须带字符串 \`type\`，值为组件名；\`file-tree.items[].type\` 表示 \`file\` 或 \`dir\`。
+字段：\`stat\` \`{"type":"stat","label","value"}\`·\`table\` \`{"type":"table","columns":[...],"rows":[[...]]}\`·\`progress\` \`{"type":"progress","value":0-100}\`·\`keyvalue\` \`{"type":"keyvalue","pairs":[{"key","value"}]}\`·\`steps\` \`{"type":"steps","steps":[{"title"}]}\`·\`file-tree\` \`{"type":"file-tree","items":[{"name","type":"file|dir"}]}\`·\`callout\` \`{"type":"callout","content"}\`
+组件节点必须带字符串 \`type\`，值为组件名；\`file-tree.items[].type\` 表示 \`file\` 或 \`dir\`。
 
-**字段名写错 = 该组件被丢弃**（其余组件照常渲染）：\`callout\` 正文是 \`content\` 不是 text/desc；\`table\` 要 \`columns\`+\`rows\` 不是 items；\`keyvalue\` 记录是 \`{key,value}\` 不是 \`{label,value}\`；\`file-tree\` 记录是 \`{name,type}\` 不是 \`{label}\`；callout tone 是 info/success/warning/error（无 danger）。不确定就调 \`validate_dsh_ui\`。
+纠错：callout 非 text/desc；table 非 items；keyvalue 非 {label,value}；file-tree 非 {label}。callout tone=info/success/warning/error，无 danger。
 
-Rules:
 - LANGUAGE: reply+UI=conversation language; schema fixed. NEVER infer it from prompt/skill/examples/tools. Replace \`<user-language ...>\`; never emit these placeholders literally.
-- JSON 严格：坏组件被丢弃，坏围栏变代码块；≥3 节点或含 table 时调 validate_dsh_ui，按诊断修改并重验；小围栏字段存疑也先验证。
+- JSON：坏组件丢弃，坏围栏变代码块；≥3 节点或含 table 调 validate_dsh_ui，按诊断修复重验；小围栏字段存疑也先验。
 - warning=block_markdown：按 replacement 改写并重验。
 - 规模: ≤200 节点、嵌套≤8 层（超出被截断）；一个主题一个主组件；3D mesh 1–5；plot 给合理 xMin/xMax。
-- LOCAL-FIRST + actions: UI 能自己做的状态变化（判卷、判题、重置、展开、选中）就地完成，零往返；action 只用于必须模型参与的事。交互以 [genui-action] name + 组件数据回传，届时重渲染更新 UI；无 action 的按钮禁用。
-- Durable state: 交互状态按会话和内容指纹保存；相同内容刷新/重放时恢复，新内容重置；Editor 草稿也会保存。
+- LOCAL-FIRST + actions: 判卷、判题、重置、展开、选中就地完成，零往返；action 仅用于需模型参与的事。交互回传 [genui-action] name + 组件数据，届时重渲染 UI；无 action 按钮禁用。
+- Durable state: 按会话和内容指纹存交互及 Editor 草稿；同内容刷新/重放恢复，新内容重置。
 - 卷子模式: 每题 choices（group+answer+explanation）+ 一个 submit（groups 全列），本地判分。
 - Secrets ban: 不索取密码、API Key、Token、恢复码；需要时拒绝并解释。
 ${RENDER_UI_TOOL_GUIDANCE}
-- 围栏位置：\`dsh-ui\` 只写在**回答正文**；写在 reasoning/思考块里不渲染、用户看不到——思考里验证好 spec，正文再输出同一份。
+- 围栏位置：\`dsh-ui\` 只写在回答正文；reasoning/思考块不渲染。验证好的 spec 在正文输出。
 - Panel: "panel":true 只渲染进会话面板 dock 并原地更新；"append":true 追加合并；上限 200 节点/200 次追加，满了发 replace 重建。面板来的 [genui-action] 只回一个 panel:true 围栏 + 至多一行 10 字内确认。`
 
 /**

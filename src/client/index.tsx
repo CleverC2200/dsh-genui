@@ -31,6 +31,7 @@ import { mountAchievementToasts } from './achievement-toast.tsx'
 import { bridgeHostLocale, t } from './i18n/index.ts'
 import type { InputTriggerServiceContract } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import { assetUrl } from './asset-loader.ts'
+import { GenuiActionContext } from './action-context.ts'
 
 /** Add low-priority prefetch links for the lazy engine assets (mermaid/three).
  * Browser-dependent: some engines ignore `<link rel=prefetch>`; harmless
@@ -97,10 +98,10 @@ function sendPanelInstruction(ctx: Context, sessionId: SessionId, instruction: s
 }
 
 /**
- * Inline-fence action relay (DOM channel): the same message template the
+ * Inline-fence and toolview action relay: the same message template the
  * host action message template, so inline actions reach the model consistently.
  */
-function sendInlineGenuiAction(ctx: Context, sessionId: SessionId, action: string, payload: Record<string, unknown>): void {
+function sendGenuiAction(ctx: Context, sessionId: SessionId, action: string, payload: Record<string, unknown>): void {
   const scoped = ctx.sessions.scope(sessionId)
   const conversation = scoped?.get('conversation') as IConversation | undefined
   if (conversation === undefined) return
@@ -135,7 +136,7 @@ export function apply(ctx: Context): () => void {
   console.info('[genui] client active; fence-channel=dom')
   const disposers: Array<() => void> = [
     localeDispose,
-    installDomFenceRenderer(ctx, (sessionId, action, payload) => sendInlineGenuiAction(ctx, sessionId, action, payload), fileLinkAvailability),
+    installDomFenceRenderer(ctx, (sessionId, action, payload) => sendGenuiAction(ctx, sessionId, action, payload), fileLinkAvailability),
   ]
   // Idle prefetch of the lazy engine assets: the browser downloads them at
   // LOW priority whenever the page is idle, so the first mermaid/3D node in
@@ -156,7 +157,9 @@ export function apply(ctx: Context): () => void {
     fileLinkAvailability,
     props.sessionId,
     false,
-    createElement(GenuiToolView, props),
+    createElement(GenuiActionContext.Provider, {
+      value: props.sessionId === undefined ? undefined : (action, payload) => sendGenuiAction(ctx, props.sessionId, action, payload),
+    }, createElement(GenuiToolView, props)),
   ))))
   // Session panel dock: a session-scoped, always-present seat above the
   // composer (TodoDock posture). Renders the session's latest render_ui
