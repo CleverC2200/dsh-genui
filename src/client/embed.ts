@@ -1,3 +1,4 @@
+import type {} from './embed-styles.js'
 export { GenuiBlock } from './GenuiBlock.tsx'
 export { GenuiActionContext } from './action-context.ts'
 export { ErrorBoundary } from './ErrorBoundary.tsx'
