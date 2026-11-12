@@ -16,8 +16,12 @@ describe('render_ui tool definition', () => {
       expect(definition.description).toMatch(/状态总览.*库存对比.*排行.*用组件/)
       expect(definition.description).toContain('单个状态含义、差额或第一名直接短答')
       expect(definition.description).toContain('渲染器负责字号和间距')
+      expect(definition.description).toMatch(/操作入口.*action.*真实.*链接/)
+      expect(definition.description).toContain('文字路径不能充当入口')
     }
     expect(JSON.stringify(tool.parameters)).not.toContain('USE THIS whenever')
+    expect(tool.description).toContain('组件字段先读当前原生 genui Skill')
+    expect(tool.description).not.toContain('see the system prompt')
   })
 
   it('registers under the render_ui name with an open spec argument', () => {
