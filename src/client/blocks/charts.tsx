@@ -134,11 +134,11 @@ function deltaTone(value: unknown): 'up' | 'down' | null {
  *  for EVERY value, so a 状态 column showed 正常 / 偏高 / 失败 in one colour and
  *  stopped encoding status. Standalone `badge` nodes already carry a tone; the
  *  table cell just never resolved one. Unknown labels keep the accent pill, so
- *  arbitrary words are safe. Negatives are tested first: 不正常 contains 正常. */
+ *  arbitrary words are safe. */
 const BADGE_TONE_WORDS: ReadonlyArray<['success' | 'warn' | 'danger', RegExp]> = [
   ['danger', /(偏高|异常|失败|错误|故障|离线|拒绝|超限|危险|失效|超时|fail|error|down|critical|offline|blocked)/i],
   ['warn', /(关注|警告|波动|部分|降级|观察|待定|degraded|partial|pending|warn|slow)/i],
-  ['success', /(正常|健康|通过|成功|完成|在线|稳定|有效|命中|启用|healthy|active|done|ready|pass|ok)/i],
+  ['success', /^(正常|健康|已?通过|已?成功|已?完成|在线|稳定|有效|命中|启用|healthy|active|done|ready|pass|ok)$/i],
 ]
 
 function badgeTone(value: unknown): 'success' | 'warn' | 'danger' | null {

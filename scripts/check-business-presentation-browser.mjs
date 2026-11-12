@@ -245,8 +245,19 @@ try {
     deltaResults.push({type, colors})
   }
   assert.deepEqual(errors, [], 'Browser runtime errors')
+  const tableStates = ['已完成', '未完成', '未知', '未通过', '不正常', 'inactive', 'broken', 'token', '正常', 'partial', '失败']
+  await evaluate(`window.genuiPresentation.mount(${JSON.stringify({ items:[{type:'table',columns:['环节','状态'],types:['text','badge'],rows:tableStates.map((state, index) => [`环节 ${index + 1}`, state])}] })})`)
+  const tableBadges = await evaluate(`(() => {
+    const root = document.querySelector('#root')
+    root.style.setProperty('--dsw-alias-state-success-secondary', '#118044')
+    return [...root.querySelectorAll('tbody td:nth-child(2) > span')].map(element => ({text:element.textContent,color:getComputedStyle(element).color}))
+  })()`)
+  await writeFile(join(out, 'table-status-badges.png'), Buffer.from((await command('Page.captureScreenshot', {captureBeyondViewport:true})).data, 'base64'))
+  assert.deepEqual(tableBadges.map(badge => badge.text), tableStates, 'Table badges preserve all status labels')
+  for (const index of [0, 8]) assert.equal(tableBadges[index].color, 'rgb(17, 128, 68)', `${tableStates[index]} retains success semantics`)
+  for (const index of [1, 2, 3, 4, 5, 6, 7]) assert.notEqual(tableBadges[index].color, 'rgb(17, 128, 68)', `${tableStates[index]} must not inherit success from a substring`)
   const failures = results.flatMap(result => result.failures.map(failure => ({ id:result.id, width:result.width, hostFontSize:result.hostFontSize, ...failure })))
-  await writeFile(join(out, 'result.json'), JSON.stringify({ passed:failures.length === 0, browser:version, dataScope:fixtures.dataScope, provenance:fixtures.provenance, results, compatibility, deltaResults, failures }, null, 2) + '\n')
+  await writeFile(join(out, 'result.json'), JSON.stringify({ passed:failures.length === 0, browser:version, dataScope:fixtures.dataScope, provenance:fixtures.provenance, results, compatibility, deltaResults, tableBadges, failures }, null, 2) + '\n')
   console.log(JSON.stringify({ passed:failures.length === 0, cells:results.length, failures:failures.length, criteria:[...new Set(failures.map(failure => failure.criterion))], out }))
   assert.equal(failures.length, 0, `Business presentation criteria failed; see ${join(out, 'result.json')}`)
 } catch (error) {
