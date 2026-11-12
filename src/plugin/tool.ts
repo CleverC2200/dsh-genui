@@ -31,6 +31,7 @@ import { collectInlineContentWarnings } from './inline-content-diagnostic.ts'
 import type { GenuiSpec } from '../client/spec.ts'
 import { toDshGoView } from './dsh-go-view.ts'
 import { dualNativeFence } from './dsh-go-compiler.ts'
+import { GENUI_PRESENTATION_POLICY } from './presentation-policy.ts'
 
 /**
  * Arguments schema: an open `spec` slot. The schema must NOT reject anything
@@ -50,8 +51,7 @@ const RENDER_UI_PARAMETERS: Record<string, unknown> = {
     spec: {
       type: 'object',
       description: [
-      'Render structured UI for the user (tool-row card). USE THIS whenever the answer contains ≥3 parallel points, a comparison, numbers/metrics, a step sequence, a flow, or a status/report — do NOT write those as markdown bullets or a markdown table.',
-      'Same white-listed vocabulary as the ```dsh-ui fence (see the GenUI system-prompt section). Pick the fence when the UI belongs in the message body; pick this tool when the deliverable is a self-contained card.',
+      'GenUI component tree for a tool-row card. Apply the presentation criteria in this tool description. The same spec can be emitted inline through a ```dsh-ui fence.',
       'Deep-validated and repaired by the renderer. Pass the spec as a JSON OBJECT — never as a serialized JSON string (a string fails argument validation).',
     ].join(' '),
       // Structural hints for the tool-call bridge. A bare `object` here was
@@ -207,7 +207,7 @@ export function createRenderUiTool(): ToolDefinition {
     name: 'render_ui',
     description:
       'Render an interactive UI card in the conversation tool row by passing a GenUI spec (a white-listed component tree; the same vocabulary as the ```dsh-ui fence, see the system prompt). '
-      + 'Use it when the user asks for a structured panel, dashboard, or form that belongs in the tool row rather than inline in the reply. '
+      + GENUI_PRESENTATION_POLICY + ' Use this tool for a self-contained tool-row card; emit a dsh-ui fence for inline UI. '
       + 'The card is interactive client-side (tabs, buttons, inputs, switches); components carrying an "action" field send [genui-action] back to you when the user interacts, and you should re-render the updated UI.',
     parameters: RENDER_UI_PARAMETERS,
     output: {
@@ -270,7 +270,7 @@ export function createRenderUiTool(): ToolDefinition {
  * "verify before you send". Purely local: no LLM, no network, no DOM.
  */
 const VALIDATE_DESCRIPTION =
-  'Validate the JSON body of a ```dsh-ui fence BEFORE emitting it — use for non-trivial specs (≥3 nodes or containing a table); skip for trivial ones (≤2 nodes). '
+  GENUI_PRESENTATION_POLICY + ' Validate the JSON body of a ```dsh-ui fence BEFORE emitting it — use for non-trivial specs (≥3 nodes or containing a table); skip for trivial ones (≤2 nodes). '
   + 'Pass the exact JSON text you are about to put inside the fence as the "spec" argument (a string). '
   + 'Returns a [genui-validation] protocol block with status, diagnostics, next action, and reply_language=conversation. '
   + 'When invalid JSON is repairable, repaired_json contains the fixed body; emit it only with next=emit_repaired_fence. '
