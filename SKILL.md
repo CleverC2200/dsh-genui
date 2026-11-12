@@ -1,13 +1,13 @@
 ---
 name: genui
-description: "Render structured interactive UI inline through the dsh-ui fence. Use for key points, emphasis, comparisons, flows, steps, status, data, demos, and interactions whenever structured presentation would be clearer than prose. Preserve conversation language for all user-visible text."
+description: "Render structured interactive UI inline through the dsh-ui fence. Use for requested UI, structured status overviews, inventory comparisons, rankings, flows, data, and interactions that help users inspect or compare. Preserve direct answers to narrow questions. Preserve conversation language for all user-visible text."
 ---
 
 # GenUI — 生成式 UI 输出规范
 
 **Language:** Match the user's requested language (otherwise the language of their message) in both surrounding prose and all user-visible UI text: titles, labels, content, options, and explanations. Chinese examples below illustrate the schema only; do not switch the conversation to Chinese after loading this skill. Keep JSON keys, component types, IDs, and actions unchanged. An English request gets English prose and UI text; a Chinese request gets Chinese prose and UI text. `<user-language ...>` tokens are meta-placeholders only. Replace every one with actual content in the conversation language; never emit these placeholders literally.
 
-你可以**在回答正文中间**输出可交互 UI 组件：写一个 `dsh-ui` 围栏（fenced block with language tag `dsh-ui`），内含 JSON 规格，渲染器会把这一整块画成真实组件，文字照常穿插在前后。组件**就是回答的一部分**，不是工具调用。
+你可以**在回答正文中间**输出可交互 UI 组件：写一个 `dsh-ui` 围栏（fenced block with language tag `dsh-ui`），内含 JSON 规格，渲染器会把这一整块画成真实组件，文字照常穿插在前后。围栏内联于回答；同一 spec 也可交给 `render_ui`，显示为工具行卡片。选择一种渠道即可。
 
 ```dsh-ui
 {"title":"<user-language text>","gap":14,"items":[...]}
@@ -40,18 +40,18 @@ description: "Render structured interactive UI inline through the dsh-ui fence. 
 高级：`svg` `mermaid` `diagram` `scene3d` `quiz` `entity-card`
 
 ### 布局
-- text: `{"type":"text","size":"display|h1|h2|h3|body|muted|caption","content":"...","align":"left|center|right"?}`（`tone:"danger|success|warning|info|muted"` 给整行文字上语义色，不用套 badge；`mono:true` 走等宽字体，用于十六进制/二进制/标识符，不带行内代码底色）（`size:"display"` 比标题大一档，作引言/开篇点题句，**一条回答 ≤1**；`center:true` 是旧写法，等价 `align:"center"`，新写一律用 `align`）
+- text: `{"type":"text","size":"display|h1|h2|h3|body|muted|caption","content":"...","align":"left|center|right"?}`（`tone:"danger|success|warning|info|muted"` 给整行文字上语义色，不用套 badge；`mono:true` 走等宽字体，用于十六进制/二进制/标识符，不带行内代码底色）（`size` 为既有语义层级，具体字号由渲染器适配；`center:true` 是旧写法，等价 `align:"center"`，新写一律用 `align`）
 - row / col: `{"type":"row"|"col","items":[...],"wrap":true?,"spacer":true?,"gap":n?}`；`row.justify:"center"` 主轴居中（图标+标题那种图头）；`col.width:n`（1-100）给这一列占行宽的百分比，不写就按内容宽
 - grid: `{"type":"grid","cols":n,"items":[...]}`；`columns` 可作为 `cols` 的别名，校验会提示使用规范字段。
 - carousel: `{"type":"carousel","title":"<user-language title>","items":[{"type":"card","title":"...","items":[...]}],"itemWidth":240?,"gap":3?}` — 原生节点横向滚动；最多 24 项，宽度 80–640px 且不超过轨道宽度的 85%；默认宽度 240px。`gap` 数值乘以 4px，省略时为 12px，负数按 0 处理。导航按钮每次滚动轨道宽度的 85%，仅在内容溢出时显示，触摸设备直接滑动轨道。不自动播放。轨道聚焦时支持左右键 / Home / End，卡片内表单按原提交规则工作。浏览与滑动不发 action；子组件自身声明的 action 按既有交互规则触发。流式输出只在尾部追加卡片以保留已有输入路径。
-- hero: `{"type":"hero","title":"<user-language title>","subtitle":"<user-language text>","value":"99.96%","label":"<user-language metric>","delta":"+0.02%","spark":[...],"tone":"accent|success|warning|danger"}` — **封面块**：eyebrow + 超大数字（52px，带入场计数）+ 标题 + 副标题 + tone 渐变底色。**一条回答最多用一个**，放在最前面当视觉锚点
+- hero: `{"type":"hero","title":"<user-language title>","subtitle":"<user-language text>","value":"99.96%","label":"<user-language metric>","delta":"+0.02%","spark":[...],"tone":"accent|success|warning|danger"}`，用于用户需要的报告封面，最多一个。保留有依据的数值、标题和说明；实际字号由渲染器决定，普通状态总览使用下面的状态示例
 - span: 任意节点都可加 `"span":2`（grid 子节点占几列）——bento 排版的唯一原语：一张 `span:2` 宽卡配一张窄卡，比一列方块堆下去好看得多
 - card: `{"type":"card","title":"...","items":[...]}`；`"tone":"info|success|warning|danger"` 给卡片语义底色（用于结论卡/风险卡）；`"accent":"#f59e0b"` 指定强调色（边框 + 标题 + 极淡底色）；`"flat":true` 去掉阴影、换成极淡中性底——**图里的面板必须用 flat**，否则每层都像浮起的卡片，叠两层就脏了；`"eyebrow":"<user-language 小引题>"` 在标题上方加一行 meta 小字（把多张卡分章时用——**连续同章的卡片不要每张都加**，一段回答 ≤3 个）
 - palette: `chart` / `echart` 都支持 `"palette":["#ff8800","#3ecf8e"]` 覆盖分类色板（默认跟随宿主主题）。**只有语义上需要指定颜色时才写**（成本=红、收益=绿），否则跟随主题更稳
 - divider: `{"type":"divider"}`；**带章节名** `{"type":"divider","label":"<user-language 章节名>"}`（线 + 小标签居中，作章节切换：报告从摘要切入数据、图表册开新章时用一段；卡片/列表内部、连续同主题内容之间**不要用**，一条回答 ≤3 个）; spacer: `{"type":"spacer"}`
 
 ### 展示
-- stat: `{"type":"stat","label":"...","value":"...","delta":"+12.4%|-3%"}`（`-` 开头自动红、`+` 绿）；可选 `"spark":[3,5,4,8,6]` 画一条微趋势线（2–60 个有限数值）；`"size":"hero"` 渲染超大数字（一条回答最多用一次，作为视觉锚点）
+- stat: `{"type":"stat","label":"...","value":"...","delta":"+12.4%|-3%"}`，用于有单位和范围的数值指标；`delta` 只写真实数值变化（`-` 红、`+` 绿），状态或编号放在 table/keyvalue/list。可选 `"spark":[3,5,4,8,6]` 画微趋势线（2–60 个有限数值）。已有 `size:"hero"` 数据继续兼容，新回答由渲染器适配数值与文本字号
 - badge: `{"type":"badge","label":"...","tone":"success|warn|danger|accent","icon":"emoji?"}`
 - progress: `{"type":"progress","label":"...","value":0-100,"valueLabel":"70%"}`；`"variant":"ring"` 画环形进度，`"target":70` 在轨道上标出目标刻度
 - avatar: `{"type":"avatar","name":"...","color":"#hex?"}`
@@ -143,26 +143,24 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 
 ## 什么时候用：内容类型 → 组件映射
 
-**判断只有一句：删掉这个组件，读者会不会更费劲。** 会 → 留着；不会 → 它是装饰，写正文。
+按 show-me 的判断选择最省阅读和操作的形式。用户明确要组件时用组件；状态总览、库存对比、排行需要逐项查看、比较高低或交互时用组件，即使未点名 UI。简单建议或短步骤可用正文或组件；单个状态含义、差额或第一名直接短答，遵守纯文字要求。数量和主题关键词不是触发配额。
 
-**没有配额，也没有硬触发。** 不存在"≥3 条要点就必须出 `list`"、"回答超过 10 行至少一个围栏"、"一条回答 3–8 个组件"这类规则——它们只会让每条回答长成同一个形状。下面的表是**可选词汇表**，回答"这类内容适合用什么"，不是"出现这种内容就要用"。用户明确要纯文字时以用户为准。
-
-判断顺序：这段内容的核心是不是"要比较 / 要计算 / 要做决定 / 要看结构"？是 → 找最小的那个组件承载它；不是 → 正文写清楚。一个回答通常只有一个真正的主组件，其余都是它的证据或操作。
+模型选择表达形式和语义字段，渲染器负责字号和间距。保留单位、数据范围和未完成/未知语义；partial 只表示部分数据，不能据此计算全量指标或标记成功。数值指标可用 stat，状态文字用 table/keyvalue/list；只添加有用的操作。同一信息只表达一次，结论在前。以下映射帮助选组件，不是每类内容都要套一套布局。
 
 | 你要呈现的内容 | 用这些组件 |
 |---|---|
-| 并列结论 / 要点罗列（≥2 条） | `list`、`keyvalue` |
-| 单条重点强调 / 警告 / 注意事项 | `callout`（info/success/warning/error）、`badge`、`stat` |
+| 需要逐项查看的并列结论 | `list`、`keyvalue` |
+| 风险提醒 | `callout`（info/success/warning/error），按实际含义选择 tone |
 | 多项风险 / 注意事项 | `list`；需要统一风险底色时用 `card.tone` + `list` |
 | 数据对比 / 趋势 / 占比 | `chart`（bars/line/donut）、`echart`（ECharts 全功能）、`table` |
-| 关键指标数字 / 进度状态 | `stat`、`progress`、`badge` |
-| 回答的视觉锚点（第一个组件） | `hero`（封面块，一条回答最多一个） |
-| 想排版不呆板 | `grid` + 子节点 `span`（bento：宽窄混排） |
+| 数值指标 / 已知进度 | `stat`、`progress`，保留单位和范围 |
+| 库存对比 / 排行 | `table` 或 `chart`，明确差额、名次和单位 |
+| 需要并排查看的不同信息 | `grid` + 子节点 `span` |
 | 数据多、需要读者自己找 | `input`（id）+ `table`/`chart`/`list` 的 `filter` 绑定 |
 | 流程 / 步骤 / 阶段 / 时间线 | `steps`、`timeline`、`mermaid`（flowchart/sequence/gantt） |
 | 架构 / 系统拓扑 / 数据流 / 品牌图 | `diagram`（编辑级，27 种类型；自动布局需求才用 `mermaid`） |
 | 目录 / 文件结构 / 层级关系 | `file-tree`、`mermaid`、`accordion` |
-| 状态一览 / 检查结果 | `badge` + `table` + `progress` 组合 |
+| 状态一览 / 检查结果 | `table`、`keyvalue` 或 `list`，未知和未完成保持原意 |
 | 代码 / 配置 / 改动对比 | `code`、`diff`、`json` |
 | 图片 / 截图 / 图表预览 | `image` |
 | 语音 / 音乐 / AI 视频 / 演示录像 | `audio`、`video` |
@@ -196,17 +194,9 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 
 文字字段只支持行内富文本。`text.content`、`callout.content`、`list` 项、`keyvalue` 值、`table` 单元格等字段中不要嵌入 Markdown 表格或连续三个及以上反引号、波浪号组成的代码围栏；表格使用 `table`，代码使用 `code`，代码改动使用 `diff`，结构化 JSON 使用 `json`。误写入文字字段的代码围栏连同内部标记保持原文，未闭合时从围栏标记开始保持原文。`validate_dsh_ui` 返回 `warning=block_markdown` 时，按照 `replacement` 改写结构节点并重新验证。
 
-## 回答级版式：默认无卡，焦点唯一
+## 回答级版式
 
-**规则来自设计规范，不是口味**（`design` skill 的 `references/design-reference.md`）：
-「通用圆角矩形卡片当默认容器 = 模板思维，默认无卡；只有内容类型确实需要时才加卡片处理」，
-「如果替换内容不需要改布局，那就是模板，重做」。
-
-### 三条判据（不设组件数量上限）
-
-1. **必要性**：这个组件承载的信息，用文字表达会明显更差吗？数字对比、趋势、空间关系、代码/数据原文才算过关，否则删掉。
-2. **焦点唯一**：一条回答只有一个视觉焦点（最大那张图或那组数字）；其余组件的视觉权重必须明显更低，靠尺寸/位置/色彩强度拉开，**不是靠数组件个数**。
-3. **不重复**：同一批数据不做两种表达（表格与图表二选一）。
+先选能承载主要问题的组件，再放必要证据和操作。同一数据不重复画表与图，普通文字不额外套卡。组件数量和调用率不作为改进目标。
 
 ### 卡片（`card`）只在有明确用途时用
 
@@ -216,35 +206,23 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 
 普通单段文字、普通列表、已经自带边界的表格/图表，**不要包卡**。用 `h3` 标题 + 正文 + 间距代替。
 
-### 层级靠字，不靠框
+### 文字与语义
 
-- 卡片标题 16px / 字重 650 / 句首大小写（**不是** 12.5px 全大写小标签）；
-- 12.5px 全大写只用于 eyebrow（如 hero 上方那一行）；
-- 大字号带负字距（≥32px 约 -0.022em，20–28px 约 -0.012em），数字列 `tabular-nums`；
-- CJK 正文行高 1.7，长段落行宽 ≤68ch；
-- 表面对比遵循规范：浅色相邻表面明度差 ≥4%，或阴影 ≥ `0 1px 3px rgba(0,0,0,0.10)`；深色靠半透明白叠加（卡片约 4%，抬升面 8%），投影在深色几乎无效。
-
-### 不要
-
-- 装饰性编号（①②③）：该分点用 `list`，该分节用标题；
-- 同一套骨架每条回答复用（标题栏 → 卡片网格 → 表格 → callout）；
-- 为了"显得丰富"堆组件：读者找不到重点就是失败。
-
-### 怎么验证没模板化
-
-`node scripts/genui-usage-audit.mjs` 输出「版式多样性」：不同版式签名数、最常见签名占比、归一化熵（越接近 1 越多样）、每回答 card 数分布。熵明显下降或 card 数不降反升，就说明规则没生效。
+使用现有字段表达标题、正文、数值、单位和状态。渲染器处理字体、行距、换行和窄屏布局。数据缺失、未知、待核对、未完成和 partial 保留为相应文字；只在证据支持完成或成功时使用成功语义。
 
 ## 范例：示范「判断」，不要照抄组件序列
 
-每个范例后面都跟着**什么时候不要这样**。组件多是好事——只要每个都在承载不同信息、并且有焦点和层次；真正的毛病是重复表达、以及把纯文字段落包进卡片。
+范例中的数据均为合成示例。按当前问题选择所需部分，保留用户要求的语言、事实和操作边界。
 
-### 1. 状态汇报（多点 + 有构图）
+### 1. 状态总览与下一步
 
-```json dsh-ui
-{"items":[{"type":"grid","cols":4,"items":[{"type":"stat","label":"<user-language metric>","value":"26","delta":"#123–#148"},{"type":"stat","label":"<user-language metric>","value":"0"},{"type":"stat","label":"<user-language metric>","value":"556","delta":"<user-language status>"},{"type":"stat","label":"<user-language metric>","value":"45"}]},{"type":"table","columns":["<user-language column>","<user-language column>","<user-language column>"],"types":["text","badge","text"],"rows":[["<user-language text>","<user-language status>","<user-language text>"],["<user-language text>","<user-language status>","<user-language text>"]]},{"type":"callout","tone":"info","title":"<user-language title>","content":"<user-language text>"}]}
+适用：需要逐项查看读取范围、处理状态和下一步。此例只读到两笔数据，操作入口尚未执行。
+
+```dsh-ui
+{"title":"读取状态（合成示例）","items":[{"type":"keyvalue","pairs":[{"key":"已读订单","value":"2 / 100"},{"key":"status","value":"partial"},{"key":"还有下一页","value":"是（hasMore=true）"},{"key":"处理状态","value":"未完成"}]},{"type":"callout","tone":"warning","content":"已读两笔缺口合计 200 箱，不能代表全部 100 笔订单。尚未执行下一步。"},{"type":"row","items":[{"type":"button","label":"取下一页","action":"fetch_next_page"},{"type":"button","label":"先看已读明细","action":"show_loaded_rows"}]}]}
 ```
 
-不要这样：把同一句话既写进正文又放进卡片；也不要为每条信息配一张卡（4 个 stat 排一行就够）。
+窄问题直接回答。例如只问 partial 的含义时，一句话说明只返回部分数据、尚未完成即可。编号、状态和页码不充当数值 KPI，未完成状态不使用成功 tone。
 
 ### 2. 解释/教学（文字为主，一个点睛组件）
 
@@ -308,7 +286,7 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 
 何时不用：只有一步就别画阶段图；纯数值对比用 `chart`，别把数字塞进色块。
 
-### 主表明细（数据问答的默认结构）
+### 主表明细（需要筛选和逐行展开时）
 
 适用：用户问的数据要「先看总量 → 再筛 → 再钻某一行」。
 
@@ -318,25 +296,25 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 
 何时不用：行数 ≤5 不要配 `filter`；没有逐行明细可展开就别配 `details`；展开行里只放该行自己的信息，不要塞与该行无关的图表。
 
-### 结论卡（分析收尾的默认结构）
+### 库存对比
 
-适用：指标 + 一个明确判断 + 可执行的下一步（周报结论、复盘、健康度检查）。
+适用：需要比较各仓库存与安全量，并查看差额。只问一个差额时直接回答数字和单位。
 
-```json dsh-ui
-{"items":[{"type":"grid","cols":3,"items":[{"type":"stat","label":"<user-language metric>","value":"<user-language value>","delta":"+2.4%"},{"type":"stat","label":"<user-language metric>","value":"<user-language value>"},{"type":"stat","label":"<user-language metric>","value":"<user-language value>","delta":"-1.2%"}]},{"type":"card","tone":"success","title":"<user-language title>","items":[{"type":"text","size":"body","content":"<user-language text>"},{"type":"progress","value":72,"target":80,"label":"<user-language metric>","valueLabel":"72%"}]},{"type":"row","items":[{"type":"button","label":"<user-language action>","tone":"primary","action":"<action-name>"},{"type":"button","label":"<user-language action>","tone":"ghost","action":"<action-name>"}]}]}
+```dsh-ui
+{"title":"库存对比（合成示例）","items":[{"type":"table","columns":["仓库","可用库存（箱）","安全库存（箱）","差额（箱）","状态"],"rows":[["甲仓",120,100,20,"高于安全量"],["乙仓",40,60,-20,"低于安全量"]]},{"type":"button","label":"查看明细","action":"show_inventory_details"}]}
 ```
 
-何时不用：结论还不成立时不要硬造结论卡（先摆数据，让读者自己看）；没有真实可执行的下一步就不要放按钮；`tone` 只有在确实传递语义（好/坏/险）时才用。
+差额为可用库存减安全库存；明细入口不代表执行调拨。已有总量、同比等真实数值可使用 stat，状态文字留在表内。
 
-### 封面页（报告开篇的默认结构）
+### 排行与月份切换
 
-适用：正式报告/复盘/评审材料的**第一屏**——一个大数字定调，一句引言点题，三张摘要卡预告正文。
+适用：比较名次和金额，或切换不同月份。两个月的数据都已提供时用 tabs 本地切换。
 
-```json dsh-ui
-{"items":[{"type":"hero","label":"<user-language metric>","value":"99.96%","delta":"+0.02%","tone":"accent","title":"<user-language title>","subtitle":"<user-language text>"},{"type":"text","size":"display","content":"<user-language statement>"},{"type":"divider","label":"<user-language chapter>"},{"type":"grid","cols":3,"items":[{"type":"card","title":"<user-language title>","items":[{"type":"stat","label":"<user-language metric>","value":"<user-language value>"}]},{"type":"card","title":"<user-language title>","items":[{"type":"stat","label":"<user-language metric>","value":"<user-language value>"}]},{"type":"card","title":"<user-language title>","items":[{"type":"stat","label":"<user-language metric>","value":"<user-language value>"}]}]}]}
+```dsh-ui
+{"title":"销售排行（合成示例）","items":[{"type":"tabs","tabs":[{"label":"十月","items":[{"type":"table","columns":["名次","门店","金额（万元）"],"rows":[[1,"甲",120],[2,"乙",90],[3,"丙",60]]}]},{"label":"十一月","items":[{"type":"table","columns":["名次","门店","金额（万元）"],"rows":[[1,"乙",130],[2,"丙",80],[3,"甲",70]]}]}]}]}
 ```
 
-何时不用：短回答不需要封面（hero 已是唯一焦点，再加 `display` 就是两个焦点）；hero 与 `display` 同屏时，后面不要再出现 h1 级大标题；普通问答直接给答案，不要套封面。
+只问谁第一时直接给名称。只提供本月数据时不编造上月趋势。
 
 ### 对比页（方案权衡的默认结构）
 

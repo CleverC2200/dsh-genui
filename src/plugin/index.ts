@@ -21,6 +21,7 @@ import { fileURLToPath } from 'node:url'
 import { createRenderUiTool, createValidateDshUiTool } from './tool.ts'
 import { installFenceFeedback } from './fence-feedback.ts'
 import { installDshGoNative } from './dsh-go-native.ts'
+import { GENUI_PRESENTATION_POLICY } from './presentation-policy.ts'
 
 /* ---------------- lazy engine asset route ---------------- */
 
@@ -96,22 +97,20 @@ export const GENUI_SECTION_TEXT = `Render UI inside your reply with a fenced \`d
 {"title":"示例","gap":14,"items":[{"type":"text","content":"把这里换成你的组件"}]}
 \`\`\`
 
-Allowed \`type\` values; the \`genui\` skill, when available, carries the full content→component mapping and per-component field details:
+Allowed \`type\` values (full field reference: \`genui\` skill):
 
 - 布局: text · row · col · grid · card · carousel · divider · spacer · hero（封面块，一条回答最多一个）
 - 展示: badge · stat · progress · list · table · keyvalue · timeline · file-tree · breadcrumb · callout · steps · diff · json · code · copy · avatar · image · image-group · compare（改动汇报优先）· audio · video · icon · blocks · arrow
 - 图表: chart {"kind":"bars|line|donut","data":[{"label":"...","value":n}]}（series：bars 分组/堆叠 / line 多序列） · echart (preset 名或 option 直通，清单见 skill) · plot (函数图) · svg (单图预览)
 - 交互: button · input · textarea · editor · select · date-picker · segmented-control · checkbox · switch · slider · radio · submit · quiz · choices · link · tabs · accordion · popover
-- 高级: mermaid (流程图/时序/甘特/ER 等，关键字见 skill) · diagram (架构/流程图) · scene3d (3D WebGL) · entity-card
+- 高级: mermaid (流程图/时序/甘特/ER 等，关键字见 skill) · diagram (架构/流程图) · scene3d (3D WebGL) · entity-card · map
 
-**先问一句：删掉这个组件，读者会不会更费劲。** 会才出；不会就写正文。
+${GENUI_PRESENTATION_POLICY}
 
-- 没有"每条回答至少几个组件"这种目标，也不存在"≥3 条要点就必须出 list"的配额——那是模板，不是判断。
-- 有比较/取舍 → \`table\` 或 \`choices\`；有数值趋势 → \`chart\`；有前后或两种形态 → \`compare\`；有分步 → \`steps\`/\`timeline\`；有结构或流程 → \`diagram\`/\`mermaid\`；要读者做决定 → \`choices\`（选项带代价）。
-- 同一批信息不要在正文和组件里各说一遍；纯文字讲得清的地方不要套壳，默认无卡。
+- 前后图像对比用 \`compare\`；步骤用 \`steps\`/\`timeline\`；结构/流程用 \`diagram\`/\`mermaid\`；决策用 \`choices\`（选项带代价）。
 - 行内富文本：支持公式、\`code\`、加粗、高亮、链接；禁用 Markdown table 与 fenced code，改用 table/code/diff/json。
 - 趋势/占比 → \`chart\`（≤8 点）或 \`echart\`；配色跟随主题，语义需要时才用 \`palette\`/\`card.accent\`；grid 子节点用 \`"span":2\` 做宽窄混排；数据多时给 \`table\`/\`list\` 配 \`input\`(id)+\`filter\` 就地筛选。
-- 多块回答按读者的阅读顺序排：结论在前、证据紧跟、操作放在要动手的位置；章节分隔 \`divider\` 带 \`label\`，不要一行一个往下堆。
+- 章节分隔用 \`divider\`+\`label\`，操作放在需要动手的位置。
 
 **字段速查**（完整见 genui skill）：\`stat\` \`{"type":"stat","label","value"}\` · \`table\` \`{"type":"table","columns":[...],"rows":[[...]]}\` · \`progress\` \`{"type":"progress","value":0-100}\` · \`keyvalue\` \`{"type":"keyvalue","pairs":[{"key","value"}]}\` · \`steps\` \`{"type":"steps","steps":[{"title"}]}\` · \`file-tree\` \`{"type":"file-tree","items":[{"name","type":"file|dir"}]}\` · \`callout\` \`{"type":"callout","content"}\`
 **节点规则：** 组件节点必须带字符串 \`type\`，值为组件名；\`file-tree.items[].type\` 表示 \`file\` 或 \`dir\`。
