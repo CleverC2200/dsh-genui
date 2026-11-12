@@ -49,7 +49,6 @@ const COMPUTED_TEMPLATE_FIELDS: Record<string, ReadonlySet<string>> = {
   timeline: new Set(['items']),
 }
 
-/** 判断规格字段是否用于展示可插值的文字。 */
 export function isComputedTemplateField(type: unknown, key: string): boolean {
   return typeof type === 'string' && (COMPUTED_TEMPLATE_FIELDS[type]?.has(key) ?? false)
 }
@@ -57,7 +56,6 @@ export function isComputedTemplateField(type: unknown, key: string): boolean {
 export type ComputedTemplateScope = boolean | 'blocks-row' | 'blocks-cell'
 export type ComputedNodeScope = boolean | 'nested-items'
 
-/** 只有组件容器的子节点字段允许再次识别组件；原始数据中的 type 没有组件含义。 */
 export function getComputedChildNodeScope(type: unknown, key: string, parentScope: ComputedNodeScope): ComputedNodeScope {
   if (parentScope === 'nested-items') return key === 'items'
   if (parentScope !== true) return false
@@ -67,7 +65,6 @@ export function getComputedChildNodeScope(type: unknown, key: string, parentScop
   return key === 'items' && ['row', 'col', 'grid', 'card', 'carousel', 'list'].includes(String(type))
 }
 
-/** 为嵌套展示数据选择模板范围，并在组件边界重置继承范围。 */
 export function getComputedTemplateScope(type: unknown, key: string, parentScope: ComputedTemplateScope): ComputedTemplateScope {
   if (typeof type === 'string') {
     if (type === 'blocks' && key === 'rows') return 'blocks-row'
@@ -92,12 +89,6 @@ export interface ComputedGraph {
   errors: Record<string, string>
 }
 
-/**
- * 收集可供 Computed 表达式读取的非密码字段 ID。
- *
- * @param spec - 已修复的 GenUI 规格。
- * @returns 符合表达式名称规则的字段 ID 集合。
- */
 export function getComputedInputIds(spec: GenuiSpec): Set<string> {
   const ids = new Set<string>()
   walkGenuiNodes(spec, node => {
@@ -108,7 +99,6 @@ export function getComputedInputIds(spec: GenuiSpec): Set<string> {
   return ids
 }
 
-/** 收集重复声明的数值输入字段 ID。 */
 export function getDuplicateComputedInputIds(spec: GenuiSpec): string[] {
   const counts = new Map<string, number>()
   walkGenuiNodes(spec, node => {
@@ -119,14 +109,6 @@ export function getDuplicateComputedInputIds(spec: GenuiSpec): string[] {
   return [...counts].filter(([, count]) => count > 1).map(([id]) => id)
 }
 
-/**
- * 检查计算定义并按字段依赖关系生成执行顺序。
- *
- * @param definitions - 规格声明的计算字段。
- * @param inputIds - 可读取的输入字段 ID。
- * @param duplicateInputIds - 重复声明的输入字段 ID。
- * @returns 有序计算定义及对应错误。
- */
 export function buildComputedGraph(
   definitions: readonly GenuiComputed[],
   inputIds: ReadonlySet<string>,
@@ -191,7 +173,6 @@ export function buildComputedGraph(
   return { order, errors }
 }
 
-/** 收集表单规格中的初始值，供首次渲染的计算读取。 */
 function collectInputDefaults(spec: GenuiSpec): Record<string, string> {
   const defaults = Object.create(null) as Record<string, string>
   walkGenuiNodes(spec, node => {
@@ -205,7 +186,6 @@ function collectInputDefaults(spec: GenuiSpec): Record<string, string> {
   return defaults
 }
 
-/** 按字段指定的 Intl.NumberFormat 选项生成显示文本。 */
 function formatComputedValue(value: number, format: GenuiComputedFormat | undefined): string {
   if (format === undefined) return String(value)
   const options: Intl.NumberFormatOptions = {
@@ -217,13 +197,6 @@ function formatComputedValue(value: number, format: GenuiComputedFormat | undefi
   return new Intl.NumberFormat(format.locale, options).format(value)
 }
 
-/**
- * 读取输入字段并计算所有可用的 Computed 值。
- *
- * @param spec - 已修复的 GenUI 规格。
- * @param fields - 当前交互状态中的字段值。
- * @returns 数值结果、格式化结果和计算错误。
- */
 export function evaluateComputed(spec: GenuiSpec, fields: Readonly<Record<string, string>>): ComputedEvaluation {
   const inputIds = getComputedInputIds(spec)
   const definitions = spec.computed ?? []
@@ -285,7 +258,6 @@ export function evaluateComputed(spec: GenuiSpec, fields: Readonly<Record<string
   return { values: Object.fromEntries(Object.entries(numericValues).filter(([id]) => !inputIds.has(id))), formatted, errors }
 }
 
-/** 递归解析模板文字与数值对象引用。 */
 function resolveComputedValue(
   value: unknown,
   key: string | undefined,
@@ -331,11 +303,11 @@ function resolveComputedValue(
       getComputedTemplateScope(nodeType, entryKey, templateAllowed),
       getComputedChildNodeScope(nodeType, entryKey, nodeScope)),
   ]))
-  // 选中项使用稳定的原始模板作为身份，显示文案可随计算结果更新。
+
   if (nodeType === 'checkbox' && typeof record.label === 'string') {
     Object.assign(resolved, { [GENUI_CHECKBOX_VALUE]: record.label })
   }
-  // ECharts 使用位置类别，缺失值需要保留原位置；原生图表只接收完整数据点。
+
   if (nodeType === 'chart' && Array.isArray(resolved.data)) {
     resolved.data = resolved.data.filter(point => point !== null && typeof point === 'object'
       && (point as Record<string, unknown>).value !== null)
@@ -343,13 +315,6 @@ function resolveComputedValue(
   return resolved
 }
 
-/**
- * 将模板引用和数值引用解析到待渲染组件树中。
- *
- * @param spec - 原始已修复规格。
- * @param result - 当前字段状态对应的计算结果。
- * @returns 已替换引用的规格副本。
- */
 export function resolveComputedSpec(spec: GenuiSpec, result: ComputedEvaluation): GenuiSpec {
   const items = resolveComputedValue(spec.items, undefined, result, false, false, false, false, true) as GenuiNode[]
   const title = spec.title === undefined ? undefined : resolveComputedValue(spec.title, undefined, result, false, false, false, true) as string

@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { render, cleanup, waitFor } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { IconNode } from '../src/client/blocks/icon.tsx'

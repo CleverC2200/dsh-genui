@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { Fragment, createElement } from 'react'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -23,7 +22,6 @@ const available: Parameters<typeof withFileLinkContext>[1] = {
   getSnapshot: () => true,
 }
 
-/** Create a mock host context with controllable session and sidebar services. */
 function sessionContext(sessionId = 'session-1', cwd = '/workspace/app') {
   let current = sessionId
   let service: { openResource: ReturnType<typeof vi.fn> } | undefined
@@ -71,7 +69,6 @@ function sessionContext(sessionId = 'session-1', cwd = '/workspace/app') {
   }
 }
 
-/** Render a GenUI spec inside the shared file-link context. */
 function renderSpec(items: unknown[], session = sessionContext()) {
   const spec = repairGenuiSpec({ items })!
   const action = vi.fn()

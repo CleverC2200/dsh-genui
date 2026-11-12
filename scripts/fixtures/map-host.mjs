@@ -1,7 +1,3 @@
-/** Test-only Cordis plugin. Real AgentLoop + official local ReplayAdapter, no
- * seeded messages, fake conversation services, renderer patches, or endpoints.
- * Loaded only by e2e.mjs's fresh rc.3 smoke profile through --patch.
- */
 import assert from 'node:assert/strict'
 import { appendFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
@@ -16,8 +12,6 @@ export async function apply(ctx, config) {
   let streams = 0
   const { installLlmReplay } = await import(pathToFileURL(replayModule).href)
 
-  // This seam runs before prepareCall. Inspect the FINAL selection after inner
-  // model middleware, rejecting any route that might prepare a live provider.
   ctx.on('agent/request', async ({ agent, turn, step }, next) => {
     assert.equal(agent.id, sessionId, 'Unexpected agent in synthetic profile')
     assert.ok((turn === 1 || turn === 2) && step === 1, 'Only two one-step turns are scripted')
@@ -39,8 +33,7 @@ export async function apply(ctx, config) {
   })
   ctx.effect(() => () => replay.dispose(), 'map replay lifetime')
   ctx.on('session/event', (session, event) => {
-    // Log user inputs from ALL sessions, so misrouting cannot disappear from
-    // the oracle. Only real session/event settlements supply these records.
+
     if (event.type === 'user/message') {
       save({ type: 'user-message', sessionId: session.id, seq: event.seq, message: event.data })
     }
@@ -60,8 +53,7 @@ export async function apply(ctx, config) {
   ctx.on('agent/error', ({ agent, error }) => {
     save({ type: 'agent-error', sessionId: agent.id, error: String(error) })
   }, { global: true })
-  // Default selection comes from this run's --patch overlay. Do not await a
-  // config-editor write while async plugin activation holds the profile lock.
+
   assert.deepEqual(ctx.agentDefaultModel.currentSelection(), { provider, model })
   save({ type: 'ready', sessionId, provider, model })
 }

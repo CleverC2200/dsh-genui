@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// The streaming placeholder must look like the component that is arriving:
-// same family shape, and the real title as soon as it has arrived.
 import { cleanup } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
@@ -48,7 +45,7 @@ afterEach(cleanup)
 describe('streaming skeleton', () => {
   it('takes the shape of the arriving component and shows its title', async () => {
     const r = row('k1')
-    // A table whose header row has not even closed: nothing parses yet.
+
     const block = stockCodeBlock('{"items":[{"type":"table","title":"成本明细","columns":["a","b"', 'dsh-ui')
     r.appendChild(block)
     document.body.appendChild(r)
@@ -59,7 +56,7 @@ describe('streaming skeleton', () => {
       const skeleton = r.querySelector('[data-genui-skeleton]')
       expect(skeleton).not.toBeNull()
       expect(skeleton!.getAttribute('data-genui-skeleton')).toBe('table')
-      // The real heading is visible while the body is still arriving.
+
       expect(skeleton!.textContent).toContain('成本明细')
       expect(skeleton!.getAttribute('aria-label')).toContain('成本明细')
     } finally {
@@ -68,9 +65,7 @@ describe('streaming skeleton', () => {
   })
 
   it('shows nothing — and keeps the stock block — while the type is unknown', async () => {
-    // No `type` yet means no honest shape. A placeholder here is a guess that the
-    // next frame replaces, and covering the body with a wrong guess is worse than
-    // leaving it: the stock code block stays, nothing is mounted.
+
     const r = row('k2')
     const block = stockCodeBlock('{"items":[{"ty', 'dsh-ui')
     r.appendChild(block)

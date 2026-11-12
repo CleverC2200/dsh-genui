@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GenuiBlock, GENUI_ACTION_DEBOUNCE_MS } from '../src/client/GenuiBlock.tsx'
@@ -100,7 +99,7 @@ describe('table filtering preserves original row/detail identity', () => {
 
   it('combines case-insensitive filtering and header sorting without moving details', () => {
     const out = mount()
-    out.filter('A') // all three match
+    out.filter('A')
     fireEvent.click(out.getByRole('button', { name: 'Duration' }))
     out.toggle('Beta')
     expect(out.container.querySelector('[class*="detailBody"]')?.textContent).toContain('Details for Beta')
@@ -115,7 +114,7 @@ describe('table filtering preserves original row/detail identity', () => {
     out.filter('Keep')
     fireEvent.change(out.container.querySelector('select')!, { target: { value: 'Duration' } })
     out.toggle('Keep-A')
-    // Details remain aligned to the original third row, not filtered index 1.
+
     expect(out.container.querySelector('[class*="detailBody"]')?.textContent).toContain('Details for Gamma')
   })
 

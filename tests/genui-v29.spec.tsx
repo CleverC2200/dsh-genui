@@ -1,11 +1,3 @@
-// @vitest-environment jsdom
-// v2.9 polish batch regressions:
-// 1) chart hover tooltips (title attrs on bars / grouped bars / donut arcs,
-//    SVG <title> on line dots);
-// 2) slider form node (default + durable value + submit fields collection);
-// 3) table local sorting (asc / desc / reset, numeric-aware);
-// 4) plot series kinds (line default, area polygon, scatter dots);
-// 5) asset prefetch links injected at boot.
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'
@@ -72,7 +64,7 @@ describe('v15: 导出、调色板与卡片强调色', () => {
     expect(off.container.querySelector('[class*="tableTools"]')).toBeNull()
     off.unmount()
     const on = renderBlock({ items: [{ type: 'table', export: true, columns: ['A'], rows: [['1']] }] })
-    // `[class*="tableTool"]` would also match the `.tableTools` wrapper.
+
     const chips = on.container.querySelectorAll('[class*="tableTools"] button')
     expect(chips).toHaveLength(2)
     expect(chips[0]!.textContent).toBe('复制 Markdown')
@@ -119,7 +111,7 @@ describe('v14: echart preset 与 links', () => {
       expect((spec.items[0] as { preset?: string }).preset).toBe(preset)
     }
     const bad = repairGenuiSpec({ items: [{ type: 'echart', preset: 'not-a-chart', data: [{ label: 'A', value: 1 }] }] })
-    // Unknown preset is dropped (undefined), the node still renders with data.
+
     const node = bad?.items[0] as { preset?: string } | undefined
     expect(node?.preset).toBeUndefined()
   })
@@ -232,7 +224,7 @@ describe('v11: table master-detail rows', () => {
         details: [[{ type: 'text', content: '详情内容' }], null],
       }],
     })
-    // Only the row that carries details gets a toggle.
+
     const toggles = container.querySelectorAll('[class*="detailToggle"]')
     expect(toggles).toHaveLength(1)
     expect(toggles[0]!.getAttribute('aria-expanded')).toBe('false')
@@ -252,7 +244,7 @@ describe('v11: table master-detail rows', () => {
         type: 'table',
         columns: ['A'],
         rows: [['1']],
-        // A known type missing its required fields repairs away.
+
         details: [[{ type: 'stat' }]],
       }],
     })!
@@ -272,11 +264,11 @@ describe('v7: table sections/totals, stacked bars, card tones', () => {
       }],
     })
     const groupCell = container.querySelector('[class*="groupRow"] td')
-    // v10: the header is a toggle with a chevron and the child count.
+
     expect(groupCell?.textContent).toBe('▾华东1')
     expect(groupCell?.getAttribute('colspan')).toBe('3')
     expect(container.querySelector('[class*="groupToggle"]')?.getAttribute('aria-expanded')).toBe('true')
-    // Children are indented under the section.
+
     expect(container.querySelectorAll('tr[class*="groupChild"]')).toHaveLength(1)
   })
 
@@ -327,7 +319,7 @@ describe('v7: table sections/totals, stacked bars, card tones', () => {
     })
     const segments = container.querySelectorAll('[class*="stackSeg"]')
     expect(segments).toHaveLength(2)
-    // 30/40 of the total height -> 75%.
+
     expect((segments[0] as HTMLElement).style.height).toBe('75%')
     const stack = segments[0]!.parentElement as HTMLElement
     expect(parseFloat(stack.style.height)).toBeLessThanOrEqual(100)
@@ -611,7 +603,7 @@ describe('v2.9: slider form node', () => {
     fireEvent.change(input, { target: { value: '7' } })
     act(() => { vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS) })
     expect(actions).toEqual([['vol', { type: 'slider', value: 7, id: 'v' }]])
-    // value readout follows the drag
+
     expect(container.textContent).toContain('7')
   })
 
@@ -645,15 +637,15 @@ describe('v2.9: table local sorting', () => {
     const { container } = renderBlock(spec)
     const headers = container.querySelectorAll('thead th button')
     expect(bodyRows(container)).toEqual(['香蕉10', '苹果25', '橙5'])
-    // numeric-aware ascending on the 数量 column (5 < 10 < 25, not "10" < "25" < "5")
+
     fireEvent.click(headers[1]!)
     expect(bodyRows(container)).toEqual(['橙5', '香蕉10', '苹果25'])
     expect(headers[1]!.closest('th')!.getAttribute('aria-sort')).toBe('ascending')
-    // descending
+
     fireEvent.click(headers[1]!)
     expect(bodyRows(container)).toEqual(['苹果25', '香蕉10', '橙5'])
     expect(headers[1]!.closest('th')!.getAttribute('aria-sort')).toBe('descending')
-    // third click restores the spec order
+
     fireEvent.click(headers[1]!)
     expect(bodyRows(container)).toEqual(['香蕉10', '苹果25', '橙5'])
     expect(headers[1]!.closest('th')!.getAttribute('aria-sort')).toBe('none')

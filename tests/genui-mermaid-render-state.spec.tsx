@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -315,7 +314,7 @@ describe('Mermaid render scheduling', () => {
     vi.useFakeTimers()
     document.dispatchEvent(new Event('scroll'))
     await vi.advanceTimersByTimeAsync(250)
-    // Fake timers also control performance.now(), used by the quiet period.
+
     const draw = vi.fn(async () => '<svg/>')
     engine(draw)
     const job = scheduled.renderMermaid('diagram')

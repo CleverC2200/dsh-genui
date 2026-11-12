@@ -1,5 +1,3 @@
-/** Dependency-free bounded reader for regular-file npm tarballs. Never extracts
- * links, arbitrary paths, or executes a package. Unknown archive forms fail. */
 import assert from 'node:assert/strict'
 import { gunzipSync } from 'node:zlib'
 import { readFile, realpath } from 'node:fs/promises'

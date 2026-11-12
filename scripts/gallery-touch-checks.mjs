@@ -1,8 +1,3 @@
-/** Native Chromium touch input on the e2e-owned page, not DOM-dispatched events.
- * Playwright newCDPSession is supported since 1.11; both pinned hosts use >=1.49.
- * Only Input.dispatchTouchEvent is sent. No endpoint discovery, target inventory,
- * browser launch, device/security override, or connection to an external browser.
- */
 import assert from 'node:assert/strict'
 
 const TIMEOUT = 8000
@@ -16,7 +11,6 @@ async function bounded(promise, label, timeout = TIMEOUT) {
   } finally { clearTimeout(timer) }
 }
 
-/** A single leftward finger trajectory using the browser's native input path. */
 export async function dispatchGalleryTouchPan(page, { startX, endX, y }, timeout = TIMEOUT) {
   const deadline = Date.now() + timeout
   const remaining = () => {
@@ -29,7 +23,7 @@ export async function dispatchGalleryTouchPan(page, { startX, endX, y }, timeout
   let touching = false
   const errors = []
   try {
-    touching = true // An uncertain start is cancelled before detaching, never retried.
+    touching = true
     await bounded(session.send('Input.dispatchTouchEvent', {
       type: 'touchStart', touchPoints: [{ x: startX, y, id: 1 }],
     }), 'Native touch start', remaining())
@@ -39,7 +33,7 @@ export async function dispatchGalleryTouchPan(page, { startX, endX, y }, timeout
         type: 'touchMove', touchPoints: [{ x: startX + (endX - startX) * step / 12, y, id: 1 }],
       }), 'Native touch move', remaining())
     }
-    await pause(120) // Release a held finger, avoiding an unbounded inertial fling.
+    await pause(120)
     await bounded(session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }), 'Native touch end', remaining())
     touching = false
   } catch (error) { errors.push(error) }
@@ -53,7 +47,6 @@ export async function dispatchGalleryTouchPan(page, { startX, endX, y }, timeout
   if (errors.length) throw new AggregateError(errors, 'Native gallery touch input failed')
 }
 
-/** The caller has already mounted the real renderer at the 420px viewport. */
 export async function checkGalleryTouch({ page, track, assertNoActions, timeout = TIMEOUT }) {
   const deadline = Date.now() + timeout
   const remaining = () => {
@@ -80,7 +73,7 @@ export async function checkGalleryTouch({ page, track, assertNoActions, timeout 
     const target = document.elementFromPoint(point.startX, point.y)
     return target !== null && element.contains(target) && !target.closest('button, input, textarea, select, a')
   }, gesture), 'Hit-test native touch start', remaining()), 'Touch starts on visible, non-interactive carousel content')
-  // Passive observation does not preventDefault, synthesize events, or change scroll/style/app state.
+
   const observer = await bounded(track.evaluateHandle(element => {
     const events = []
     const observe = event => events.push({ type: event.type, trusted: event.isTrusted,

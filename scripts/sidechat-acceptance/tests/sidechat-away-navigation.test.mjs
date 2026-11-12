@@ -1,4 +1,3 @@
-/** Pure synthetic contracts, not browser/host acceptance. No network or DOM. */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'

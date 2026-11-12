@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// EChartNode rendering: preset five forms, error fallback, option priority,
-// title/height, role=img/aria-label, scatter with CJK labels.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import type { GenuiEChart } from '../src/client/spec'
@@ -8,8 +5,7 @@ import { EChartNode, SERIES_FALLBACK } from '../src/client/EChartNode.tsx'
 import { createChart } from '../src/client/echarts-lazy.ts'
 
 vi.mock('../src/client/echarts-lazy.ts', async () => {
-  // Keep the real preset→engine mapping so the mock stays honest about which
-  // bundle a preset needs (progressive disclosure).
+
   const actual = await vi.importActual<typeof import('../src/client/echarts-lazy.ts')>('../src/client/echarts-lazy.ts')
   return { createChart: vi.fn(), CORE_PRESETS: actual.CORE_PRESETS }
 })
@@ -32,8 +28,7 @@ function fakeInstance() {
 
 describe('EChartNode: series palette', () => {
   it('keeps eight distinct fallback hues (host tokens may be absent)', () => {
-    // The regression: every slot fell back to the single accent colour, so a
-    // multi-series chart came out entirely blue.
+
     expect(SERIES_FALLBACK.length).toBeGreaterThanOrEqual(6)
     expect(new Set(SERIES_FALLBACK).size).toBe(SERIES_FALLBACK.length)
   })

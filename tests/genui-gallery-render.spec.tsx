@@ -249,7 +249,6 @@ describe('image group local viewing workflow', () => {
   })
 })
 
-
 describe('carousel disappearing navigation focus', () => {
   it.each(['next', 'previous'] as const)('hands focused %s to the track at its edge', direction => {
     const result = render(<GenuiBlock spec={{ items: [carousel] }} />)
@@ -261,7 +260,7 @@ describe('carousel disappearing navigation focus', () => {
     fireEvent.click(control)
     expect(control.isConnected).toBe(false)
     expect(document.activeElement).toBe(track)
-    // Continue from the actual active element, rather than directly dispatching to an unfocused track.
+
     fireEvent.keyDown(document.activeElement!, { key: direction === 'next' ? 'Home' : 'End' })
     expect(track.scrollLeft).toBe(direction === 'next' ? 0 : 200)
   })

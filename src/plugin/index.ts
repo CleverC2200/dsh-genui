@@ -1,14 +1,3 @@
-/**
- * GenUI plugin: teaches the model the ```dsh-ui fence syntax for emitting
- * declarative UI components inline in its reply. The browser half renders the
- * fence through GenuiBlock (ui-primitives); this host half only tells the
- * model the language exists, so a session without the plugin simply never
- * emits fences and nothing changes.
- *
- * The section uses the host's centrally allocated structured-output placement.
- * @module @changfenhuang/dsh-genui
- */
-
 import { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type {} from '@deepseek-ai/dsh-tools'
@@ -22,26 +11,10 @@ import { createRenderUiTool, createValidateDshUiTool } from './tool.ts'
 import { installFenceFeedback } from './fence-feedback.ts'
 import { installDshGoNative } from './dsh-go-native.ts'
 
-/* ---------------- lazy engine asset route ---------------- */
-
-/**
- * The mermaid/three engines ship as standalone IIFE bundles under
- * `lib/assets/` and are fetched by the client ONLY when a spec needs them.
- * This route serves them from the plugin's own package directory through the
- * host webserver service — the longest-prefix rule lets it win over the
- * generic `/plugins` bundle route, and no host source change is needed. The
- * service is optional at this plugin's start time, so a dependency fiber owns
- * the registration and follows the webserver through late binding, replacement,
- * and plugin reloads.
- */
-
-/** Route prefix under /plugins; anything under it is this plugin's asset. */
 const ASSET_ROUTE_PATH = '/plugins/@changfenhuang/dsh-genui/assets'
 
-/** Safe flat file names only: no slashes, no traversal, js assets only. */
 const ASSET_FILE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*\.js$/
 
-/** The handler itself (registered via the optional webServer probe). */
 async function serveGenuiAsset(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.writeHead(405)
@@ -69,7 +42,7 @@ async function serveGenuiAsset(req: IncomingMessage, res: ServerResponse): Promi
     return
   }
   try {
-    // lib/index.js → ./assets/ = <pkg>/lib/assets/ (the tsdown asset outDir).
+
     const dir = fileURLToPath(new URL('./assets/', import.meta.url))
     const body = await readFile(join(dir, file))
     res.writeHead(200, {
@@ -78,7 +51,7 @@ async function serveGenuiAsset(req: IncomingMessage, res: ServerResponse): Promi
     })
     res.end(body)
   } catch {
-    // Missing asset (old build) — a loud 404; the client shows its fallback.
+
     res.writeHead(404)
     res.end()
   }
@@ -86,10 +59,6 @@ async function serveGenuiAsset(req: IncomingMessage, res: ServerResponse): Promi
 
 const RENDER_UI_TOOL_GUIDANCE = '- Tool channel: render_ui 工具把同一 spec 渲染为工具行卡片；围栏用于回答内联 UI。'
 
-/** The fence language description injected into every assembled system prompt.
- *  Deliberately slim: the `genui` skill carries the full component→field
- *  mapping; this section keeps only the contract that must always be
- *  present (fence syntax, type whitelist, and critical behavioral rules). */
 export const GENUI_SECTION_TEXT = `Render UI inside your reply with a fenced \`dsh-ui\` JSON block:
 
 \`\`\`dsh-ui
@@ -131,14 +100,6 @@ ${RENDER_UI_TOOL_GUIDANCE}
 - 围栏位置：\`dsh-ui\` 只写在**回答正文**；写在 reasoning/思考块里不渲染、用户看不到——思考里验证好 spec，正文再输出同一份。
 - Panel: "panel":true 只渲染进会话面板 dock 并原地更新；"append":true 追加合并；上限 200 节点/200 次追加，满了发 replace 重建。面板来的 [genui-action] 只回一个 panel:true 围栏 + 至多一行 10 字内确认。`
 
-/**
- * Register the GenUI output-language section and the render_ui tool.
- * @param ctx - cordis context.
- */
-// `tools` is intentionally NOT injected: the service is optional for this
-// plugin — hosts without tool access keep the fence channel working. Cordis
-// inject entries are hard requirements, so the registry is probed at runtime
-// instead (see apply).
 export const name = '@changfenhuang/dsh-genui'
 export const inject = ['systemPrompt']
 
@@ -146,19 +107,11 @@ const BUNDLED_SKILL_RANK = 600
 const BUNDLED_SKILL_PROVIDER = 'dsh-genui'
 const BUNDLED_SKILL_INVOCATION = { modelInvocable: true, userInvocable: true } as const
 
-/**
- * The frontmatter field the routing description comes from.
- *
- * A second copy of this sentence in code drifted from SKILL.md unnoticed, and the
- * panel showed the code copy while the model read the same string — so an edit to
- * the skill's own frontmatter changed nothing. The file is the only source.
- */
 function frontmatterField(front: string, key: string): string | undefined {
   const line = new RegExp('^\\s*' + key + '\\s*:\\s*(.+?)\\s*$', 'mu').exec(front)
   return line?.[1]?.replace(/^['"]|['"]$/gu, '')
 }
 
-/** Register through the provider path so source=bundled also gets bundled precedence. */
 function bundledSkillProvider(): SkillProvider {
   const moduleDirectory = dirname(fileURLToPath(new URL(import.meta.url)))
   const path = basename(moduleDirectory) === 'plugin'
@@ -195,21 +148,10 @@ function bundledSkillProvider(): SkillProvider {
   }
 }
 
-/**
- * Plugin config as the host passes it (unvalidated: the node half deliberately
- * imports no schema library, so a profile can set these keys directly).
- */
 export interface GenuiPluginConfig {
-  /**
-   * 在最终 dsh-ui 围栏无法渲染的回合中请求模型发送一次修正版（issue #160）。
-   * 默认开启，设置为 false 可以关闭同回合围栏修正。GenUI 回合的 reasoning-only 响应仍会交给宿主重试策略处理。
-   * 每回合和每个围栏正文最多请求一次，子代理不触发，每次修正请求会消耗模型步数。
-   */
+
   fenceFeedback?: boolean
 
-  /**
-   * 是否注册 render_ui 模型工具。默认开启，设置为 false 时关闭；不影响 validate_dsh_ui 和 dsh-ui 围栏渲染。
-   */
   renderUiTool?: boolean
 }
 
@@ -222,9 +164,7 @@ export function apply(ctx: Context, config?: GenuiPluginConfig): void {
     text: renderUiToolEnabled ? GENUI_SECTION_TEXT : GENUI_SECTION_TEXT.replace(`${RENDER_UI_TOOL_GUIDANCE}\n`, ''),
   })
   installFenceFeedback(ctx, config?.fenceFeedback !== false, renderUiToolEnabled)
-  // Hosts without tool access keep the fence channel. The dependency fiber
-  // starts whenever tools becomes available and unloads its registrations
-  // before either the service or this plugin is replaced.
+
   ctx.inject(['tools'], (toolsCtx) => {
     toolsCtx.effect(function* () {
       if (renderUiToolEnabled) {
@@ -238,8 +178,6 @@ export function apply(ctx: Context, config?: GenuiPluginConfig): void {
     skillCtx.skills.registerProvider(() => bundledSkillProvider())
   })
 
-  // webServer.register returns a raw disposer, so an explicit effect binds the
-  // route to the dependency fiber instead of leaving it in the host route table.
   ctx.inject(['webServer'], (webCtx) => {
     const webServer = webCtx.reflect.get('webServer') as { register(route: unknown): () => void }
     webCtx.effect(

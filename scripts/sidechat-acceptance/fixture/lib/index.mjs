@@ -1,15 +1,8 @@
-/**
- * Test-only host fixture. No browser hooks, private service inspection, model
- * network calls, real customer data, or production routes. Does not ship.
- * Parent must be created through public workspace/create + session/create.
- * Seed and resume are distinct process lifetimes. Runtime validation pending.
- */
 import assert from 'node:assert/strict'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-// Exact reviewed built paths are resolved and version checked by the runner.
-// No dependency installation or NODE_PATH escape is needed by this host-only package.
+
 import { snapshotTrace, readSnapshotSession } from './snapshot-diagnostics.mjs'
 import { validateUiAway, verifyUiAwayOwnership } from './ui-away.mjs'
 import { PARENT_ID, CHILD_IDS, PROVIDER, MODEL, CONTENT, chunksFor } from './spec.mjs'
@@ -27,7 +20,7 @@ export async function apply(ctx, config) {
   const { installLlmReplay } = await import(pathToFileURL(config.replayModule).href)
   const phase = config.phase
   if (!['seed', 'resume'].includes(phase)) throw new Error('explicit seed or resume phase required')
-  // The write destination is explicitly under this task's fresh host workspace.
+
   const out = config.output
   if (!out) throw new Error('fixture requires DSH354_FIXTURE_OUTPUT inside its fresh synthetic host directory')
   const output = resolve(out)
@@ -84,8 +77,7 @@ export async function apply(ctx, config) {
     providers: [{ id: PROVIDER, name: 'DSH354 synthetic replay only', models: [{ id: MODEL, contextWindow: 128000 }] }],
   })
   ctx.effect(() => () => replay.dispose(), 'fixture-dsh354: replay lifetime')
-  // Public session/event is the real inbox/settlement evidence source. No test
-  // endpoint creates actions: the browser must click the actual GenUI controls.
+
   const relevant = new Set(['agent/inbox/spliced', 'user/message', 'assistant/message', 'turn/start', 'turn/end', 'step/start', 'step/end'])
   const finished = new Set()
   ctx.on('session/event', (session, event) => {
@@ -210,16 +202,14 @@ export async function apply(ctx, config) {
       agent.session.append('model/selection', route)
       agent.session.append('turn/start', { turn: 1 })
       agent.session.append('step/start', { turn: 1, step: 1 })
-      // Mirror AgentLoop's initial empty system head before any user surface.
-      // The real first action may replace it; late insertion is invalid in v4.
+
       agent.session.append('system/message', { turn: 1, step: 1, message: createSystemMessage('') }, { surfaceOp: 'append' })
       agent.session.append('user/message', {
         id: `fixture-user-${agent.session.id}`, role: 'user', source: { kind: 'user' },
         content: [{ type: 'text', text: 'Synthetic DSH354 fixture. Display the isolation form.' }],
       }, { surfaceOp: 'append' })
     }
-    // All three assistant events deliberately share one eventSeq. Repeated
-    // valid model/selection events pad only this fresh synthetic test history.
+
     const assistantSeq = Math.max(...participants.map(a => Number(a.session.seq)))
     for (const agent of participants) {
       const session = agent.session
@@ -254,14 +244,12 @@ export async function apply(ctx, config) {
     finally { inFlight = false }
   }
   ctx.effect(() => () => { disposed = true; stop() }, 'fixture-dsh354: parent polling')
-  // Patch supplies the default before activation, avoiding a config-save lock race.
+
   assert.deepEqual(ctx.agentDefaultModel.currentSelection(), { provider: PROVIDER, model: MODEL })
   writeFileSync(join(output, 'fixture-ready.json'), JSON.stringify({ phase, provider: PROVIDER, model: MODEL }) + '\n')
   timer = setInterval(() => { void tick() }, POLL_MS)
   await tick()
 
-  // Request/response only under this fresh private synthetic root. Every request
-  // flushes and reopens the public persistence handles; not a cached live view.
   let snapshotBusy = false, lastRequest, snapshotTask
   const snapshotTimer = setInterval(() => {
     if (snapshotBusy || disposed || !done) return
@@ -292,8 +280,7 @@ export async function apply(ctx, config) {
         sessions[id] = await trace.run('projection', owner, () => {
           const events = stored.events.filter(event => relevant.has(event.type) && event.type !== 'agent/inbox/spliced').map(event => {
             const result = { type: event.type, seq: event.seq, data: event.data }
-            // Runtime context may include paths. Retain only kind and a strict
-            // action-marker flag for non-user context; never export that text.
+
             if (event.type === 'user/message' && event.data.source?.kind !== 'user') {
               const containsAction = JSON.stringify(event.data.content).includes('[genui-action]')
               result.data = { id: event.data.id, source: { kind: event.data.source?.kind }, content: [], containsAction }

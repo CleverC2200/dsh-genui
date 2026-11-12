@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'
@@ -146,7 +145,6 @@ describe('date-picker component', () => {
     expect(screen.getByText('Travel plan ready')).toBeTruthy()
   })
 })
-
 
 describe('date-picker state regressions', () => {
   it.each(['constructor', 'toString', '__proto__'])('uses only own stored fields for %s', id => {

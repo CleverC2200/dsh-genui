@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-// Plot param slider must re-sample the curve live (the v2 headline feature).
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MarkdownText } from './genui-markdown.tsx'
@@ -28,14 +26,14 @@ describe('plot slider live re-render', () => {
 describe('plot implicit parameters', () => {
   it('renders a plot with undeclared single-letter params (defaults to 1)', () => {
     const { container } = render(<MarkdownText text={fenced({ items: [
-      // a*sin(b*x) 没带 params 声明 —— 应该能画（a=1, b=1）
+
       { type: 'plot', title: '隐式参数', series: [{ expr: 'a*sin(b*x)' }] },
     ] })} />)
     expect(container.querySelector('[data-genui-plot]')).not.toBeNull()
     const poly = container.querySelector('[data-genui-plot] polyline')
     expect(poly).not.toBeNull()
     expect(poly!.getAttribute('points')).not.toBe('')
-    // 不显示滑块（没有显式 params 声明）
+
     expect(container.querySelector('[data-genui-plot] input[type="range"]')).toBeNull()
   })
 

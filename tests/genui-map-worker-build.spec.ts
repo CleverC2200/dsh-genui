@@ -1,4 +1,3 @@
-// Real pinned vendor factory with platform spies, not browser/WebGL acceptance.
 import { readFile, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve, join } from 'node:path'
@@ -15,8 +14,7 @@ afterEach(() => setOwnedMapWorkerUrl(undefined))
 
 async function factory(url: string, location = fileLocation, adapted = true, blocked = false) {
   const code = adapted ? adaptMaplibreWorkerFactory(vendor, '6.16.0', './ownership.ts') : vendor
-  // Evaluate the actual, hash-checked factory plus its helpers. Only import.meta
-  // syntax is replaced for this classic VM; our explicit URL bypasses its default.
+
   const functions = code.slice(code.indexOf('function $c('), code.indexOf('const ol='))
     .replaceAll('import.meta.url', JSON.stringify('https://vendor.example/maplibre-gl.mjs'))
   const calls: { workers: unknown[][], fetches: string[], blobs: unknown[][], revoked: string[] } = { workers: [], fetches: [], blobs: [], revoked: [] }

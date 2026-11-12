@@ -1,31 +1,16 @@
-/**
- * SafeMath 为 GenUI plot 和 Computed 提供受限数学表达式解析。
- *
- * 表达式使用白名单函数与常量，不调用 eval 或 new Function。strict 模式拒绝未声明名称，但允许内置常量；plot 模式允许单字母隐式参数。对象属性访问和未允许的函数调用始终会被拒绝。
- *
- * 支持的语法：
- *   expr    := term (('+' | '-') term)*
- *   term    := unary (('*' | '/' | '%') unary)*
- *   unary   := ('-' | '+') unary | power
- *   power   := atom ('^' atom)?
- *   atom    := number | variable | constant | func '(' expr ')' | '(' expr ')'
- *   constant: 'pi' | 'e' | 'tau'
- *   func    : sin cos tan asin acos atan sqrt cbrt exp log ln abs floor ceil round min max pow
- */
-
 export interface SafeMathOptions {
-  /** 字段值；strict 模式还允许使用未被字段覆盖的内置常量。 */
+
   vars?: Record<string, number>
-  /** 关闭 plot 使用的单字母隐式参数。 */
+
   allowImplicitVariables?: boolean
-  /** 面板上下文确定前解析追加项引用；未绑定的值按 NaN 处理，不提供运行时备用值。 */
+
   allowUnboundVariables?: boolean
 }
 
 export interface SafeMathProgram {
-  /** 计算编译后的表达式；plot 模式使用传入的 x 作为采样值。 */
+
   evaluate: (x: number) => number
-  /** 表达式引用的已声明字段名称；strict 模式下同名字段可以覆盖内置常量。 */
+
   variables: string[]
 }
 
@@ -34,7 +19,6 @@ export const SAFE_MATH_LIMITS = {
   maxDepth: 32,
 } as const
 
-/** 解析十进制输入，拒绝 JavaScript Number 接受的非十进制进制写法。 */
 export function parseDecimalNumber(value: string): number | undefined {
   const normalized = value.trim()
   if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(normalized)) return undefined
@@ -205,7 +189,7 @@ class SafeMathParser {
     const name = this.src.slice(start, this.i)
     this.skipWs()
     if (this.peek() === '(') {
-      // 解析白名单函数调用。
+
       if (!Object.hasOwn(FUNCTIONS, name)) throw new ParseError(`unknown function '${name}'`, start)
       const fn = FUNCTIONS[name]!
       this.i++
@@ -225,7 +209,7 @@ class SafeMathParser {
       }
       return (x) => fn(...args.map(a => this.asNum(a, x)))
     }
-    // 使用自有属性检查，避免 `constructor` 和 `toString` 等原型名称被当作字段。
+
     if (!this.allowImplicitVariables && Object.hasOwn(this.vars, name)) {
       this.variables.add(name)
       const captured = this.vars[name]!
@@ -233,16 +217,16 @@ class SafeMathParser {
     }
     if (Object.hasOwn(CONSTANTS, name) && this.allowImplicitVariables) return CONSTANTS[name]!
     if (this.allowImplicitVariables && name === 'x') {
-      // plot 的采样变量从计算参数读取。
+
       return (value: number) => value
     }
     if (Object.hasOwn(this.vars, name)) {
       this.variables.add(name)
-      // 声明参数使用编译时的值；更新参数时会以新值重新编译。
+
       const captured = this.vars[name]!
       return () => captured
     }
-    // plot 中未声明的单个小写字母参数默认取 1；该规则不接受全局对象名称。
+
     if (Object.hasOwn(CONSTANTS, name)) return CONSTANTS[name]!
     if (this.allowImplicitVariables && /^[a-z]$/.test(name)) return () => 1
     if (this.allowUnboundVariables) {
@@ -256,7 +240,6 @@ class SafeMathParser {
     return typeof node === 'number' ? node : node(x)
   }
 
-  /** 在递归解析前限制表达式层数。 */
   private withDepth<T>(read: () => T): T {
     this.depth += 1
     if (this.depth > SAFE_MATH_LIMITS.maxDepth) {
@@ -293,26 +276,13 @@ class SafeMathParser {
   }
 }
 
-/**
- * 编译表达式以便后续计算。
- * @param expr - 数学表达式；默认模式将 `x` 作为采样变量，strict 模式按已声明字段解析。
- * @param options - 字段值和变量解析规则。
- * @returns 可执行的计算函数；表达式无效时返回 null。
- */
 export function compileMathExpr(expr: string, options: SafeMathOptions = {}): ((x: number) => number) | null {
   return compileMathExprProgram(expr, options)?.evaluate ?? null
 }
 
-/**
- * 编译安全数学表达式，并返回表达式引用的字段名称。
- *
- * @param expr - 受限算术表达式。
- * @param options - 字段值和变量解析规则。
- * @returns 编译后的程序；表达式无效时返回 null。
- */
 export function compileMathExprProgram(expr: string, options: SafeMathOptions = {}): SafeMathProgram | null {
   try {
-    // plot 模式保留 `x` 采样变量；strict 模式允许字段使用该名称。
+
     const vars: Record<string, number> = { ...options.vars }
     if (options.allowImplicitVariables !== false) delete vars.x
     if (expr.length > SAFE_MATH_LIMITS.maxExpressionLength
@@ -323,15 +293,6 @@ export function compileMathExprProgram(expr: string, options: SafeMathOptions = 
   }
 }
 
-/**
- * 在指定范围内采样表达式。
- * @param expr - 使用 x 和可选参数的数学表达式。
- * @param xMin - 采样起点。
- * @param xMax - 采样终点。
- * @param samples - 采样点数量，至少为 2。
- * @param params - 参数值；参数变化时会重新编译表达式。
- * @returns 有限的 [x, y] 坐标对。
- */
 export function sampleExpr(
   expr: string,
   xMin: number,

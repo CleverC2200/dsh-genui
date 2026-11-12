@@ -1,7 +1,3 @@
-// @vitest-environment jsdom
-// `enableWhen`: the control stays on screen but inert, with a reason. Different
-// job from `when` (which removes the branch): a step that applies but is not yet
-// reachable must stay discoverable, and must not silently accept input.
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -31,7 +27,7 @@ const gateFor = (label: string): HTMLElement | null => screen.getByLabelText(lab
 describe('enableWhen', () => {
   it('keeps the control visible but inert until the condition holds', () => {
     render(<GenuiBlock spec={spec} />)
-    // The control is on screen — the requirement stays discoverable.
+
     expect(screen.getByLabelText('税号')).not.toBeNull()
     const gate = gateFor('税号')
     expect(gate).not.toBeNull()
@@ -50,7 +46,7 @@ describe('enableWhen', () => {
     const select = document.querySelector('select')!
     fireEvent.change(select, { target: { value: '公司' } })
     expect(gateFor('税号')).toBeNull()
-    // Still not hidden: `enableWhen` never removes the node.
+
     expect(screen.getByLabelText('税号')).not.toBeNull()
   })
 
@@ -61,8 +57,7 @@ describe('enableWhen', () => {
     fireEvent.change(screen.getByLabelText('税号'), { target: { value: '9133' } })
     fireEvent.change(select, { target: { value: '个人' } })
     expect(gateFor('税号')).not.toBeNull()
-    // The value is still there (the reader can see it) — `when` is the primitive
-    // that removes a value from scope, `enableWhen` only gates interaction.
+
     expect((screen.getByLabelText('税号') as HTMLInputElement).value).toBe('9133')
   })
 

@@ -1,7 +1,3 @@
-// @vitest-environment jsdom
-// Conditional visibility (`when`): a decision tree reacts to the block's own
-// state, and a hidden field must neither submit a stale value nor look
-// unanswered. Those two rules are what make it a feature rather than CSS.
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -100,7 +96,7 @@ describe('a conditional field in a real block', () => {
   it('stays hidden until the condition holds, then appears', () => {
     render(<GenuiBlock spec={tree} />)
     expect(screen.queryByLabelText('税号')).toBeNull()
-    // The select renders its option labels; pick the one that satisfies `when`.
+
     const select = document.querySelector('select')!
     fireEvent.change(select, { target: { value: '公司' } })
     expect(screen.getByLabelText('税号')).not.toBeNull()
@@ -111,12 +107,12 @@ describe('a conditional field in a real block', () => {
   it('does not submit a value the reader cannot see', async () => {
     const calls: Array<{ action: string; payload: Record<string, unknown> }> = []
     const action = (name: string, payload: Record<string, unknown>): void => { calls.push({ action: name, payload }) }
-    // The block reads its handler from the plugin-owned action context.
+
     render(<GenuiActionContext.Provider value={action}><GenuiBlock spec={tree} /></GenuiActionContext.Provider>)
     const select = document.querySelector('select')!
     fireEvent.change(select, { target: { value: '公司' } })
     fireEvent.change(screen.getByLabelText('税号'), { target: { value: '9133' } })
-    // Hide it again: the value stays in state but must leave the payload.
+
     fireEvent.change(select, { target: { value: '个人' } })
     fireEvent.click(screen.getByRole('button', { name: '提交' }))
     await waitFor(() => expect(calls).toHaveLength(1))

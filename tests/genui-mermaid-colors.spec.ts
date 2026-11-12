@@ -74,8 +74,7 @@ describe('Mermaid theme colors', () => {
   })
 
   it('converts modern colors through sRGB pixels while retaining alpha', () => {
-    // jsdom can parse oklch(), but has no Canvas renderer. Supply just that
-    // browser primitive; the token and computed-style path remain real.
+
     document.body.style.setProperty(TOKEN, 'oklch(40% .1 210 / .4)')
     const context = {
       fillStyle: '',

@@ -7,7 +7,6 @@ lib/
 .compat-check-*/
 .playwright-cli/
 .cursor/
-# 选集页由 scripts/build-anthology-page.mts 在 CI 现场生成，不进 git
 site/anthology.html
-# macOS Finder metadata (never source)
 .DS_Store
+.runtime/

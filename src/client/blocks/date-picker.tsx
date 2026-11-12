@@ -5,7 +5,6 @@ import { isDatePickerValueValid } from '../date-picker.ts'
 import type { AnswersState } from './state.ts'
 import css from './date-picker.module.css'
 
-/** 渲染使用共享字段的单日期或日期范围控件。 */
 export function DatePickerNode({ node, answers }: {
   node: GenuiDatePicker
   answers?: AnswersState | undefined
@@ -46,13 +45,11 @@ export function DatePickerNode({ node, answers }: {
       setEnd('')
       if (id !== undefined) answers?.setField(id, '')
     } else if (id !== undefined && current !== '') {
-      // A constraint update can make a previously invalid draft valid. Keep
-      // the submitted value aligned with the date now displayed as valid.
+
       answers?.setField(id, current)
     }
   }, [node.mode, node.min, node.max])
 
-  /** 将已完成的日期选择写入共享字段，并清除未完成的范围值。 */
   const updateField = (nextStart: string, nextEnd: string): void => {
     if (id === undefined) return
     const value = range

@@ -1,6 +1,3 @@
-/** 记录 dsh-v0.2.1-rc.3 的公开界面文案，用于处理预览提示和可跳过的初始化弹窗。
- * 来源：packages/client/ui-settings-models 与 packages/client/ui-settings-account。
- */
 import { setTimeout as delay } from 'node:timers/promises'
 
 const specs = [
@@ -87,7 +84,6 @@ export const ONBOARDING_DIALOGS = Object.freeze(specs.map(spec => Object.freeze(
   paragraphs: Object.freeze(spec.paragraphs), buttons: Object.freeze(spec.buttons.map(Object.freeze)) })))
 const normalize = text => typeof text === 'string' ? text.replace(/\s+/gu, ' ').trim() : ''
 
-/** Equality guards never expose arbitrary page text in assertion failures or reports. */
 export function classifyOnboardingDialog(snapshot) {
   if (!snapshot || snapshot.role !== 'dialog' || snapshot.modal !== 'true' || snapshot.describedBy !== null || snapshot.extraControls !== 0
     || snapshot.alerts !== 0 || snapshot.busy !== false || !Array.isArray(snapshot.headings)
@@ -100,13 +96,12 @@ export function classifyOnboardingDialog(snapshot) {
 }
 function observation(snapshot, count) {
   const recognized = ONBOARDING_DIALOGS.find(spec => spec.title === snapshot?.title)
-  // No arbitrary title/body/button labels, hrefs, input values, cookies or URLs.
+
   return { visibleDialogs: count, titleKind: recognized?.kind ?? 'unknown', locale: recognized?.locale ?? null,
     exactShape: !!classifyOnboardingDialog(snapshot), controls: snapshot?.buttons?.length ?? 0,
     extraControls: snapshot?.extraControls ?? 0, alerts: snapshot?.alerts ?? 0, busy: snapshot?.busy ?? false }
 }
 
-/** Closed artifact schema. Even a caller-supplied report cannot add raw page/auth data. */
 export function projectOnboardingReport(value) {
   const source = value && typeof value === 'object' ? value : {}, result = {}
   if (['checking', 'ready', 'failed'].includes(source.status)) result.status = source.status
@@ -134,7 +129,6 @@ export function projectOnboardingReport(value) {
   return result
 }
 
-/** Pure driver contract. Tests exercise orchestration, never render a fake host DOM. */
 export async function runOnboardingSequence(driver, report = {}) {
   report.status = 'checking'; report.actions = []
   const deadline = driver.now() + 20000
@@ -158,8 +152,7 @@ export async function runOnboardingSequence(driver, report = {}) {
         delete report.pendingAction
       } else if (report.actions.length > 0 && await driver.workspaceReady()) {
         readySince ??= driver.now()
-        // Model readiness may briefly render no dialog after the preview completes.
-        // Require repeated real actionability, never infer readiness from one empty snapshot.
+
         if (driver.now() - readySince >= 1000) {
           report.status = 'ready'; report.workspaceActionabilityChecked = true
           return report
@@ -190,7 +183,6 @@ export async function readOnboardingDialog(dialog) {
   })
 }
 
-/** Real browser adapter: normal, scoped clicks only; no auth/config APIs or DOM writes. */
 export async function completeSyntheticOnboarding(page, workspaceRow, report = {}) {
   const dialogs = page.locator('[role="dialog"]:visible, [role="alertdialog"]:visible')
   return runOnboardingSequence({

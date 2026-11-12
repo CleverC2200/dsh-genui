@@ -1,4 +1,3 @@
-/** Verify the shipped map engine stays lazy, with worker/CSS payloads intact. */
 import { readFile } from 'node:fs/promises'
 import { runInNewContext } from 'node:vm'
 const root = new URL('../', import.meta.url)
@@ -16,7 +15,7 @@ const sandbox = {
   console, TextDecoder, TextEncoder,
   URL: { createObjectURL() { throw new Error('worker Blob was created before map mount') } },
 }
-// Asset evaluation alone must neither create a worker nor touch the DOM.
+
 runInNewContext(engine, sandbox, { timeout: 5000 })
 if (typeof sandbox.__GenuiAssets__?.maplibre?.mountMap !== 'function') {
   throw new Error('maplibre asset did not register its engine API')

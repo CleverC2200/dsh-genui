@@ -1,4 +1,3 @@
-/** Pure shape/orchestration and locator-call contracts, not browser/host acceptance. */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'

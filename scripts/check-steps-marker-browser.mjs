@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-/** #410: inherited body line height must not displace fixed-size step markers.
- * Reuses the Chromium/CDP and Vite fixture approach of check-blocks-theme-browser.
- * GENUI_STEPS_CSS substitutes only the source stylesheet for a baseline run.
- */
+
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -20,8 +17,6 @@ const failures = []
 const check = (condition, message) => { if (!condition) failures.push(message) }
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-/** CDP waits for the fixture rather than Chromium's dump-dom load heuristic.
- * Vite modules (and optional host tokens) finish asynchronously after load. */
 async function render(url, screenshot, width) {
   const profile = await mkdtemp(join(tmpdir(), 'genui-blocks-chrome-'))
   const process = spawn(browser, [
@@ -141,15 +136,13 @@ try {
         for (const sample of results.samples) {
           const label = `${name}/${sample.hostFont}/${sample.hostLineHeight}/${sample.state}/${sample.text}`
           check(Math.abs(sample.width - 24) < 0.01 && Math.abs(sample.height - 24) < 0.01, `${label}: marker size changed`)
-          // The marker's own line box must fit and remain independent of body leading.
+
           check(Math.abs(sample.lineHeight - sample.font) < 0.02, `${label}: inherited line-height ${sample.lineHeight}px`)
-          // Range includes font ascent/descent, not just visible ink. Some
-          // fallback fonts use all 24px; require containment and centering,
-          // rather than pretending this measures raster glyph padding.
+
           check(sample.textTop >= 0 && sample.textBottom <= 24, `${label}: text range escapes marker`)
           check(Math.abs(sample.textCenterOffset) <= 1.5, `${label}: text range is off center`)
           check(sample.titleClear, `${label}: marker/title overlap or clipped title`)
-          // Only marker leading changes; readable title/description leading stays intact.
+
           check(Math.abs(sample.titleLineHeight / Math.max(14.5, sample.hostFont * 0.852941176) - 1.45) < 0.01, `${label}: title leading changed`)
           check(Math.abs(sample.descLineHeight / Math.max(12.5, sample.hostFont * 0.735294118) - 1.55) < 0.01, `${label}: description leading changed`)
           const peer = results.samples.find(other => other.hostFont === sample.hostFont && other.state === sample.state && other.text === sample.text && other.hostLineHeight !== sample.hostLineHeight)

@@ -1,4 +1,3 @@
-/** Merge already approved exact versions; pnpm otherwise uses the first matching name. */
 export function mergeExactVersionExceptions(rules) {
   const result = []
   const positions = new Map()

@@ -24,24 +24,20 @@ jobs:
       MINIMUM_HOST_REF: dsh-v0.2.0-rc.1
 
     steps:
-      # actions/checkout@v4
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: ${{ github.event.release.tag_name }}
 
-      # actions/setup-node@v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
-      # pnpm/action-setup@v4
       - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
         with:
           version: 11.7.0
 
-      # npm Trusted Publishing requires npm >= 11.5.1. Keep the release job
-      # independent from whichever npm minor happens to ship with Node 24.
       - name: Upgrade npm for trusted publishing
         run: npm install --global 'npm@^11.5.1'
 
@@ -66,9 +62,9 @@ jobs:
             echo "npm_tag=preview" >> "$GITHUB_OUTPUT"
           else
             echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
-            # Never move the public `latest` dist-tag backwards: re-publishing
-            # a stale or recreated release would silently downgrade every
-            # exact-version pin that DSH Desktop installs (#59).
+
+
+
             PUBLISHED="$(npm view @changfenhuang/dsh-genui version)"
             if [ -n "$PUBLISHED" ]; then
               BELOW="$(node -e '
@@ -89,7 +85,6 @@ jobs:
             fi
           fi
 
-      # 固定标签的宿主用于 packed e2e；API 检查单独安装发布包类型声明。
       - name: Clone DSH host
         shell: bash
         run: |

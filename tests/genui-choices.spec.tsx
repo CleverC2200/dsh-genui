@@ -1,7 +1,3 @@
-// @vitest-environment jsdom
-// `choices`: a decision list. The contract worth pinning is that the trade-off
-// travels WITH the option (that is the reason the node exists — `radio` options
-// are bare strings), and that submitting never claims the work is done.
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
@@ -81,7 +77,6 @@ describe('ChoicesNode', () => {
     })
     expect(container.textContent).toContain(t('block.choices.sent'))
 
-    // Editing clears the "sent" line — the model acted on the previous answer.
     fireEvent.click(container.querySelectorAll<HTMLInputElement>('input')[0]!)
     expect(container.textContent).not.toContain(t('block.choices.sent'))
   })
@@ -100,7 +95,7 @@ describe('ChoicesNode', () => {
     const { container } = renderWithAction({ ...base, action: undefined })
     fireEvent.click(container.querySelectorAll<HTMLInputElement>('input')[0]!)
     fireEvent.click(container.querySelector<HTMLButtonElement>('button')!)
-    // The label must describe what happened: a local record is not a delivery.
+
     expect(container.textContent).toContain(t('block.choices.localOnly'))
     expect(container.textContent).not.toContain(t('block.choices.sent'))
   })
@@ -126,7 +121,7 @@ describe('choices as a paper question (what retires radio)', () => {
     const { container } = render(<ChoicesNode node={paper} answers={answers} />)
     fireEvent.click(container.querySelectorAll<HTMLInputElement>('input')[0]!)
     expect(setAnswer).toHaveBeenCalledWith('q1', '方案 A')
-    // The paper's own submit node collects it; this node must not render one.
+
     expect(container.querySelector('button')).toBeNull()
   })
 
@@ -153,7 +148,7 @@ describe('choices as a paper question (what retires radio)', () => {
 
 describe('a submit that cannot send', () => {
   it('never claims the choice was sent when the spec carries no action', () => {
-    // Repro of a real report: the block said "已发送" while nothing left the page.
+
     const { container } = render(<ChoicesNode node={{ ...base, action: undefined }} />)
     fireEvent.click(container.querySelectorAll<HTMLInputElement>('input')[0]!)
     fireEvent.click(screen.getByRole('button', { name: '就这么定' }))

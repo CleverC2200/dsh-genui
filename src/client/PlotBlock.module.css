@@ -1,7 +1,3 @@
-/* PlotBlock: SVG function plot inside a genui block. Design system v2
-   (0.5.0): same token vocabulary as GenuiBlock.module.css — this root
-   carries its own copy because the plot can also mount standalone. */
-
 .block {
   --dsl-g-radius-surface: 12px;
   --dsl-g-radius-control: 8px;
@@ -61,7 +57,6 @@
   stroke-linecap: round;
 }
 
-/* v2.9 draw shapes */
 .area {
   stroke: none;
   fill-opacity: 0.16;
@@ -106,9 +101,7 @@
 }
 
 .surface { cursor: grab; touch-action: pan-y; }
-/* The current x-domain only shows when it differs from the initial one, next
-   to the way back. Without this, an accidental zoom left the reader with a
-   domain nobody asked for and no visible affordance to restore it. */
+
 .plotTools { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 4px; }
 .plotHint { font-size: max(12.5px, calc(var(--dsh-content-font-size, 14px) * 0.735294118)); color: var(--dsw-alias-label-tertiary); font-variant-numeric: tabular-nums; }
 .plotReset {
@@ -129,8 +122,6 @@
 .sliderName { color: var(--dsw-alias-label-secondary); min-width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slider { flex: 1; accent-color: var(--dsl-g-accent); height: 4px; cursor: pointer; }
 .sliderValue { color: var(--dsw-alias-label-primary); font-family: var(--dsl-g-font-mono); min-width: 34px; text-align: right; }
-
-/* ---------- animation bar ---------- */
 
 .animBar { display: flex; align-items: center; gap: var(--dsl-g-gap-md); }
 .playBtn {

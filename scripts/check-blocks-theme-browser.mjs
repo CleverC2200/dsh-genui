@@ -1,10 +1,5 @@
 #!/usr/bin/env node
-/** #408: actual Chromium, real renderer, synthetic confusion matrix.
- * BROWSER_BIN=chromium node scripts/check-blocks-theme-browser.mjs
- * Optional GENUI_HOST_THEME_CSS injects a real host token sheet, independently
- * of the export fallback. GENUI_BROWSER_OUT retains before/after evidence.
- * GENUI_BLOCKS_CSS can render an immutable baseline sheet with the same fixture.
- */
+
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -21,8 +16,6 @@ const failures = []
 const check = (condition, message) => { if (!condition) failures.push(message) }
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 
-/** CDP waits for the fixture rather than Chromium's dump-dom load heuristic.
- * Vite modules (and optional host tokens) finish asynchronously after load. */
 async function render(url, screenshot) {
   const profile = await mkdtemp(join(tmpdir(), 'genui-blocks-chrome-'))
   const process = spawn(browser, [
@@ -139,9 +132,7 @@ try {
           check(cell.background[3] >= 0.27, `${label}: dark semantic wash must remain visible`)
           if (cell.tone !== 'muted') {
             const chroma = Math.max(...cell.effective.slice(0, 3)) - Math.min(...cell.effective.slice(0, 3))
-            // The rc.3 accent is a lighter, less saturated blue than the
-            // success/error hues. All keep a >=35/255 channel spread on
-            // these default backdrops (the original accent was ~26/255).
+
             check(chroma >= 35, `${label}: dark semantic chroma ${chroma.toFixed(1)} < 35`)
           }
           if (!cell.plain) check(cell.border[3] >= 0.49, `${label}: dark semantic boundary too faint`)

@@ -1,21 +1,8 @@
-/**
- * Chart family: categorical palette, the sortable table, and the bars / line
- * / donut renderers. All local-first; no model round trips.
- *
- * Design system v3: the native charts draw in REAL CSS pixels — the plot width
- * is measured from the container and the SVG viewBox matches it 1:1 — instead
- * of a fixed 460×150 viewBox whose axis text scaled with the container (wide
- * screens got oversized labels, narrow ones got unreadable ones). Every chart
- * gets a y-axis with nice 1/2/5 ticks, and single-series bars render against a
- * true zero line so negative values are drawn, not clamped away.
- * @module @changfenhuang/dsh-genui/client/blocks/charts
- */
 import { Fragment, memo, useCallback, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode, RefObject } from 'react'
 import { writeClipboard } from '../primitive-adapter.ts'
 import { renderInline } from '../inline.ts'
-// Aliased: `t` is already used throughout this module as a tick-value
-// local (ticks.map(t => …)), so the translator rides a distinct name.
+
 import { t as tr, useT } from '../i18n/index.ts'
 import css from '../GenuiBlock.module.css'
 import { GENUI_LIMITS } from '../genui-runtime/index.ts'
@@ -37,21 +24,11 @@ export const CHART_COLORS = [
   'var(--dsw-static-deepseek-300)',
 ]
 
-/** Series color: explicit color wins; then an explicit `palette` from the
- *  spec; then the host categorical tokens. */
 const seriesColor = (i: number, n: number, c?: string, palette?: readonly string[]): string | undefined =>
   c ?? (palette !== undefined && palette.length > 0
     ? palette[i % palette.length]
     : n > 1 ? CHART_COLORS[i % CHART_COLORS.length] : undefined)
 
-/**
- * Sortable numeric value of a cell. Human-written table cells are rarely
- * plain numbers, so the sort accepts the usual decorations:
- * `1,234` / `1，234`（千分位）、`1.2k`/`3M`/`5b`、`3.5万`/`2亿`、`0.3%`、
- * `¥99`/`$12`。A cell that cannot be read as a number returns NaN and the
- * row falls back to the text comparison — mixed columns sort deterministically
- * (numbers first, then text).
- */
 export function parseSortableNumber(v: unknown): number {
   if (v !== null && typeof v === 'object' && Object.hasOwn(v, GENUI_COMPUTED_CELL)) {
     const value = (v as GenuiComputedCell).value
@@ -64,7 +41,7 @@ export function parseSortableNumber(v: unknown): number {
   s = s.replace(/^[¥$€£]/, '')
   const pct = s.endsWith('%')
   if (pct) s = s.slice(0, -1)
-  // 中文单位在前：3.5万 → 35000、2亿 → 200000000；再是 k/m/b 后缀。
+
   let mult = 1
   if (s.endsWith('万')) { mult = 10_000; s = s.slice(0, -1) }
   else if (s.endsWith('亿')) { mult = 100_000_000; s = s.slice(0, -1) }
@@ -79,8 +56,6 @@ export function parseSortableNumber(v: unknown): number {
   return n * mult
 }
 
-/** A column is numeric when every non-empty cell parses to a finite number —
- * those columns right-align with tabular numerals (the table's data voice). */
 function numericColumns(rows: GenuiTable['rows'], nCols: number): boolean[] {
   return Array.from({ length: nCols }, (_, j) => {
     let any = false
@@ -94,35 +69,20 @@ function numericColumns(rows: GenuiTable['rows'], nCols: number): boolean[] {
   })
 }
 
-/**
- * Does this cell carry real line breaks? Table cells default to `nowrap` (the
- * data voice), which also collapses the leading whitespace of a pasted code
- * block — indentation is lost and the snippet no longer runs. Cells that do
- * contain a line break get `pre-line` (see `.tdMultiline`), so the line
- * structure survives and the text still copies back as multiple lines.
- */
 function hasLineBreak(value: TableCell): boolean {
   return typeof value === 'string' && /[\n\r]/.test(value)
 }
 
-/**
- * Is this cell code rather than prose? Only then is leading indentation
- * significant (`pre-wrap`), while a prose line break stays `pre-line` so its
- * surrounding spaces collapse exactly like the rest of the UI.
- */
 function isCodeCell(value: TableCell): boolean {
   if (typeof value !== 'string') return false
   return /(^|\n)[ \t]/.test(value) || value.includes('```')
 }
 
-/** The whitespace class a multi-line cell needs, or undefined for single-line. */
 function cellWrapClass(value: TableCell): string | undefined {
   if (!hasLineBreak(value)) return undefined
   return isCodeCell(value) ? css.tdCode : css.tdMultiline
 }
 
-/** Signed cell text (`+12.4%`, `-3`, `−2.1k`) reads as a delta without any
- *  new spec field — the renderer classifies the string. */
 function deltaTone(value: unknown): 'up' | 'down' | null {
   if (typeof value !== 'string') return null
   const s = value.trim()
@@ -130,11 +90,6 @@ function deltaTone(value: unknown): 'up' | 'down' | null {
   return s.startsWith('+') ? 'up' : 'down'
 }
 
-/** `types: ["badge"]` cell tone: the pill used to render in the accent colour
- *  for EVERY value, so a 状态 column showed 正常 / 偏高 / 失败 in one colour and
- *  stopped encoding status. Standalone `badge` nodes already carry a tone; the
- *  table cell just never resolved one. Unknown labels keep the accent pill, so
- *  arbitrary words are safe. Negatives are tested first: 不正常 contains 正常. */
 const BADGE_TONE_WORDS: ReadonlyArray<['success' | 'warn' | 'danger', RegExp]> = [
   ['danger', /(偏高|异常|失败|错误|故障|离线|拒绝|超限|危险|失效|超时|fail|error|down|critical|offline|blocked)/i],
   ['warn', /(关注|警告|波动|部分|降级|观察|待定|degraded|partial|pending|warn|slow)/i],
@@ -151,8 +106,6 @@ function badgeTone(value: unknown): 'success' | 'warn' | 'danger' | null {
   return null
 }
 
-/** `types: ["spark"]` cell: comma/space separated numbers drawn as a micro
- *  trend line (area wash + end dot, same geometry as stat.spark). */
 function CellSpark({ cell }: { cell: TableCell }) {
   const display = tableCellText(cell)
   const values = display.split(/[\s,;]+/).map(Number).filter(Number.isFinite)
@@ -177,7 +130,6 @@ function CellSpark({ cell }: { cell: TableCell }) {
   )
 }
 
-/** `types: ["ring"]` cell: a 28px ring gauge read as 0-100. */
 function CellRing({ cell }: { cell: TableCell }) {
   const n = parseSortableNumber(cell)
   const pct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0
@@ -197,8 +149,6 @@ function CellRing({ cell }: { cell: TableCell }) {
   )
 }
 
-/** Copy chips above a table (`table.export`). Local clipboard only — no action,
- *  no round trip; the label confirms for a moment and then resets. */
 function TableExportChips({ columns, rows }: { columns: string[]; rows: Array<Array<TableCell>> }) {
   useT()
   const [copied, setCopied] = useState<'md' | 'csv' | null>(null)
@@ -222,7 +172,6 @@ function TableExportChips({ columns, rows }: { columns: string[]; rows: Array<Ar
   )
 }
 
-/** `types: ["bar"]` cell: an inline 0-100 track with the value printed on it. */
 function CellBar({ cell }: { cell: TableCell }) {
   const n = parseSortableNumber(cell)
   const pct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0
@@ -236,13 +185,11 @@ function CellBar({ cell }: { cell: TableCell }) {
 
 export const TableNode = memo(function TableNode({ node, renderDetail, filterValue, sortValue }: {
   node: GenuiTable
-  /** Live value of `node.filter`: substring-match rows locally. */
+
   filterValue?: string | undefined
-  /** Live value of `node.sortField`: a column header to sort by. */
+
   sortValue?: string | undefined
-  /** Renders a row's detail nodes. Supplied by render-node so the table never
-   *  has to import the renderer back (import cycle). The details lookup index
-   *  identifies the occurrence even when rows are sorted or arrays are reused. */
+
   renderDetail?: ((items: NonNullable<GenuiTable['details']>[number] & object[], detailIndex: number) => ReactNode) | undefined
 }) {
   useT()
@@ -263,14 +210,8 @@ export const TableNode = memo(function TableNode({ node, renderDetail, filterVal
     return (as < bs ? -1 : as > bs ? 1 : 0) * dir
   }
 
-  // Group header rows: with `types[0] === 'group'`, a row whose first cell is
-  // filled and every other cell empty opens a section. Data rows after it are
-  // its CHILDREN — indented, counted, and collapsible — so the relationship is
-  // unmistakable instead of "one more row at the same level".
   const isGroupRow = (row: GenuiTable['rows'][number]): boolean => isTableGroupHeaderRow(row, types)
 
-  // Local filtering (bound control): the model ships the full data set once and
-  // the reader narrows it live — no round trip, no re-generation.
   const needle = filterValue?.trim().toLowerCase()
   const filtered = needle === undefined || needle === ''
     ? rows.map((row, index) => ({ row, index }))
@@ -285,8 +226,7 @@ export const TableNode = memo(function TableNode({ node, renderDetail, filterVal
 
   interface Section { header: { row: GenuiTable['rows'][number]; index: number } | null; children: Array<{ row: GenuiTable['rows'][number]; index: number; visibleIndex: number }> }
   const sections: Section[] = []
-  // Details and local state belong to the original row, not its filtered
-  // position. Keep the latter separately for the displayed index column.
+
   filtered.forEach(({ row, index }, visibleIndex) => {
     if (isGroupRow(row)) { sections.push({ header: { row, index }, children: [] }); return }
     if (sections.length === 0 || sections[sections.length - 1]!.header === null) {
@@ -295,10 +235,6 @@ export const TableNode = memo(function TableNode({ node, renderDetail, filterVal
     sections[sections.length - 1]!.children.push({ row, index, visibleIndex })
   })
 
-  // Sorting keeps sections intact: each section's children sort among
-  // themselves, so a grouped table can never scramble its own structure.
-  // `sortField` is a select whose value is a column header: apply it as the
-  // active sort (a click on the header still overrides it).
   const boundSortCol = sortValue === undefined ? -1 : columns.indexOf(sortValue)
   const effectiveSort = sort !== null ? sort : (boundSortCol >= 0 ? { col: boundSortCol, dir: 1 as const } : null)
 
@@ -331,7 +267,7 @@ export const TableNode = memo(function TableNode({ node, renderDetail, filterVal
       ? prev.dir === 1 ? { col: i, dir: -1 } : null
       : { col: i, dir: 1 })
   }
-  // Optional 合计 footer: sums every numeric column (section headers excluded).
+
   const totals = columns.map((_c, j) => {
     if (!numeric[j]) return null
     let sum = 0
@@ -352,8 +288,7 @@ export const TableNode = memo(function TableNode({ node, renderDetail, filterVal
     const tone = type === 'delta'
       ? (tableCellText(cell).trim().startsWith('-') ? 'down' : 'up')
       : deltaTone(tableCellText(cell))
-    // Badge cells resolve a state keyword to the same tone classes the
-    // standalone `badge` node uses (css.success / css.warn / css.danger).
+
     const pillTone = type === 'badge' ? badgeTone(tableCellText(cell)) : null
     return (
       <td
@@ -375,7 +310,7 @@ export const TableNode = memo(function TableNode({ node, renderDetail, filterVal
                 : type === 'index'
                   ? <span className={css.cellIndex}>{rowIndex + 1}</span>
                   : tone === null
-                    // Format displayed text without changing sorting or exported data.
+
                     ? renderInline(tableCellText(cell), true)
                     : <span className={`${css.tdDelta} ${tone === 'up' ? css.tdDeltaUp : css.tdDeltaDown}`}>{renderInline(tableCellText(cell), true)}</span>}
       </td>
@@ -506,16 +441,10 @@ export const TableNode = memo(function TableNode({ node, renderDetail, filterVal
   )
 })
 
-/** One tooltip line: label on the left, value on the right. */
 type TipRow = [string, string]
 
 interface TipState { x: number; y: number; rows: TipRow[] }
 
-/**
- * Instant, self-drawn hover readout. The browser's native `title` takes about
- * a second to appear and cannot show a stacked breakdown, which is exactly
- * what a stacked bar needs ("hover 上去要会显示各自部分的具体数值").
- */
 function useChartTip(): {
   tip: TipState | null
   show: (event: ReactMouseEvent<Element>, rows: TipRow[]) => void
@@ -552,8 +481,6 @@ function ChartTip({ tip }: { tip: TipState | null }) {
   )
 }
 
-/** Measured plot width. Charts draw in CSS pixels: 1 SVG unit = 1px, so axis
- *  text keeps its designed size at every container width. */
 function useMeasuredWidth(): [RefObject<HTMLDivElement>, number] {
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(560)
@@ -573,7 +500,6 @@ function useMeasuredWidth(): [RefObject<HTMLDivElement>, number] {
   return [ref, width]
 }
 
-/** Axis ticks on 1/2/5×10^n steps covering [min, max] inclusively. */
 function niceTicks(min: number, max: number, target = 4): number[] {
   const lo = Math.min(min, 0)
   const hi = Math.max(max, 0)
@@ -589,7 +515,6 @@ function niceTicks(min: number, max: number, target = 4): number[] {
   return ticks
 }
 
-/** Compact tick text: 1200 → 1.2k, 0.5 → 0.5, integers bare. */
 function formatTick(t: number): string {
   const abs = Math.abs(t)
   if (abs >= 1e9) return `${(t / 1e9).toFixed(abs % 1e9 === 0 ? 0 : 1)}b`
@@ -599,7 +524,6 @@ function formatTick(t: number): string {
   return String(Math.round(t * 100) / 100)
 }
 
-/** 计算数字用普通或指数形式表示时所需的小数位数。 */
 export function fractionDigits(value: number): number {
   if (!Number.isFinite(value)) return 0
   const [coefficient, exponentText] = String(value).toLowerCase().split('e')
@@ -608,7 +532,6 @@ export function fractionDigits(value: number): number {
   return Math.max(decimalDigits - exponent, 0)
 }
 
-/** 按参与计算的原始数值精度格式化图表合计。 */
 export function formatChartValue(value: number, maxFractionDigits: number): string {
   if (!Number.isFinite(value)) return String(value)
   if (Math.abs(value) >= 1e21 || maxFractionDigits > 100) return String(value)
@@ -616,8 +539,6 @@ export function formatChartValue(value: number, maxFractionDigits: number): stri
   return formatted.includes('.') ? formatted.replace(/\.?0+$/, '') : formatted
 }
 
-/** Shared y-axis gutter: ticks positioned against the same percentage scale
- *  the plot uses, so labels line up with the gridlines. */
 function YAxis({ ticks, lo, span }: { ticks: number[]; lo: number; span: number }) {
   return (
     <div className={css.chartYAxis} style={{ height: 160 }}>
@@ -630,11 +551,9 @@ function YAxis({ ticks, lo, span }: { ticks: number[]; lo: number; span: number 
   )
 }
 
-/** Chart: bars (default), line (trend), or donut (share); multi-series bars via `series`. */
 export const ChartNode = memo(function ChartNode({ chart, filterValue }: {
   chart: GenuiChart
-  /** Live value of the control bound via `chart.filter`; keeps matching
-   *  categories only (label substring), so a chart is explorable locally. */
+
   filterValue?: string | undefined
 }) {
   const filtered = useMemo(() => applyChartFilter(chart, filterValue), [chart, filterValue])
@@ -644,8 +563,6 @@ export const ChartNode = memo(function ChartNode({ chart, filterValue }: {
   return <BarsNode chart={filtered} />
 })
 
-/** Keep the categories whose label matches the bound filter (case-insensitive).
- *  Bars/donut filter `data`, line filters each series' points. */
 function applyChartFilter(chart: GenuiChart, filterValue: string | undefined): GenuiChart {
   const needle = filterValue?.trim().toLowerCase()
   if (needle === undefined || needle === '') return chart
@@ -656,7 +573,6 @@ function applyChartFilter(chart: GenuiChart, filterValue: string | undefined): G
   return { ...chart, data, series }
 }
 
-/** 按类别名称和同名类别出现次数合并多条系列，保留每条系列独有的数据点。 */
 function alignChartSeries(series: Array<{ data: GenuiChart['data'] }>): { labels: string[]; values: Array<Array<number | null>> } {
   const maxCategories = Math.min(series.length, GENUI_LIMITS.maxPlotSeries) * GENUI_LIMITS.maxChartPoints
   const categoryKeys: string[] = []
@@ -697,9 +613,6 @@ function alignChartSeries(series: Array<{ data: GenuiChart['data'] }>): { labels
   }
 }
 
-/** Bars: one column per datum (grouped bars when `series` is present).
- *  Single-series bars render against a true zero line, so negative values
- *  draw downward instead of clamping to zero height. */
 export const BarsNode = memo(function BarsNode({ chart }: { chart: GenuiChart }) {
   useT()
   const { tip, show, hide } = useChartTip()
@@ -720,8 +633,6 @@ export const BarsNode = memo(function BarsNode({ chart }: { chart: GenuiChart })
   const categoryFractionDigits = labels.map((_label, i) => Math.max(...seriesValues.map(values => fractionDigits(values[i] ?? 0)), 0))
   const positiveMax = stacked ? Math.max(...categoryTotals, 0) : Math.max(...flat, 0)
 
-  // Horizontal: label column + one track per series. The axis is always
-  // 0..max (a horizontal track has no zero line to cross).
   if (chart.horizontal === true) {
     const scale = Math.max(positiveMax, 1)
     const legend = isGrouped
@@ -793,9 +704,6 @@ export const BarsNode = memo(function BarsNode({ chart }: { chart: GenuiChart })
     )
   }
 
-  // Vertical: grouped bars clamp negatives (the flex layout stacks upward), so
-  // the axis starts at zero for that shape; single-series bars render against
-  // a true zero line and draw negatives downward.
   const ticks = niceTicks(isGrouped ? 0 : Math.min(...flat, 0), positiveMax, 4)
   const lo = ticks[0]!
   const hi = ticks[ticks.length - 1]!
@@ -913,8 +821,6 @@ export const BarsNode = memo(function BarsNode({ chart }: { chart: GenuiChart })
   )
 })
 
-/** Line: responsive polyline with an area wash, nice y ticks and sampled x
- *  labels drawn in SVG at their real size. */
 export const LineChartNode = memo(function LineChartNode({ chart }: { chart: GenuiChart }) {
   useT()
   const [ref, measured] = useMeasuredWidth()
@@ -964,7 +870,7 @@ export const LineChartNode = memo(function LineChartNode({ chart }: { chart: Gen
   const area = !multi && pointCount > 1 && seriesValues[0]!.every(value => value !== null)
     ? `${paths[0]} L ${x(pointCount - 1).toFixed(1)} ${y(lo).toFixed(1)} L ${x(0).toFixed(1)} ${y(lo).toFixed(1)} Z`
     : null
-  // Keep x labels readable: at most one per ~64px of plot width.
+
   const labelStep = Math.max(1, Math.ceil(pointCount / Math.max(1, Math.floor(innerW / 64))))
   const summary = tr(multi ? 'block.chart.lineSeries' : 'block.chart.linePoints', {
     count: multi ? seriesValues.length : pointCount,
@@ -1030,16 +936,13 @@ export const LineChartNode = memo(function LineChartNode({ chart }: { chart: Gen
   )
 })
 
-/** Donut: share of total with a center total and a legend that shows each
- *  slice's value AND percentage (the old legend was unstyled text). */
 export const DonutNode = memo(function DonutNode({ chart }: { chart: GenuiChart }) {
   useT()
   const { tip, show, hide } = useChartTip()
   const data = chart.data.slice(0, GENUI_LIMITS.maxChartPoints)
   const clamped = data.map(d => ({ ...d, v: Math.max(0, Number(d.value) || 0) }))
   const total = clamped.reduce((s, d) => s + d.v, 0) || 1
-  // Center total: 1 decimal for fractional sums — a share-of-total figure
-  // like 3.3/9.9 used to print the raw float as 6.6000000000000005.
+
   const totalText = total >= 1000
     ? `${Math.round(total / 100) / 10}k`
     : Number.isInteger(total) ? String(total) : total.toFixed(1)

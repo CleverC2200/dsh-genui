@@ -1,9 +1,3 @@
-/**
- * Real Chromium layout/input checks against the installed renderer and host CSS.
- * The minimum-host adapter uses the DOM fence; the current host passes a real conversation root.
- * Touch scrolling uses native Chromium input; no physical-device, mouse-drag, or lightbox-swipe claim.
- * checkGalleryBrowser accepts a rendered-root locator for real-session reuse.
- */
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { writeFile } from 'node:fs/promises'
@@ -17,7 +11,6 @@ const FIXTURE = '[data-gallery-browser-smoke]'
 const STEP_MS = 8000
 const TOTAL_MS = 120000
 
-// Fixed synthetic files only: no filesystem reads, redirects, remote images, or fetch interception.
 const IMAGES = {
   '/wide.svg': '<svg xmlns="http://www.w3.org/2000/svg" width="480" height="240" viewBox="0 0 480 240"><rect width="480" height="240" fill="#2563eb"/><circle cx="120" cy="120" r="72" fill="#fbbf24"/><path d="M250 60h170v120H250z" fill="#fff"/></svg>',
   '/tall.svg': '<svg xmlns="http://www.w3.org/2000/svg" width="180" height="300" viewBox="0 0 180 300"><rect width="180" height="300" fill="#047857"/><path d="M90 30 160 220H20z" fill="#fda4af"/><circle cx="90" cy="260" r="20" fill="#fff"/></svg>',
@@ -48,7 +41,6 @@ export function createGallerySpec(baseURL) {
   ] }
 }
 
-// Each operation has a bound; an overall deadline also limits subsequent steps.
 function budget() {
   const deadline = Date.now() + TOTAL_MS
   return () => {
@@ -66,14 +58,13 @@ async function bounded(promise, ms, label) {
   } finally { clearTimeout(timer) }
 }
 
-/** One read-only DOM snapshot, including CSS-hidden edge buttons for this track only. */
 export function readGalleryCarouselPosition(element) {
   const left = element.scrollLeft
   const maximum = Math.max(0, element.scrollWidth - element.clientWidth)
   const start = element.getBoundingClientRect().left
   const stops = [...element.children].map(slide => Math.min(maximum,
     Math.max(0, slide.getBoundingClientRect().left - start + left)))
-  // DOM presence, not accessible visibility: touch CSS hides these controls.
+
   const controls = [...element.parentElement.querySelectorAll('button[aria-controls]')]
     .filter(button => button.getAttribute('aria-controls') === element.id)
   const previousCount = controls.filter(button => /^(上一组卡片|Previous cards)$/u.test(button.getAttribute('aria-label') ?? '')).length
@@ -81,7 +72,6 @@ export function readGalleryCarouselPosition(element) {
   return { left, maximum, previousCount, nextCount, snapDistance: Math.min(...stops.map(stop => Math.abs(stop - left))) }
 }
 
-/** Wait for browser scrolling AND React's rendered edge controls, never repair focus. */
 export async function settleGalleryCarousel(readPosition, predicate, label, timeout = STEP_MS) {
   assert.ok(timeout > 0 && timeout <= STEP_MS, 'Carousel settlement stays within the eight-second step budget')
   const deadline = Date.now() + timeout
@@ -98,13 +88,12 @@ export async function settleGalleryCarousel(readPosition, predicate, label, time
     if (ready && lastReady && ['left', 'maximum', 'snapDistance', 'previousCount', 'nextCount']
       .every(field => actual[field] === lastReady[field])) return actual
     lastReady = ready ? { ...actual } : null
-    // Condition polling only. Elapsed time alone never makes a state acceptable.
+
     await new Promise(resolve => setTimeout(resolve, Math.min(50, Math.max(1, deadline - Date.now()))))
   } while (Date.now() < deadline)
   assert.fail(`${label}: scroll/snap and edge DOM did not settle; actual=${JSON.stringify(actual)}; expected=${JSON.stringify(expected)}; matchingReadySamples=${lastReady ? 1 : 0}`)
 }
 
-/** Read-only modal geometry/hit targets; never reposition, focus, or click a control. */
 export function readGalleryDialogControls(dialog) {
   const document = dialog.ownerDocument
   const view = document.defaultView
@@ -144,10 +133,6 @@ export function assertGalleryDialogControls(controls, label) {
   }
 }
 
-/** Reusable visual/input checks. Caller owns rendering and removing renderedRoot.
- * restoreColorScheme is the caller's previous Playwright override (null = system).
- * The smoke adapter runs before e2e.mjs changes media, hence restores null.
- */
 export async function checkGalleryBrowser({ page, renderedRoot, artifactsDir,
   dismissCredentialsOverlay, restoreColorScheme = null, assertNoActions, inputProfile = 'desktop',
   artifactPrefix = `gallery-${inputProfile}`, report = {} }) {
@@ -193,8 +178,7 @@ export async function checkGalleryBrowser({ page, renderedRoot, artifactsDir,
     const initialInput = await checkInput('before-first-scenario')
     const screenshot = async file => {
       const options = { path: join(artifactsDir, artifact(file)), timeout: remaining() }
-      // Playwright 1.61.1 captureBeyondViewport can alter touch capability.
-      // Neither fixed context uses locator/full-page captures or their capability-restoration path.
+
       await page.screenshot({ ...options, fullPage: false })
       assert.deepEqual(await checkInput(`after-screenshot:${file}`), initialInput)
     }
@@ -205,7 +189,7 @@ export async function checkGalleryBrowser({ page, renderedRoot, artifactsDir,
       button.dataset.clicks = '0'
       button.textContent = 'BG'
       button.setAttribute('aria-label', 'Gallery inert background probe')
-      // This synthetic control stays outside the centred modal even when the root scrolls.
+
       button.style.cssText = 'position:fixed;left:2px;top:2px;width:24px;height:24px;padding:0;z-index:2147483646'
       button.addEventListener('click', event => {
         button.dataset.clicks = String(Number(button.dataset.clicks) + 1)
@@ -217,7 +201,7 @@ export async function checkGalleryBrowser({ page, renderedRoot, artifactsDir,
     const track = carousel.getByRole('group', { name: CAROUSEL, exact: true })
     const gallery = renderedRoot.getByRole('region', { name: TITLE, exact: true })
     const dialog = gallery.locator('dialog')
-    // The two pinned hosts can expose either supported locale. Never mutate host locale state.
+
     const previous = carousel.getByRole('button', { name: /^(上一组卡片|Previous cards)$/u })
     const next = carousel.getByRole('button', { name: /^(下一组卡片|Next cards)$/u })
     const opener = gallery.getByRole('button', { name: /^(放大 Gallery wide|Enlarge Gallery wide)$/u })
@@ -231,7 +215,7 @@ export async function checkGalleryBrowser({ page, renderedRoot, artifactsDir,
       await image.waitFor({ state: 'visible', timeout: remaining() })
       await poll(() => read(image, img => [img.complete, img.naturalWidth, img.naturalHeight]),
         value => value[0] && value[1] === size[0] && value[2] === size[1], 'Real image load/dimensions')
-      // Invoke the browser decoder, not a fetch stub or synthetic load event.
+
       await bounded(image.evaluate(img => img.decode()), remaining(), 'image decode')
     }
     const states = [
@@ -282,7 +266,7 @@ export async function checkGalleryBrowser({ page, renderedRoot, artifactsDir,
       }
       if (state.interactions) {
         await dismiss()
-        // Initial keyboard setup only. Never reset focus after an edge control disappears.
+
         await track.focus({ timeout: remaining() })
         assert.ok(await active(track), 'Initial keyboard setup focuses the track')
         await key('Home')
@@ -480,7 +464,6 @@ export async function checkGalleryBrowser({ page, renderedRoot, artifactsDir,
   return report
 }
 
-/** Local asset lifecycle, also reusable by a real conversation/replay fixture. */
 export async function startGalleryImageServer() {
   const requests = []
   const server = createServer((req, res) => {
@@ -502,7 +485,6 @@ export async function startGalleryImageServer() {
   } catch (error) { await close(); throw error }
 }
 
-/** Adapter for the existing no-key smoke. No app state or conversation is fabricated. */
 export async function runGalleryBrowserChecks({ page, artifactsDir, dismissCredentialsOverlay, log = console.log,
   inputProfile = 'desktop', report = {} }) {
   let assets
@@ -540,7 +522,7 @@ export async function runGalleryBrowserChecks({ page, artifactsDir, dismissCrede
     report.errorDetails ??= galleryErrorDetails(error)
     report.error ??= report.errorDetails.message
   } finally {
-    // Only remove this fixture and close this server. Do not touch host state/browser lifecycle.
+
     try {
       await bounded(page.locator(FIXTURE).evaluateAll(elements => elements.forEach(el => el.remove())), STEP_MS, 'remove gallery fixture')
     } catch (error) { failure ??= error; report.cleanupErrors = [...report.cleanupErrors ?? [], galleryErrorDetails(error)] }

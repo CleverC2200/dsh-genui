@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'
@@ -8,7 +7,6 @@ import type { GenuiSpec } from '../src/client/spec.ts'
 
 afterEach(() => { cleanup(); localStorage.clear() })
 
-// Reverse dependency order deliberately needs multiple visibility passes.
 const spec: GenuiSpec = { items: [
   { type: 'text', content: 'Ready to book', when: { field: 'visit', op: 'not-empty' } },
   { type: 'date-picker', id: 'visit', label: 'Visit', when: { field: 'plan', op: 'eq', value: 'Advanced' } },

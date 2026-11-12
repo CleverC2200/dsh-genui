@@ -1,17 +1,9 @@
-/**
- * Basic display family: avatar palette, and the local click-feedback button
- * (the actionable-button chip). Used by the render dispatcher.
- * @module @changfenhuang/dsh-genui/client/blocks/basic
- */
 import { renderInline } from '../inline.ts'
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
 import css from '../GenuiBlock.module.css'
 import { useT } from '../i18n/index.ts'
 import type { GenuiAudio, GenuiVideo } from '../spec.ts'
 
-/** Deterministic avatar color by name hash. Host static tokens ONLY —
- * design system v2: no off-brand hexes, the palette always matches the
- * theme's families (deepseek/blue/green/amber/red/neutral). */
 const AVATAR_COLORS = [
   'var(--dsw-static-deepseek-400)',
   'var(--dsw-static-deepseek-450)',
@@ -26,14 +18,10 @@ const AVATAR_COLORS = [
 export function avatarColor(name: string): string {
   let h = 0
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
-  // The array is a literal with 8 entries; the index is always in range.
+
   return AVATAR_COLORS[h % AVATAR_COLORS.length]!
 }
 
-/** Button with LOCAL click feedback: clicking an actionable button shows a
- * brief "✓ 已触发" chip so the user sees the click registered even while the
- * model round trip is in flight — no more "点了没反应" perception. The chip
- * is purely cosmetic; the action fires through `onClick` as before. */
 export function ClickFeedbackButton({ className, disabled, onClick, children }: {
   className: string
   disabled?: boolean
@@ -64,16 +52,13 @@ export function ClickFeedbackButton({ className, disabled, onClick, children }: 
         {children}
         {sent && <span className={css.btnSent} aria-hidden>{t('block.triggered')}</span>}
       </button>
-      {/* Live-region sibling: button content is atomic to screen readers, so
-       * the confirmation announces from a hidden status region. */}
+      {
+                                                                   }
       <span className={css.visuallyHidden} role="status">{sent ? t('block.triggeredPlain') : ''}</span>
     </>
   )
 }
 
-/** Native controls intentionally own play/pause/seek/volume. Model-authored
- * autoplay and controls hints are ignored: media starts only after the user
- * asks for it. */
 export const AudioNode = memo(function AudioNode({ node }: { node: GenuiAudio }): ReactNode {
   const t = useT()
   const [failed, setFailed] = useState(false)

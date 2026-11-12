@@ -10,7 +10,6 @@ import type { GenuiBlockProps } from './state.ts'
 import { avatarColor } from './basic.tsx'
 import css from './entity-card.module.css'
 
-/** 显示实体概要、安全来源链接和操作入口。 */
 export function EntityCardNode({ node, onAction }: { node: GenuiEntityCard; onAction?: GenuiBlockProps['onAction'] }): ReactElement {
   const t = useT()
   const target = classifyLinkTarget(node.href)

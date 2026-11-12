@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { COMPONENT_SCHEMAS } from '../src/client/genui-runtime/schema.ts'
 import { inferSkeleton } from '../src/client/streaming-shape.ts'
 
-/** The placeholder should look like the component that is arriving. */
 describe('inferSkeleton', () => {
   it('maps the first component type to a matching shape', () => {
     expect(inferSkeleton('{"items":[{"type":"table","columns":["a"]').shape).toBe('table')
@@ -24,7 +23,7 @@ describe('inferSkeleton', () => {
   })
 
   it('shows a title that is still being typed', () => {
-    // The closing quote has not arrived yet — the text is already the real title.
+
     expect(inferSkeleton('{"items":[{"type":"card","title":"成本拆').title).toBe('成本拆')
   })
 
@@ -35,8 +34,7 @@ describe('inferSkeleton', () => {
 
 describe('coverage', () => {
   it('decides a shape for every whitelisted component type', () => {
-    // A new component must not silently inherit the neutral placeholder: the
-    // skeleton would then be back to "something is loading" for that type.
+
     const unmapped = Object.keys(COMPONENT_SCHEMAS)
       .filter(type => inferSkeleton(`{"items":[{"type":"${type}"`).shape === 'generic')
     expect(unmapped).toEqual([])
@@ -50,7 +48,7 @@ describe('size hints', () => {
   })
 
   it('does not count a column that is still being typed', () => {
-    // `"金额` has no closing quote yet: it must not inflate the count.
+
     expect(inferSkeleton('{"items":[{"type":"table","columns":["项目","金额').columns).toBe(1)
   })
 
@@ -68,7 +66,7 @@ describe('size hints', () => {
   })
 
   it('carries the hints only for the shape that uses them', () => {
-    // A card body is unknown; no size guess may leak from an unrelated field.
+
     expect(inferSkeleton('{"items":[{"type":"card","title":"x","items":[').columns).toBeUndefined()
   })
 })

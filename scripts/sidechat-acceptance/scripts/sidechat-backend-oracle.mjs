@@ -1,4 +1,3 @@
-/** Strict oracle over fresh sessionPersistence handle reads, not live projections. */
 import assert from 'node:assert/strict'
 import { IDS, ACK, PROVIDER, MODEL, assertOwnedAuditRow, childActionText } from './sidechat-host-contract.mjs'
 import { validateUiAway } from '../fixture/lib/ui-away.mjs'
@@ -22,7 +21,7 @@ export function assertAudit(audit) {
   assert.ok(Array.isArray(audit) && audit.length <= 512, 'Bounded audit required')
   for (const row of audit) assertOwnedAuditRow(row)
 }
-/** A pending result may be polled; an invalid result must immediately fail. */
+
 export class PendingSettlement extends Error {}
 export function durableSnapshot(record, { expected, assistantEventSeq, allowPending = false, uiAway }) {
   assert.equal(record.fatal, undefined, 'Fixture failure invalidates durable snapshot')
@@ -55,7 +54,7 @@ export function durableSnapshot(record, { expected, assistantEventSeq, allowPend
         const text = textOf(data)
         if (data.source?.kind !== 'user') {
           assert.ok(!text.includes('[genui-action]') && !data.containsAction, 'Context injection cannot hide an action')
-          continue // Official runtime/first-contact context is not a user action.
+          continue
         }
         assert.equal(data.role, 'user', 'Durable user input must have user role')
         assert.deepEqual(data.content, [{ type: 'text', text }], 'Only the exact single text block is accepted for fixture user input')

@@ -1,4 +1,3 @@
-/** Real GenuiBlock, with host tokens injected separately from export defaults. */
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { GenuiBlock } from '../../src/client/GenuiBlock.tsx'
@@ -17,8 +16,7 @@ if (params.get('palette') === 'host') {
   host.textContent = await response.text()
   document.head.appendChild(host)
 }
-// The official base token sheet supplies the host's font stack. Export uses its
-// own font default; neither case impersonates native Windows font rendering.
+
 if (params.get('palette') === 'host') document.body.style.fontFamily = 'var(--dsw-font-family)'
 const steps = ['一', '二', '三', '四'].map((title, index) => ({
   title: index === 1 ? `${title} · 检查步骤标题在窄屏上的换行布局与说明可读性 · verify readable title wrapping at narrow viewport widths` : title,

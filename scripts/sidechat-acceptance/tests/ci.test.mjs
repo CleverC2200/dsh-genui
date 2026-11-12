@@ -1,4 +1,3 @@
-/** Synthetic files and injected command recorder only. No Git/network/host/browser execution. */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'

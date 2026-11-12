@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Native focus and date input behavior cannot be established by jsdom alone.
+
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'

@@ -1,13 +1,3 @@
-// SKILL.md examples are copy-paste material: a model will reuse them verbatim,
-// so an example that cannot render teaches a broken shape (the fence silently
-// degrades to a code block on the user's machine).
-//
-// The fence info string declares the intent, because documentation must also be
-// allowed to show FRAGMENTS and ANTI-EXAMPLES:
-//   ```json dsh-ui       -> must render (contract + repair + render gate)
-//   ```json dsh-ui-bad   -> must be REJECTED (proves the documented "don't do
-//                           this" really is rejected by the very guard)
-//   ```json              -> free-form fragment, not asserted
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -29,7 +19,7 @@ describe('SKILL.md examples', () => {
   it('ships copy-pasteable examples and at least one anti-example', () => {
     expect(good.length).toBeGreaterThanOrEqual(5)
     expect(bad.length).toBeGreaterThanOrEqual(1)
-    // Without a no-component example a model learns "always emit something".
+
     expect(skill).toContain('正确地不套组件')
   })
 
@@ -50,8 +40,7 @@ describe('SKILL.md examples', () => {
 
   for (const [i, raw] of bad.entries()) {
     it(`anti-example ${i + 1} is really rejected`, () => {
-      // The doc claims this shape fails; if the guard ever accepts it, the
-      // documentation is lying and this test says so.
+
       expect(renders(raw)).toBe(false)
     })
   }

@@ -1,6 +1,3 @@
-// Panel incremental append: mergePanelSpecs rules (tab-label merge / tail
-// append) and the settled-fence append behavior (complete bodies merge once,
-// incomplete/partial bodies never merge, non-append replaces).
 import { act, cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { renderGenuiFence } from '../src/client/fence-render.tsx'
@@ -12,8 +9,7 @@ import type { GenuiSpec } from '../src/client/spec.ts'
 afterEach(() => {
   cleanup()
   clearSessionPanel('p1')
-  // panel persistence writes localStorage — wipe it so a reused session id
-  // never hydrates stale storage from an earlier test.
+
   localStorage.clear()
 })
 
@@ -24,7 +20,6 @@ const tabsSpec = (tabs: Array<{ label: string; items: unknown[] }>) => ({
   items: [{ type: 'tabs', tabs }],
 })
 
-/** Host-style settled fence context: message seq + block/fence indices. */
 const ctx = (seq: number, block = 0, fence = 0) => ({
   sessionId: 'p1',
   source: { id: JSON.stringify(['assistant', seq, block, fence]), order: [seq, block, fence] as const },
@@ -68,7 +63,7 @@ describe('mergePanelSpecs', () => {
   it('appends plain item lists to the tail', () => {
     const prev = { title: 'P', items: [text('x')] }
     const merged = mergePanelSpecs(prev, { title: 'Q', items: [text('y'), text('z')] })
-    expect(merged.title).toBe('P') // previous title wins
+    expect(merged.title).toBe('P')
     expect(merged.items).toEqual([text('x'), text('y'), text('z')])
   })
 
@@ -122,8 +117,7 @@ describe('panel append fence (settled source)', () => {
 
   it('never merges an incomplete append body (streaming partial)', () => {
     applyPanelOperation('p1', { sourceId: 'seed', order: [0, -1, 0], mode: 'replace', spec: tabsSpec([{ label: 'A', items: [text('a1')] }]) })
-    // Truncated JSON: parse-partial yields a partial spec, but the append
-    // gate (complete JSON) must reject it — no partial merge.
+
     const partial = JSON.stringify({ panel: true, append: true, items: [{ type: 'tabs', tabs: [{ label: 'B', items: [{ type: 'text', content: 'b' }] }] }] }).slice(0, -5)
     render(renderGenuiFence(partial, 'k2', ctx(1)) as never)
     const spec = getPanelSpec('p1')!
@@ -134,20 +128,20 @@ describe('panel append fence (settled source)', () => {
   it('merges a completed append fence exactly once per source (renderer re-invokes)', () => {
     applyPanelOperation('p1', { sourceId: 'seed', order: [0, -1, 0], mode: 'replace', spec: tabsSpec([{ label: 'A', items: [text('a1')] }]) })
     const body = JSON.stringify({ panel: true, append: true, items: [{ type: 'tabs', tabs: [{ label: 'B', items: [text('b1')] }] }] })
-    // The same settled fence (same source) is re-invoked on settle/re-render.
+
     render(renderGenuiFence(body, 'same-key', ctx(1)) as never)
     render(renderGenuiFence(body, 'same-key', ctx(1)) as never)
     render(renderGenuiFence(body, 'same-key', ctx(1)) as never)
     const spec = getPanelSpec('p1')!
     const tabs = (spec.items[0] as { tabs: Array<{ label: string; items: unknown[] }> }).tabs
     expect(tabs.map(t => t.label)).toEqual(['A', 'B'])
-    expect(tabs[1]!.items).toHaveLength(1) // merged once, not three times
-    // A DIFFERENT source (new message) with new content merges again.
+    expect(tabs[1]!.items).toHaveLength(1)
+
     render(renderGenuiFence(JSON.stringify({ panel: true, append: true, items: [{ type: 'tabs', tabs: [{ label: 'B', items: [text('b2')] }, { label: 'C', items: [text('c1')] }] }] }), 'new-key', ctx(2)) as never)
     const spec2 = getPanelSpec('p1')!
     const tabs2 = (spec2.items[0] as { tabs: Array<{ label: string; items: unknown[] }> }).tabs
     expect(tabs2.map(t => t.label)).toEqual(['A', 'B', 'C'])
-    expect(tabs2[1]!.items).toHaveLength(2) // b1 + b2
+    expect(tabs2[1]!.items).toHaveLength(2)
   })
 
   it('non-append panel fence still replaces the whole panel', () => {

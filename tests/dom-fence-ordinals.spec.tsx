@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { cleanup, fireEvent } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
@@ -54,7 +53,7 @@ async function until(predicate: () => boolean) {
 const contentOf = (f: ReturnType<typeof fixture>) => f.block.nextElementSibling?.textContent ?? ''
 
 beforeEach(() => {
-  // Keep real observer and rAF; hold only the explicit slow safety sweep.
+
   const setInterval = window.setInterval.bind(window)
   const clearInterval = window.clearInterval.bind(window)
   vi.spyOn(window, 'setInterval').mockImplementation((handler, delay, ...args) =>
@@ -275,7 +274,7 @@ it('restores distinct durable input state after disposing and reinstalling ancho
     await until(() => second.block.nextElementSibling?.querySelector('input') != null)
     const input = second.block.nextElementSibling!.querySelector('input')!
     fireEvent.change(input, { target: { value: 'second only' } })
-    // Production saves are debounced; disposing before the write cancels it.
+
     await until(() => Object.values(localStorage).some(value => value.includes('second only')))
     dispose()
     dispose = installDomFenceRenderer(context().ctx, () => {})

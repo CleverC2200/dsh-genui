@@ -4,7 +4,6 @@ import type { BlockInteractionState } from '../interaction-store.ts'
 import type { GenuiNode, GenuiSpec } from '../spec.ts'
 import { GenuiExportError, GENUI_ARTIFACT_FORMAT, GENUI_ARTIFACT_VERSION, type CreateGenuiArtifactOptions, type GenuiArtifactTheme, type GenuiArtifactV1 } from './types.ts'
 
-/** 复制 durable 状态并移除密码字段。 */
 function safeState(state: BlockInteractionState | undefined, secretIds: Set<string>): BlockInteractionState | undefined {
   if (state === undefined) return undefined
   const fields = Object.fromEntries(Object.entries(state.fields ?? {}).filter(([id]) => !secretIds.has(id)))
@@ -16,7 +15,6 @@ function safeState(state: BlockInteractionState | undefined, secretIds: Set<stri
   }
 }
 
-/** 复制节点树并递归移除密码默认值。 */
 function sanitizeNodes(items: GenuiNode[], secretIds: Set<string>): GenuiNode[] {
   return items.map(item => {
     const node = JSON.parse(JSON.stringify(item)) as GenuiNode & Record<string, unknown>
@@ -46,13 +44,12 @@ function sanitizeNodes(items: GenuiNode[], secretIds: Set<string>): GenuiNode[] 
   })
 }
 
-/** 创建规范化 artifact，并清除密码默认值及对应的持久化字段。 */
 export function createGenuiArtifact(
   spec: GenuiSpec,
   state?: BlockInteractionState,
   options: CreateGenuiArtifactOptions = {},
 ): GenuiArtifactV1 {
-  // 导出内容必须是完整文档，不能包含尚未合并的面板追加项。
+
   const processed = processGenuiSpec(spec)
   if (processed.spec === null || processed.errors.length > 0) throw new GenuiExportError('artifact-invalid', 'invalid GenUI spec')
   const { panel: _panel, append: _append, ...portableSpec } = processed.spec

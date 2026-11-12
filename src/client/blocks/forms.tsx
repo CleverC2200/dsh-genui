@@ -1,8 +1,3 @@
-/**
- * Form family: radio aggregation + submit grading, switch, slider, IME-safe
- * input/select/textarea. All state flows through the shared AnswersState.
- * @module @changfenhuang/dsh-genui/client/blocks/forms
- */
 import { renderInline } from '../inline.ts'
 import { useEffect, useId, useRef, useState } from 'react'
 import css from '../GenuiBlock.module.css'
@@ -24,12 +19,7 @@ export function RadioNode({ node, onAction, answers }: {
   const group = node.group
   const grouped = group !== undefined
   const options = node.options.slice(0, GENUI_LIMITS.maxOptions)
-  // No default selection unless the model explicitly sets `selected` — a
-  // pre-checked first option silently swallows the user's "keep the default"
-  // answer (the interaction state only records selected values). A DURABLE answer
-  // (restored from localStorage) wins over both. The parent key includes the
-  // reset round, so 重新作答 remounts this radio with a clean selection —
-  // no sync effect needed.
+
   const restoredIndex = group !== undefined && answers?.answers[group] !== undefined
     ? options.indexOf(answers!.answers[group]!)
     : -1
@@ -38,12 +28,11 @@ export function RadioNode({ node, onAction, answers }: {
   const locked = grouped && answers?.locked === true
   useEffect(() => {
     if (group === undefined) return
-    // A model-provided default selection IS the answer — but only when the
-    // group has no durable answer yet (a restored user choice must win).
+
     if (node.selected !== undefined && options[node.selected] !== undefined && answers?.answers[group] === undefined) {
       answers?.setAnswer(group, options[node.selected]!)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [group, node.label, node.answer, node.explanation, node.options, node.selected])
   return (
     <div className={css.fieldGroup} role="radiogroup" aria-label={node.label}>
@@ -58,7 +47,7 @@ export function RadioNode({ node, onAction, answers }: {
             onChange={() => {
               setSelected(i)
               if (grouped) {
-                // Aggregation mode: record, do NOT round-trip per click.
+
                 answers?.setAnswer(group, opt)
               } else if (action !== undefined && onAction !== undefined) {
                 onAction(action, { type: 'radio', value: opt })
@@ -72,7 +61,6 @@ export function RadioNode({ node, onAction, answers }: {
   )
 }
 
-/** 根据静态 radio member 获取正确选项的标签。 */
 export function correctLabelOf(m: RadioSubmissionMember): string | undefined {
   if (m.answer === undefined) return undefined
   if (typeof m.answer === 'number') return m.options[m.answer]
@@ -81,16 +69,13 @@ export function correctLabelOf(m: RadioSubmissionMember): string | undefined {
 
 const EMPTY_KEYS: ReadonlySet<string> = new Set()
 
-/** 汇总当前 block 的表单状态，并根据 resolver 的结果提交或本地判卷。 */
 export function SubmitNode({ node, onAction, answers }: {
   node: GenuiSubmit
   onAction?: GenuiBlockProps['onAction']
   answers?: AnswersState | undefined
 }) {
   const t = useT()
-  // Values under a false `when` condition are invisible to the reader, so they
-  // are invisible to the submit too: excluded from the payload and from the
-  // required set (a hidden field must not look unanswered).
+
   const hidden = answers?.hidden ?? EMPTY_KEYS
   const visible = <T,>(record: Readonly<Record<string, T>>): Record<string, T> =>
     Object.fromEntries(Object.entries(record).filter(([key]) => !hidden.has(key)))
@@ -99,8 +84,7 @@ export function SubmitNode({ node, onAction, answers }: {
   const fields = visible(answers?.fields ?? {})
   const validFields = Object.fromEntries(Object.entries(fields).filter(([id]) => !answers?.invalidNumericFields.has(id)))
   const expected = node.groups?.filter(group => !hidden.has(group))
-  // One shared notion of "filled fields" for answered/ready/payload: non-blank
-  // values only, secrets (password inputs) never collected into submit.
+
   const filledFields = Object.fromEntries(
     Object.entries(validFields).filter(([id, v]) => {
       if (v.trim() === '' || answers?.secretFields.has(id)) return false
@@ -130,14 +114,12 @@ export function SubmitNode({ node, onAction, answers }: {
       })]]
     })),
   }
-  // Ready = enough answers AND the click can do something: either local
-  // grading, or a real action name + provider. A submit with neither is a
-  // display-only control — honest disabled affordance.
+
   const ready = answered > 0 && answered >= total
     && (shouldGradeLocally || canSendAction)
 
   if (submitted) {
-    // ── local grading result ──
+
     const graded = scope.filter((member): member is RadioSubmissionMember => member.kind === 'radio' && recorded[member.key] !== undefined && member.answer !== undefined)
     const score = graded.filter(member => recorded[member.key] === correctLabelOf(member)).length
     return (
@@ -198,11 +180,10 @@ export function SubmitNode({ node, onAction, answers }: {
         disabled={!ready}
         onClick={ready ? () => {
           if (shouldGradeLocally) {
-            // Local grading: immediate in-place result, no model round trip.
+
             answers?.setLocked(true)
           } else if (node.action !== undefined && onAction !== undefined) {
-            // `ready` already guarantees this branch, but the narrow keeps
-            // the optional-action type honest.
+
             onAction(node.action, {
               type: 'submit',
               answers: collectedAnswers,
@@ -220,7 +201,6 @@ export function SubmitNode({ node, onAction, answers }: {
   )
 }
 
-/** Switch: toggle with local state. */
 export function SwitchNode({ node, onAction }: { node: GenuiSwitch; onAction?: GenuiBlockProps['onAction'] }) {
   const [on, setOn] = useState(node.checked === true)
   const action = node.action
@@ -244,11 +224,6 @@ export function SwitchNode({ node, onAction }: { node: GenuiSwitch; onAction?: G
   )
 }
 
-/** Slider: range input for numeric form values (v2.9). Field-aligned: with an
- * `id` the value persists across refresh and joins the sibling submit's
- * `fields` collection (stored as the numeric string); a model-provided
- * default registers at mount; a restored durable value wins. Dragging fires
- * the action (block-level debounce collapses the drag into one delivery). */
 export function SliderNode({ node, onAction, answers }: {
   node: GenuiSlider
   onAction?: GenuiBlockProps['onAction']
@@ -266,7 +241,7 @@ export function SliderNode({ node, onAction, answers }: {
     if (mounted.current) return
     mounted.current = true
     if (id !== undefined) answers?.setField(id, String(initial))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [])
   const send = (v: number): void => {
     if (action !== undefined && onAction !== undefined) {
@@ -296,11 +271,6 @@ export function SliderNode({ node, onAction, answers }: {
   )
 }
 
-/** Reuse the DSH main input's three-layer IME protection (verified in the
- *  host InputBar): composition start arms a ref, composition end clears it
- *  10ms later (Safari sends the closing keydown BEFORE compositionend), and
- *  every submit keydown re-checks the ref, the native `isComposing` flag,
- *  and `keyCode === 229`. A Chinese selection Enter must never submit. */
 export function useImeComposing(): {
   isComposing: () => boolean
   onCompositionStart: () => void
@@ -336,12 +306,6 @@ export function isImeSubmitKeydown(e: React.KeyboardEvent): boolean {
   return native.isComposing === true || native.keyCode === 229
 }
 
-/** Select: single choice from a dropdown, field-aligned (v2.8). With an `id`
- * the chosen option persists across refresh and joins the sibling submit's
- * `fields` collection; a model-provided `selected` default registers at
- * mount; a restored durable value wins over both. Without any default a
- * placeholder option shows — nothing is silently pre-registered (same
- * philosophy as radio). */
 export function SelectNode({ node, onAction, answers }: {
   node: GenuiSelect
   onAction?: GenuiBlockProps['onAction']
@@ -360,7 +324,7 @@ export function SelectNode({ node, onAction, answers }: {
       ? options[node.selected]!
       : null
   const [value, setValue] = useState<string | null>(defaultValue)
-  // Field invariant: a spec-provided default registers at mount.
+
   const mounted = useRef(false)
   useEffect(() => {
     if (mounted.current) return
@@ -368,7 +332,7 @@ export function SelectNode({ node, onAction, answers }: {
     if (id !== undefined && defaultValue !== null) {
       answers?.setField(id, defaultValue)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [])
   const send = (v: string): void => {
     if (action !== undefined && onAction !== undefined) {
@@ -395,14 +359,6 @@ export function SelectNode({ node, onAction, answers }: {
   )
 }
 
-/** Input: single-line field. Controlled (value tracked for persistence and
- *  submit collection when `id` is set). With `action`: Enter submits
- *  immediately (`{type:'input', value, submit:true}`), blur sends too —
- *  the user never has to click elsewhere for the value to reach the model.
- *  Enter during IME composition never submits. `inputType: 'password'`
- *  stays masked; its value is never persisted and never joins submit
- *  collection (secrets stay out of localStorage), while its own `action`
- *  still delivers on explicit user submit. */
 export function InputNode({ node, onAction, answers }: {
   node: GenuiInput
   onAction?: GenuiBlockProps['onAction']
@@ -416,19 +372,15 @@ export function InputNode({ node, onAction, answers }: {
   const restored = !secret && id !== undefined && answers?.fields !== undefined && Object.hasOwn(answers.fields, id)
     ? answers.fields[id]
     : undefined
-  // Initial value: durable state wins over the spec default. Secrets always
-  // restore as blank so a password can never survive a refresh.
+
   const [value, setValue] = useState<string>(() => {
     const initial = secret ? '' : (restored ?? node.value ?? '')
-    // Match the native color input's opaque hex value, including its black default.
+
     return node.inputType === 'color'
       ? /^#[0-9a-f]{6}$/i.test(initial) ? initial.toLowerCase() : '#000000'
       : initial
   })
-  // Last value actually DELIVERED to the model: blur only sends when the
-  // value changed since the last delivery (a focus-in/focus-out with no edit
-  // used to fire a pointless action round trip). Seeded with the mount value
-  // so the very first unedited blur also stays silent.
+
   const lastSent = useRef<string | null>(value)
   const setField = answers?.setField
   const send = (submit: boolean): void => {
@@ -439,7 +391,7 @@ export function InputNode({ node, onAction, answers }: {
     }
   }
   const ime = useImeComposing()
-  // renderNode 按字段标识和类型设置输入项身份，流式更新或切换标签页后不会串到其他字段。
+
   useEffect(() => {
     if (!secret && id !== undefined && value.trim() !== '') setField?.(id, value)
   }, [id, value, secret, setField])
@@ -482,10 +434,6 @@ export function InputNode({ node, onAction, answers }: {
   )
 }
 
-/** Textarea: multi-line input; with `action`, blurring sends the value and
- *  Ctrl/Cmd+Enter submits immediately. Controlled when `id` is set (durable
- *  value + submit collection). Ctrl/Cmd+Enter during IME composition never
- *  submits. */
 export function TextareaNode({ node, onAction, answers }: {
   node: GenuiTextarea
   onAction?: GenuiBlockProps['onAction']
@@ -493,13 +441,12 @@ export function TextareaNode({ node, onAction, answers }: {
 }) {
   const action = node.action
   const id = node.id
-  // Durable state wins over the spec default (same contract as InputNode).
+
   const restored = id !== undefined && answers?.fields !== undefined && Object.hasOwn(answers.fields, id)
     ? answers.fields[id]
     : undefined
   const [value, setValue] = useState<string>(() => restored ?? node.value ?? '')
-  // Last value delivered to the model: blur sends only on change. Seeded
-  // with the mount value so an unedited blur stays silent.
+
   const lastSent = useRef<string | null>(value)
   const send = (submit: boolean): void => {
     if (action !== undefined && onAction !== undefined) {
@@ -508,9 +455,7 @@ export function TextareaNode({ node, onAction, answers }: {
     }
   }
   const ime = useImeComposing()
-  // Field invariant: a non-blank initial value registers at mount. When a
-  // durable value was restored, registering it is a no-op (setField dedupes);
-  // otherwise the spec default registers — never the other way around.
+
   const mounted = useRef(false)
   useEffect(() => {
     if (mounted.current) return
@@ -518,7 +463,7 @@ export function TextareaNode({ node, onAction, answers }: {
     if (id !== undefined && value.trim() !== '') {
       answers?.setField(id, value)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [])
   return (
     <label className={css.field}>
@@ -548,6 +493,3 @@ export function TextareaNode({ node, onAction, answers }: {
     </label>
   )
 }
-
-/** Accordion: collapsible sections with local open state. Headings and
- * bodies are wired via useId (`aria-controls`/`aria-labelledby`). */

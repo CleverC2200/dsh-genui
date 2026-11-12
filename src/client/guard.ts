@@ -1,22 +1,3 @@
-/**
- * GenUI spec guard: resource limits, structural validation, and deterministic
- * repair for ```dsh-ui fence specs.
- *
- * The renderer path runs every fence body through `repairGenuiSpec` before
- * rendering, so a pathological or hostile spec — deep nesting, thousands of
- * nodes, oversized strings, out-of-range numbers — degrades gracefully instead
- * of stalling the UI. Repair is deterministic and prefix-stable: a component
- * that survives repair of a partial stream keeps its position when later
- * chunks arrive, so streaming re-renders stay consistent.
- *
- * Policy:
- * - Unsupported node types are rejected by validation and dropped by repair.
- * - Known types: required fields must have the right type or the node is
- *   dropped; numbers are clamped into range; strings truncated; arrays
- *   sliced to their caps; containers recursed with a depth budget.
- * - The whole spec carries a node budget; once exhausted, remaining siblings
- *   are elided.
- */
 import type { GenuiWhen, GenuiComparePanel, GenuiComputed, GenuiComputedFormat, GenuiComputedRef, GenuiFileTreeNode, GenuiList, GenuiNode, GenuiPlot, GenuiPlotSeries, GenuiScene3D, GenuiSpec, GenuiDiagram, GenuiDiagramTheme, GenuiDiagramKind } from './spec.ts'
 import { isComponentRoot, wrapSingleComponentRoot } from './spec.ts'
 import {
@@ -41,14 +22,11 @@ import { buildComputedGraph, getComputedInputIds, getDuplicateComputedInputIds, 
 import type { ComputedTemplateScope, ComputedNodeScope } from './computed.ts'
 import { SAFE_MATH_LIMITS } from './safe-math.ts'
 
-/** Result of `validateGenuiSpec`. */
 export interface GenuiValidation {
   ok: boolean
-  /** Human-readable problems, empty when `ok`. */
+
   errors: string[]
 }
-
-/* ---------------- schema field helpers ---------------- */
 
 function fieldKindMatches(value: unknown, kind: ComponentFieldKind): boolean {
   switch (kind) {
@@ -75,13 +53,11 @@ function fieldKindLabel(kind: ComponentFieldKind): string {
   }
 }
 
-/** Detect an existing field diagnostic using both canonical and legacy messages. */
 function hasFieldError(errors: readonly string[], at: string, field: string): boolean {
   return errors.some(error =>
     error.startsWith(`${at}.${field} `) || error.includes(`'${field}'`) || error.includes(`requires ${field}`))
 }
 
-/** Validate present fields against the runtime schema without duplicating errors. */
 function validateSchemaFieldKinds(
   value: Record<string, unknown>,
   at: string,
@@ -103,7 +79,6 @@ function validateSchemaFieldKinds(
   }
 }
 
-/** Validate one schema-declared nested record and all records below it. */
 function validateRecordSchema(
   value: unknown,
   at: string,
@@ -144,7 +119,6 @@ function validateRecordSchema(
   }
 }
 
-/** Validate registry-declared nested records before repair can discard them. */
 function validateNestedRecordSchemas(
   value: Record<string, unknown>,
   at: string,
@@ -169,20 +143,12 @@ function validateNestedRecordSchemas(
   }
 }
 
-/**
- * Does this table state its columns implicitly, in a 2D `rows`/`data` body?
- * Repair turns the leading row into the header (see `deriveTableColumns`), so
- * validation must not report the missing `columns` that repair is about to
- * supply — while still reporting it for bodies repair cannot read (a scalar
- * `rows`, an empty array, a 1D list).
- */
 function hasDerivableTableColumns(value: Record<string, unknown>): boolean {
   const rows = value.rows !== undefined ? value.rows : value.data
   if (!Array.isArray(rows) || rows.length === 0) return false
   return Array.isArray(rows[0])
 }
 
-/** Validate the registry-declared presence and primitive shape of a native node. */
 function validateRegistryFields(
   value: Record<string, unknown>,
   at: string,
@@ -218,18 +184,15 @@ function validateRegistryFields(
   validateNestedRecordSchemas(value, at, definition, errors)
 }
 
-/* ---------------- repair ---------------- */
-
 interface RepairCtx {
-  /** Nodes left in the budget; 0 stops the walk. */
+
   remaining: number
-  /** Rows, list entries, and tree nodes omitted by their per-component caps. */
+
   truncatedTableRows: number
   truncatedListItems: number
   truncatedFileTreeItems: number
 }
 
-/** Walk `list` with the shared node budget; drops invalid entries. */
 function repairItems(list: unknown, ctx: RepairCtx, depth: number): GenuiNode[] {
   if (!Array.isArray(list)) return []
   const out: GenuiNode[] = []
@@ -242,7 +205,6 @@ function repairItems(list: unknown, ctx: RepairCtx, depth: number): GenuiNode[] 
   return out
 }
 
-/** Optional explicit palette: up to 12 validated colour values. */
 function paletteValues(v: unknown): string[] | undefined {
   if (!Array.isArray(v)) return undefined
   const out: string[] = []
@@ -254,7 +216,6 @@ function paletteValues(v: unknown): string[] | undefined {
   return out.length > 0 ? out : undefined
 }
 
-/** Optional `stat.spark` series: finite numbers only, 2..60 points. */
 function sparkValues(v: unknown): number[] | undefined {
   if (!Array.isArray(v)) return undefined
   const out: number[] = []
@@ -266,9 +227,6 @@ function sparkValues(v: unknown): number[] | undefined {
   return out.length >= 2 ? out : undefined
 }
 
-/** Layout hints are component-agnostic: `span` and `when` survive repair on ANY
- *  node (the renderer applies them inside a layout / before paint). Kept out of
- *  the per-case switches so a new component type cannot forget them. */
 function repairNode(value: unknown, ctx: RepairCtx, depth: number): GenuiNode | null {
   const node = repairNodeFields(value, ctx, depth)
   if (node === null) return null
@@ -286,7 +244,6 @@ function repairNode(value: unknown, ctx: RepairCtx, depth: number): GenuiNode | 
   return Object.keys(extras).length === 0 ? node : ({ ...node, ...extras } as GenuiNode)
 }
 
-/** Repair a `when` clause; a malformed one is dropped (node stays visible). */
 function repairWhen(value: unknown): GenuiWhen | undefined {
   const v = obj(value)
   if (v === undefined) return undefined
@@ -315,8 +272,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
     case 'text': {
       const content = str(v.content, GENUI_LIMITS.maxString) ?? str(v.text, GENUI_LIMITS.maxString)
       if (content === undefined) return null
-      // `center: true` is the legacy shorthand; a display-level size is the
-      // one-per-answer focal tier (B1), so it rides the same enum gate.
+
       return {
         type: 'text', content,
         ...opt('size', enu(v.size, TEXT_SIZES)),
@@ -327,8 +283,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
       }
     }
     case 'icon': {
-      // `name` 是原型链攻击面（渲染器用 Object.hasOwn 兜住），但长度仍要截断；
-      // `size` 走 clamp。未知名字不在这里判死——渲染层降级成圆点。
+
       const name = str(v.name, 64)
       if (name === undefined) return null
       return {
@@ -340,9 +295,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
       }
     }
     case 'blocks': {
-      // rows/cells 是数据不是节点，此前走 default 透传，于是颜色绕过了
-      // color()/SAFE_COLOR_RE、字符串绕过了 maxString。这里补齐：
-      // 颜色只接受字面色或宿主令牌，字符串按 maxString 截断，行/格按 limits 截断。
+
       if (!Array.isArray(v.rows)) return null
       const rows = v.rows.slice(0, GENUI_LIMITS.maxBlocksRows).flatMap((entry) => {
         const row = obj(entry)
@@ -390,9 +343,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
         items: repairItems(v.items, ctx, depth + 1),
         ...opt('wrap', v.wrap === true ? true : undefined),
         ...opt('spacer', v.spacer === true ? true : undefined),
-        // Repair rebuilds every node from a hand-written field list, so a
-        // schema-only addition is silently dropped here. Keep the two in sync:
-        // figure headers need `justify: "center"` (icon + title over a caption).
+
         ...opt('justify', enu(v.justify, ROW_JUSTIFY)),
       }
     }
@@ -479,8 +430,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
           ...opt('meta', str(item.meta, 40)),
           ...(item.recommended === true ? { recommended: true } : {}),
           ...(disabled ? { disabled: true } : {}),
-          // A disabled option without a reason is a dead end; keep whatever the
-          // model wrote so the reader can see WHY.
+
           ...opt('reason', str(item.reason, 200)),
         }]
       })
@@ -495,14 +445,12 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
         ...opt('max', int(v.max, 1, items.length)),
         ...opt('group', str(v.group, 60)),
         ...opt('explanation', str(v.explanation, GENUI_LIMITS.maxString)),
-        // `answer` is an index OR a label; both are legal, so only the shape is
-        // checked here and the grader resolves it against the item list.
+
         ...(typeof v.answer === 'number' || typeof v.answer === 'string' ? { answer: v.answer } : {}),
       }
     }
     case 'compare': {
-      // A pair with one usable side is not a comparison: drop the node rather
-      // than ship a lone image under a two-sided caption.
+
       const panel = (value: unknown): GenuiComparePanel | undefined => {
         const item = obj(value)
         const src = safeMediaSrc(item?.src)
@@ -705,7 +653,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
       const prepared = prepareTableRows(v, count => { ctx.truncatedTableRows += count })
       if (prepared === null) return null
       const { columns, rows } = prepared
-      // Optional per-column cell types; unknown entries degrade to 'text'.
+
       const rawTypes = Array.isArray(v.types) ? v.types : undefined
       const types = rawTypes === undefined
         ? undefined
@@ -715,9 +663,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
             ? raw as typeof TABLE_CELL_TYPES[number]
             : 'text'
         })
-      // Master-detail payload: positionally aligned with `rows`. Entries that
-      // repair to nothing stay null so the renderer never shows an empty
-      // expander; extra entries beyond the row count are dropped.
+
       const rawDetails = Array.isArray(v.details) ? v.details : undefined
       const details = rawDetails === undefined
         ? undefined
@@ -741,9 +687,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
     case 'chart': {
       const data = repairChartData(v.data, GENUI_LIMITS.maxChartPoints)
       const series = Array.isArray(v.series) ? repairSeries(v.series, GENUI_LIMITS.maxPlotSeries, GENUI_LIMITS.maxChartPoints) : undefined
-      // `data` is required by the type but grouped bars may ship `series`
-      // alone; a series-only chart gets an empty data array (the renderer
-      // reads `series` in that case).
+
       if (data === undefined && series === undefined) return null
       return {
         type: 'chart', data: data ?? [],
@@ -793,7 +737,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
       return { type: 'diff', diffs }
     }
     case 'json': {
-      // Any JSON value is acceptable; only the node itself is validated.
+
       if (!('value' in v)) return null
       return { type: 'json', value: v.value }
     }
@@ -811,9 +755,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
         ...opt('selected', int(v.selected, 0, options.length - 1)),
         ...opt('action', str(v.action, 200)),
         ...opt('group', str(v.group, 200)),
-        // answer: option index (number) or label (string); out-of-range
-        // indices are DROPPED (clamping would silently grade against the
-        // wrong option)
+
         ...opt('answer', typeof v.answer === 'number' && Number.isFinite(v.answer)
           && v.answer >= 0 && v.answer < options.length
           ? Math.trunc(v.answer)
@@ -823,7 +765,7 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
     }
     case 'submit': {
       const label = str(v.label, GENUI_LIMITS.maxString)
-      // 本地判卷可以不设置 action；不满足判卷条件时，渲染器会禁用无 action 的按钮。
+
       const action = str(v.action, 200)
       if (label === undefined) return null
       return {
@@ -928,12 +870,12 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
       }
     }
     case 'echart': {
-      // Preset shorthand data/series reuse the chart repair helpers.
+
       const data = v.data !== undefined ? repairChartData(v.data, GENUI_LIMITS.maxChartPoints) : undefined
       const series = v.series !== undefined && Array.isArray(v.series)
         ? repairSeries(v.series, GENUI_LIMITS.maxPlotSeries, GENUI_LIMITS.maxChartPoints)
         : undefined
-      // sankey / graph edges: `from`/`to` must be strings, `value` a number.
+
       const links = Array.isArray(v.links)
         ? v.links.slice(0, GENUI_LIMITS.maxChartPoints).flatMap(entry => {
           const e = obj(entry)
@@ -943,19 +885,16 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
           return [{ from, to, ...opt('value', num(e!.value, 0, 1e9)) }]
         })
         : undefined
-      // Full option: depth-bounded pass-through (the model writes the ECharts
-      // option object; the guard walks it to cap nesting but does not
-      // validate ECharts semantics — that is echarts' own job).
+
       const sanitized = v.option !== undefined
         ? sanitizeEChartOption(v.option, 0, { count: GENUI_LIMITS.maxEChartOptionNodes })
         : undefined
-      // A chart option root is always a plain object; a scalar root is
-      // invalid, so degrade to preset/data/series handling (option dropped).
+
       const option: Record<string, unknown> | undefined =
         sanitized === undefined || typeof sanitized !== 'object' || sanitized === null || Array.isArray(sanitized)
           ? undefined
           : sanitized as Record<string, unknown>
-      // At least one of preset+data, links or option must be present.
+
       if (option === undefined && data === undefined && series === undefined
         && (links === undefined || links.length === 0)) return null
       return {
@@ -975,8 +914,6 @@ function repairNodeFields(value: unknown, ctx: RepairCtx, depth: number): GenuiN
   }
 }
 
-/* ---------------- per-type sub-repairers ---------------- */
-
 function repairStrings(v: unknown, cap: number, strCap: number): string[] | undefined {
   if (!Array.isArray(v)) return undefined
   const out: string[] = []
@@ -985,9 +922,7 @@ function repairStrings(v: unknown, cap: number, strCap: number): string[] | unde
     if (typeof item === 'string') {
       out.push(item.slice(0, strCap))
     } else if (item !== null && typeof item === 'object') {
-      // 兼容模型误用对象数组（如把 ask_user_question 的 {label,description}
-      // 格式错用到 select/radio 的 options）——提取可读字段，而不是静默丢
-      // 掉整个选项，让用户看到「选项没列举出来」的空列表。
+
       const o = item as Record<string, unknown>
       const s = typeof o.label === 'string' ? o.label
         : typeof o.value === 'string' ? o.value
@@ -1018,10 +953,7 @@ function repairListItems(
     }
     const o = obj(item)
     if (o !== undefined && typeof o.type === 'string') {
-      // Typed children are GenuiNodes: charge them against the shared node
-      // budget (module header promise — exhausted budget elides remaining
-      // siblings). Strings and {title,desc} objects are list-item shapes,
-      // not nodes, so they never consume budget.
+
       if (ctx.remaining <= 0) break
       ctx.remaining -= 1
       const node = repairNode(o, ctx, depth)
@@ -1036,7 +968,6 @@ function repairListItems(
   return out
 }
 
-/** 判断超出列表上限的项目是否本可由 repair 保留。 */
 function isRepairableListItem(item: unknown, depth: number): boolean {
   if (typeof item === 'string') return true
   const o = obj(item)
@@ -1090,8 +1021,7 @@ function repairTabs(v: unknown, ctx: RepairCtx, depth: number): Array<{ label: s
     const o = obj(tab)
     const label = o === undefined ? undefined : str(o.label, 128)
     if (label === undefined || o === undefined) continue
-    // `content` is accepted as an `items` alias (single component or array) —
-    // models routinely emit tabs[].content and losing it empties every tab.
+
     const rawItems = o.items !== undefined ? o.items
       : o.content !== undefined ? (Array.isArray(o.content) ? o.content : [o.content])
       : undefined
@@ -1217,9 +1147,6 @@ function tuple3(v: unknown): [number, number, number] | undefined {
   return [Math.min(1e6, Math.max(-1e6, a)), Math.min(1e6, Math.max(-1e6, b)), Math.min(1e6, Math.max(-1e6, c))]
 }
 
-/* ---------------- diagram (editorial) sub-repairers ---------------- */
-
-/** Clamp a coordinate/size to the 4px editorial grid. */
 function grid4(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(v / 4) * 4))
 }
@@ -1238,7 +1165,7 @@ function repairDiagramNodes(v: unknown): GenuiDiagram['nodes'] | undefined {
     if (seen.has(id)) continue
     seen.add(id)
     const nodeType = enu(o.type, DIAGRAM_NODE_TYPES)
-    // Coordinate fields are clamped to a sane canvas and rounded to 4px.
+
     const x = o.x === undefined ? undefined : grid4(num(o.x, -1e6, 1e6) ?? 0, 0, 1e6)
     const y = o.y === undefined ? undefined : grid4(num(o.y, -1e6, 1e6) ?? 0, 0, 1e6)
     const w = o.w === undefined ? undefined : grid4(num(o.w, -1e6, 1e6) ?? 96, 40, 2000)
@@ -1323,9 +1250,7 @@ function repairDiagram(v: unknown): GenuiDiagram | null {
   const zones = repairDiagramZones(o.zones)
   if (zones === undefined) return null
   return {
-    // `zones` is optional: emitting `zones: []` made every diagram node differ
-    // from its input for no reason (and broke the "gallery survives the guard
-    // unchanged" contract).
+
     type: 'diagram', kind, nodes, edges,
     ...opt('id', str(o.id, 128)),
     ...opt('zones', zones.length > 0 ? zones : undefined),
@@ -1352,13 +1277,11 @@ function repairTimeline(v: unknown, cap: number): Array<{ title: string; desc?: 
   return out
 }
 
-/** 按每层节点上限修复文件树并累计略过的有效节点。 */
 function repairTree(v: unknown, cap: number, ctx: RepairCtx): GenuiFileTreeNode[] | undefined {
-  // Recursion is bounded by GENUI_LIMITS.maxTreeDepth (see the inner walk).
+
   return walkTree(v, cap, GENUI_LIMITS.maxTreeDepth, ctx)
 }
 
-/** 递归修复文件树的每一层，并记录各层上限之外的有效节点。 */
 function walkTree(v: unknown, cap: number, depthLeft: number, ctx: RepairCtx): GenuiFileTreeNode[] | undefined {
   if (!Array.isArray(v)) return undefined
   const out: GenuiFileTreeNode[] = []
@@ -1390,15 +1313,9 @@ function repairQuizOptions(v: unknown, answer?: unknown): Array<{ label: string;
       ...opt('feedback', o === undefined ? undefined : str(o.feedback, GENUI_LIMITS.maxString)),
     })
   }
-  // Nothing recoverable (empty array, all-non-string non-object items): return
-  // undefined rather than an empty list, so repairNode drops the whole quiz
-  // instead of half-rendering a question with no options — the same
-  // silently-unusable state the string-options case produces when kept.
+
   if (out.length === 0) return undefined
 
-  // The canonical quiz shape stores correctness on each option. Models
-  // commonly emit the simpler { options: string[], answer } form; only
-  // use that alias when no canonical correct marker was supplied.
   if (out.some(option => option.correct === true)) return out
   const answerIndex = typeof answer === 'number' && Number.isFinite(answer)
     ? Math.trunc(answer)
@@ -1409,52 +1326,18 @@ function repairQuizOptions(v: unknown, answer?: unknown): Array<{ label: string;
   return out.map((option, index) => index === answerIndex ? { ...option, correct: true } : option)
 }
 
-/**
- * Patterns that indicate HTML/script injection in a string field. ECharts
- * default `tooltip.renderMode: 'html'` writes tooltip content via
- * `innerHTML`; even with renderMode forced to 'richText' (see below),
- * filtering these patterns is defense-in-depth — a model (or a
- * prompt-injected model) should never emit `<script>`, `onerror=`, or
- * `javascript:` inside a chart option string.
- */
 const ECHART_HTML_DANGER_RE = /<(?:script|img|svg|iframe|video|audio|object|embed|source)\b|on[a-z]+\s*=|javascript:/i
 
-/**
- * Mutable budget counter for the sanitize walk — passed by reference so
- * every recursion shares one pool.
- */
 interface EChartSanitizeBudget { count: number }
 
-/**
- * Sanitize an ECharts option object: depth-bounded, budget-bounded
- * pass-through that strips dangerous values (functions, `url()` in styles,
- * HTML/script injection patterns in strings) but preserves the object shape
- * ECharts needs. Scalars are KEPT: ECharts options are full of them,
- * including inside `data` arrays (`data: [120, 150, 180]`,
- * `xAxis.data: ['1月', '2月']`). Previously a scalar hit the plain-object
- * gate below and returned undefined, so every primitive-valued array was
- * filtered to empty and dropped — a chart with a full `option` rendered
- * with empty series (blank canvas). This is a safety walk, not an ECharts
- * semantic validator.
- *
- * Security: `tooltip.renderMode` is forced to `'richText'` on every tooltip
- * object. ECharts' default `'html'` mode writes tooltip content via
- * `innerHTML`, which is an XSS vector when the option originates from model
- * output — a prompt-injected model could emit
- * `{"tooltip":{"formatter":"<img src=x onerror=...>"}}` and execute
- * arbitrary script. `richText` renders as text, never touching innerHTML.
- */
 function sanitizeEChartOption(v: unknown, depth: number, budget: EChartSanitizeBudget): unknown {
   if (budget.count <= 0) return undefined
   budget.count -= 1
   if (depth > GENUI_LIMITS.maxEChartOptionDepth) return undefined
-  // Scalars pass through: numbers/strings/booleans/null are legal ECharts
-  // values both as object fields and as array elements.
+
   if (typeof v === 'string') {
     const s = v.slice(0, GENUI_LIMITS.maxString)
-    // Reject strings containing HTML/script injection patterns or CSS url()
-    // (exfiltration channel). Preserves legitimate ECharts string values
-    // (labels, plain-text formatter templates, etc.).
+
     if (s.toLowerCase().includes('url(') || ECHART_HTML_DANGER_RE.test(s)) return undefined
     return s
   }
@@ -1476,16 +1359,13 @@ function sanitizeEChartOption(v: unknown, depth: number, budget: EChartSanitizeB
   for (const [key, val] of Object.entries(o)) {
     const s = sanitizeEChartOption(val, depth + 1, budget)
     if (s === undefined) continue
-    // Force tooltip.renderMode: 'richText' to prevent ECharts from writing
-    // tooltip content via innerHTML (the default 'html' mode is an XSS
-    // vector when the option comes from model output).
+
     if (key === 'tooltip' && typeof s === 'object' && s !== null && !Array.isArray(s)) {
       (s as Record<string, unknown>).renderMode = 'richText'
     }
     out[key] = s
   }
-  // Empty axes/tooltip enable ECharts defaults; an empty data array clears it.
-  // Keep intentional empties, while still dropping objects stripped by guards.
+
   return Object.keys(out).length > 0 || Object.keys(o).length === 0 ? out : undefined
 }
 
@@ -1528,7 +1408,6 @@ function repairComputedFields(value: unknown): GenuiComputed[] | undefined {
   return output
 }
 
-/** 检查 locale 标签是否符合 Intl 的语言标签规则。 */
 function isValidComputedLocale(locale: string): boolean {
   if (locale.length > 35) return false
   try {
@@ -1545,14 +1424,6 @@ function repairComputedRef(value: unknown): GenuiComputedRef | undefined {
   return typeof id === 'string' && /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(id) ? { $computed: id } : undefined
 }
 
-/**
- * Deterministically repair a raw spec value into a renderable GenuiSpec.
- * Returns null only when the root is not an object with an `items` array
- * (a bare component root is wrapped into a col first — the documented fence
- * vocabulary allows single-component bodies); every other defect is healed by
- * dropping/clamping/truncating. Idempotent: repairing a repaired spec is a
- * no-op.
- */
 function repairCanonicalGenuiSpec(
   value: unknown,
   ctx: RepairCtx = {
@@ -1564,9 +1435,7 @@ function repairCanonicalGenuiSpec(
 ): GenuiSpec | null {
   const v = obj(value)
   if (v === undefined) return null
-  // A bare component root (including data components whose `items` is their
-  // record list — steps/list/timeline/…) wraps first; the wrapper is a plain
-  // spec, so this recursion cannot wrap twice (issue #172).
+
   if (isComponentRoot(value)) {
     const wrapped = wrapSingleComponentRoot(value)
     if (wrapped === null) return null
@@ -1583,31 +1452,10 @@ function repairCanonicalGenuiSpec(
   }
 }
 
-/**
- * Deterministically repair a raw spec into a renderable GenuiSpec.
- *
- * Alias normalization is performed before the existing resource, type, and
- * security repair rules. The result remains idempotent and keeps the legacy
- * public API used by the fence renderer and client components.
- *
- * @param value - Raw GenUI spec or bare component.
- * @returns Repaired canonical spec, or null for an invalid root.
- */
 export function repairGenuiSpec(value: unknown): GenuiSpec | null {
   return repairCanonicalGenuiSpec(normalizeGenuiSpec(value).value)
 }
 
-/* ---------------- validation ---------------- */
-
-/**
- * Count the nodes of a spec tree (every item, descending into tabs /
- * accordion / file-tree / list containers — the same descent
- * `validateGenuiSpec` walks). Shared by the panel fold (node-budget gate)
- * and validation, so the panel never runs a second, divergent traversal.
- * `cap` bounds the walk for hostile inputs; the panel passes
- * `PANEL_LIMITS.maxNodes + 1` to detect overflow without counting the whole
- * tree.
- */
 export function countGenuiNodes(value: unknown, cap = Number.POSITIVE_INFINITY): number {
   let count = 0
   const walk = (list: unknown): void => {
@@ -1630,14 +1478,12 @@ export function countGenuiNodes(value: unknown, cap = Number.POSITIVE_INFINITY):
           if (io !== undefined) walk(io.items)
         }
       } else if ((v.type === 'row' || v.type === 'col' || v.type === 'grid' || v.type === 'card' || v.type === 'carousel') && Array.isArray(v.items)) {
-        // Layout containers hold real children; skipping them undercounted
-        // the tree and hid silent drops from validate_dsh_ui (issue #42).
+
         walk(v.items)
       } else if (v.type === 'file-tree') {
-        // file-tree.items are data records, not GenUI children.
+
       } else if (v.type === 'list' && Array.isArray(v.items)) {
-        // Typed list children are nodes too (repair charges them against the
-        // budget); strings and {title,desc} shapes are skipped.
+
         for (const li of v.items) {
           if (count >= cap) return
           const lo = obj(li)
@@ -1658,22 +1504,8 @@ export function countGenuiNodes(value: unknown, cap = Number.POSITIVE_INFINITY):
   return count
 }
 
-/** Every white-listed node `type`. Keep in sync with the repairNode switch —
- * validate_dsh_ui uses it to tell declared GenUI nodes apart from unrelated
- * `"type"` strings (e.g. file-tree's `{type:'file'}` children). */
 export const GENUI_NODE_TYPES: ReadonlySet<string> = GENUI_NATIVE_TYPES
 
-/**
- * Visit and count declared nodes in a raw spec tree: objects whose `type` is a
- * white-listed string, descending the same containers `countGenuiNodes`
- * walks. Callers can inspect field semantics or compare the count with the
- * repaired tree without maintaining another traversal.
- *
- * With `familyCaps` (default) the traversal applies the same per-family
- * policy caps repair enforces (tabs ≤ maxTabs, accordion items ≤
- * maxAccordionItems, carousel items ≤ maxCarouselItems): nodes beyond a cap are policy-truncated, not defects,
- * so the declared-vs-rendered ledger must not count them as vanished (#298).
- */
 function visitDeclaredGenuiNodes(
   value: unknown,
   cap: number,
@@ -1738,34 +1570,20 @@ function visitDeclaredGenuiNodes(
   }
   const root = obj(value)
   if (root === undefined) return count
-  // Component root: the root itself is the declared node, whether or not it
-  // carries an `items` data array (issue #172).
+
   if (isComponentRoot(root) && declared(value)) walkNode(value, 'spec', 0)
   else walk(root.items, 'items', 0)
   return count
 }
 
-/**
- * Count white-listed nodes declared by a raw spec before repair drops invalid entries.
- * @param value - raw GenUI spec.
- * @param cap - traversal ceiling.
- * @param options - `familyCaps: false` counts beyond per-family policy caps; `carouselCaps: true` keeps the carousel item cap.
- * @returns declared node count up to the ceiling.
- */
 export function countDeclaredGenuiNodes(value: unknown, cap = Number.POSITIVE_INFINITY, options: { familyCaps?: boolean; carouselCaps?: boolean } = {}): number {
   return visitDeclaredGenuiNodes(value, cap, () => {}, options)
 }
 
-/** Count native nodes that survived repair, excluding opaque custom nodes. */
 export function countRenderedNativeGenuiNodes(value: unknown, cap = Number.POSITIVE_INFINITY): number {
   return countDeclaredGenuiNodes(value, cap)
 }
 
-/**
- * Return field-level chart errors without changing other repairable component families.
- * @param value - raw GenUI spec.
- * @returns chart semantic errors in tree order.
- */
 export function validateGenuiChartSemantics(value: unknown): string[] {
   const errors: string[] = []
   visitDeclaredGenuiNodes(value, GENUI_LIMITS.maxNodes + 1, (node, at) => {
@@ -1775,10 +1593,9 @@ export function validateGenuiChartSemantics(value: unknown): string[] {
   return errors
 }
 
-/** 延后围栏中的追加项引用检查，由面板按顺序合并后执行。 */
 interface GenuiValidationOptions {
   deferPanelReferences?: boolean
-  /** The store already knows the operation mode independently of fence routing. */
+
   panelOperation?: 'replace' | 'append'
 }
 
@@ -1787,14 +1604,8 @@ function deferPanelReferences(spec: GenuiSpec, options: GenuiValidationOptions):
     || (options.deferPanelReferences === true && spec.panel === true && spec.append === true)
 }
 
-/**
- * 检查字段显隐条件之间的循环引用。
- *
- * @param spec - 修复后的 GenUI 文档。
- * @returns 循环依赖错误列表。
- */
 function validateWhenDependencyCycles(spec: GenuiSpec): string[] {
-  // 共享 submission registry 决定字段身份：新增的可提交控件自动参与循环检查。
+
   const registry = analyzeSubmissionRegistry(spec).registry
   const dependencies = new Map<string, Array<{ field: string; path: string }>>()
   walkGenuiNodes(spec, (node, path, ancestorConditions) => {
@@ -1830,18 +1641,11 @@ function validateWhenDependencyCycles(spec: GenuiSpec): string[] {
   return errors
 }
 
-/**
- * 检查 GenUI 文档的白名单和限制，并收集可读的错误信息，不会修改文档。
- *
- * @param value - 未经过别名转换的 GenUI 文档。
- * @returns 完整结构与字段校验结果。
- */
 export function validateCanonicalGenuiSpec(value: unknown, options: GenuiValidationOptions = {}): GenuiValidation {
   const errors: string[] = []
   const v = obj(value)
   if (v === undefined) return { ok: false, errors: ['spec root must be an object'] }
-  // Single-component root: validate through the wrapped form so the tool
-  // agrees with the renderer about what is a valid fence body.
+
   if (isComponentRoot(value)) {
     const wrapped = wrapSingleComponentRoot(value)
     if (wrapped !== null) return validateCanonicalGenuiSpec(wrapped, options)
@@ -1892,7 +1696,7 @@ export function validateCanonicalGenuiSpec(value: unknown, options: GenuiValidat
   const repaired = repairCanonicalGenuiSpec(v)
   if (repaired !== null) {
     errors.push(...validateWhenDependencyCycles(repaired))
-    // 追加项是增量；等较早的字段与公式可用后，再由面板顺序合并流程检查外部引用。
+
     const append = deferPanelReferences(repaired, options)
     const graph = buildComputedGraph(repaired.computed ?? [], getComputedInputIds(repaired), new Set(), append)
     for (const [id, error] of Object.entries(graph.errors)) errors.push(`spec.computed.${id}: ${error}`)
@@ -1920,8 +1724,7 @@ export function validateCanonicalGenuiSpec(value: unknown, options: GenuiValidat
     }
   }
   walk(v.items, 0, 'items')
-  // Submission membership follows the rendered tree: policy-elided fields
-  // cannot conflict with visible fields or require unavailable groups.
+
   if (errors.length === 0 && repaired !== null) errors.push(...analyzeSubmissionRegistry(repaired,
     deferPanelReferences(repaired, options)).diagnostics)
   if (repaired !== null) {
@@ -1933,58 +1736,37 @@ export function validateCanonicalGenuiSpec(value: unknown, options: GenuiValidat
   return { ok: uniqueErrors.length === 0, errors: uniqueErrors }
 }
 
-/**
- * Validate a raw GenUI value after deterministic alias normalization.
- *
- * Validation therefore only sees canonical fields; repairable aliases do not
- * produce false required-field errors. Structural and semantic defects remain
- * errors, while native unknown fields are exposed by the warning diagnostics
- * returned from `processGenuiSpec`.
- *
- * @param value - Raw GenUI spec or bare component.
- * @returns Validation result with human-readable errors.
- */
 export function validateGenuiSpec(value: unknown): GenuiValidation {
   return validateCanonicalGenuiSpec(normalizeGenuiSpec(value).value)
 }
 
 export interface GenuiProcessResult {
-  /** Preserve the panel-delta validation mode when retrying partial repair. */
+
   deferPanelReferences?: boolean
-  /** Canonical alias-normalized input value. */
+
   value: unknown
-  /** Alias-normalized value, provided as an explicit descriptive alias. */
+
   normalized: unknown
-  /** Canonical repaired value consumed by the renderer. */
+
   repaired: GenuiSpec | null
-  /** Renderer-facing alias for `repaired`. */
+
   spec: GenuiSpec | null
-  /** Structural and semantic validation errors. */
+
   errors: string[]
-  /** Alias and native unknown-field warnings. */
+
   warnings: GenuiDiagnostic[]
-  /** Native nodes declared in the canonical input, before repair drops. */
+
   declaredCount: number
-  /** Nodes present in the repaired tree. */
+
   renderedCount: number
-  /** Native nodes declared before repair, excluding custom payloads. */
+
   declaredNativeCount: number
-  /** Native nodes present after repair, excluding custom and file-tree data. */
+
   renderedNativeCount: number
-  /** All supported component nodes present after repair. */
+
   renderedTotalCount: number
 }
 
-/**
- * Run the shared canonical GenUI pipeline.
- *
- * The pipeline normalizes aliases, applies the existing deterministic repair
- * and security filters, validates the canonical input, and reports native
- * declarations that disappeared during repair. Unsupported types are errors.
- *
- * @param value - Raw GenUI spec or bare component.
- * @returns Canonical input, repaired output, diagnostics, and node counts.
- */
 export function processGenuiSpec(value: unknown, options: GenuiValidationOptions = {}): GenuiProcessResult {
   const normalized = normalizeGenuiSpec(value)
   const repairCtx: RepairCtx = {
@@ -1995,13 +1777,7 @@ export function processGenuiSpec(value: unknown, options: GenuiValidationOptions
   }
   const repaired = repairCanonicalGenuiSpec(normalized.value, repairCtx)
   const validation = validateCanonicalGenuiSpec(normalized.value, options)
-  // Policy-aware ledger (#298): nodes beyond a per-family cap (tabs ≤
-  // maxTabs, accordion items ≤ maxAccordionItems, carousel items ≤
-  // maxCarouselItems) are truncated BY DESIGN, so
-  // they are not counted as "declared but vanished" — otherwise the fence
-  // below would always degrade to a code block and the truncation in repair
-  // could never take effect. The uncapped pass measures the truncation for
-  // the teaching warning instead.
+
   const declaredNativeCount = countDeclaredGenuiNodes(normalized.value, GENUI_LIMITS.maxNodes + 1)
   const uncappedPolicyNodeCount = countDeclaredGenuiNodes(normalized.value, GENUI_LIMITS.maxNodes + 1, { familyCaps: false, carouselCaps: true })
   const renderedNativeCount = repaired === null ? 0 : countRenderedNativeGenuiNodes(repaired)
@@ -2058,8 +1834,7 @@ export function processGenuiSpec(value: unknown, options: GenuiValidationOptions
     spec: repaired,
     errors: [...new Set(errors)],
     warnings,
-    // Compatibility fields retain their historical meanings: declaredCount
-    // is native declarations, while renderedCount is the total rendered tree.
+
     declaredCount: declaredNativeCount,
     renderedCount: renderedTotalCount,
     declaredNativeCount,
@@ -2068,7 +1843,6 @@ export function processGenuiSpec(value: unknown, options: GenuiValidationOptions
   }
 }
 
-/** Return whether the only process errors describe an intentional budget tail cut. */
 export function isIntentionalBudgetCut(processed: GenuiProcessResult): boolean {
   return processed.errors.length > 0
     && processed.errors.every(error => error.startsWith('spec exceeds ') || error.startsWith('repair dropped '))
@@ -2076,14 +1850,10 @@ export function isIntentionalBudgetCut(processed: GenuiProcessResult): boolean {
     && processed.declaredNativeCount === GENUI_LIMITS.maxNodes + 1
 }
 
-/** Decide whether a repaired spec is safe to expose to any GenUI renderer. */
 export function isRenderableProcess(processed: GenuiProcessResult): boolean {
   return processed.spec !== null && (processed.errors.length === 0 || isIntentionalBudgetCut(processed))
 }
 
-/* ---------------- partial fence rendering (issue #186) ---------------- */
-
-/** Longest node or aligned table-detail slot path a validation error points at. */
 const DECLARED_NODE_PATH_RE = /^(items\[\d+\](?:\.(?:items\[\d+\]|tabs\[\d+\]\.items\[\d+\]|details\[\d+\](?:\[\d+\])?))*)/
 
 function errorNodePath(error: string): string | null {
@@ -2094,18 +1864,17 @@ function errorNodePath(error: string): string | null {
 interface NodeSlot {
   array: unknown[]
   index: number
-  /** Detail row slots align with table rows; pruning must not shift them. */
+
   preserveIndex: boolean
 }
 
-/** Where the node or table-detail slot at a validation path lives. */
 function nodeSlotAt(root: Record<string, unknown>, path: string): NodeSlot | undefined {
   const steps = [...path.matchAll(/(?:^|\.)(items|tabs|details)\[(\d+)\]|\[(\d+)\]/g)]
   if (steps.length === 0 || steps[steps.length - 1]![1] === 'tabs') return undefined
   let current: unknown = root
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i]!
-    // A detail child has a second index without a property: details[row][node].
+
     const list = step[1] === undefined ? current : obj(current)?.[step[1]]
     const index = Number(step[2] ?? step[3])
     if (!Array.isArray(list) || index >= list.length) return undefined
@@ -2116,7 +1885,6 @@ function nodeSlotAt(root: Record<string, unknown>, path: string): NodeSlot | und
   return undefined
 }
 
-/** Deep-clone a JSON value for pruning; null when it cannot round-trip. */
 function cloneJsonValue(value: unknown): Record<string, unknown> | null {
   try {
     return obj(JSON.parse(JSON.stringify(value))) ?? null
@@ -2125,18 +1893,6 @@ function cloneJsonValue(value: unknown): Record<string, unknown> | null {
   }
 }
 
-/**
- * Best-effort repair for a spec whose strict validation failed: drop the
- * declared nodes the errors point at and re-run the whole pipeline once.
- *
- * The fence channels call this after the strict gate refuses, so ONE bad
- * component no longer degrades the whole fence to a code block — the
- * behaviour the capability map documents ("坏节点静默丢弃…不会拖垮界面") and
- * that validate_dsh_ui keeps diagnosing for the model. Bounded to a single
- * retry: a second failing pass is a genuinely pathological tree and keeps
- * today's full-fence fallback. Chart semantics stay protected the same way —
- * an undrawable chart is DROPPED here, never repaired into a blank canvas.
- */
 export function partialRepairGenuiSpec(processed: GenuiProcessResult): GenuiSpec | null {
   if (isRenderableProcess(processed)) return processed.spec
   if (processed.spec === null) return null
@@ -2153,24 +1909,17 @@ export function partialRepairGenuiSpec(processed: GenuiProcessResult): GenuiSpec
     } else paths.add(nodePath)
   }
   if (paths.size === 0 && overhangPaths.size === 0) return null
-  // Validation wraps a bare component first. Prune the same shape so its
-  // detail paths resolve even when the table is the only declared node.
+
   const pruned = cloneJsonValue(isComponentRoot(root) ? wrapSingleComponentRoot(root) : root)
   if (pruned === null) return null
-  // Resolve every slot BEFORE the first splice: each drop shifts the later
-  // siblings of the same array, so a resolve-after-splice (deepest-first or
-  // not) lands on the wrong row whenever two erroring nodes share a parent.
-  // A resolved slot keeps its own array reference, so a parent drop cannot
-  // invalidate an already-resolved child slot; per array, splicing
-  // highest-index first keeps the remaining indexes valid (issue #190).
+
   const slots = [...paths]
     .map((path) => nodeSlotAt(pruned, path))
     .filter((slot): slot is NodeSlot => slot !== undefined)
   const overhangSlots = [...overhangPaths]
     .map((path) => nodeSlotAt(pruned, path))
     .filter((slot): slot is NodeSlot => slot !== undefined)
-  // Extra details are unreachable. Mirror table repair's existing truncation
-  // only for this exact diagnostic, then validate the whole candidate again.
+
   for (const { array, index } of overhangSlots) {
     const table = obj(array[index])
     if (table?.type === 'table' && Array.isArray(table.details)) {
@@ -2198,7 +1947,6 @@ export function partialRepairGenuiSpec(processed: GenuiProcessResult): GenuiSpec
 
 type Walker = (list: unknown, depth: number, path: string) => void
 
-/** 校验模板文字与图表、表格中的计算引用是否指向已声明字段。 */
 function validateComputedReferences(title: unknown, items: unknown, computedIds: ReadonlySet<string>, errors: string[], allowExternalReferences = false): void {
   const visited = new WeakSet<object>()
   let visitedCount = 0
@@ -2291,15 +2039,13 @@ function validateChartNode(v: Record<string, unknown>, at: string, errors: strin
   }
   const kind = v.kind === undefined ? 'bars' : v.kind
   const series = Array.isArray(v.series) ? v.series : undefined
-  // Grouped bars legitimately carry `data: []` and keep every point in
-  // `series`; only an empty data array with NO series is undrawable.
+
   if (Array.isArray(v.data) && v.data.length === 0 && (series === undefined || series.length === 0)) {
     errors.push(`${at}.data must not be empty`)
   }
   if (series !== undefined) {
     if (series.length === 0) errors.push(`${at}.series must not be empty`)
-    // A line chart accepts `series` (one line per entry); the donut is a
-    // share-of-total shape and stays single-series.
+
     if (kind === 'donut') errors.push(`${at}.series is only supported for bars and line`)
     for (let index = 0; index < series.length; index++) {
       const entry = obj(series[index])
@@ -2318,7 +2064,6 @@ function validateChartNode(v: Record<string, unknown>, at: string, errors: strin
   validateChartSeries(v.series, `${at}.series`, errors)
 }
 
-/** Validate table rows before repair can silently remove malformed cells. */
 function validateTableRows(value: unknown, at: string, errors: string[]): void {
   if (!Array.isArray(value)) return
   for (let rowIndex = 0; rowIndex < value.length; rowIndex++) {
@@ -2338,7 +2083,6 @@ function validateTableRows(value: unknown, at: string, errors: string[]): void {
   }
 }
 
-/** 按单日期或日期范围模式校验日期控件的数据。 */
 function validateDatePicker(value: Record<string, unknown>, at: string, errors: string[]): void {
   const mode = value.mode === 'range' ? 'range' : 'single'
   const minimum = value.min
@@ -2383,8 +2127,7 @@ function validateNode(value: unknown, depth: number, at: string, errors: string[
     errors.push(`${at}: missing string 'type'`)
     return
   }
-  // `when` / `enableWhen` are valid on any node, so they are checked before the
-  // per-type switch.
+
   for (const key of ['when', 'enableWhen'] as const) {
     if (v[key] === undefined) continue
     const when = obj(v[key])
@@ -2429,8 +2172,7 @@ function validateNode(value: unknown, depth: number, at: string, errors: string[
         break
       }
       if (v.items.length > 8) errors.push(`${at}: 'choices' keeps at most 8 options`)
-      // A submit button that sends nothing is a trap: the reader clicks, the UI
-      // says "sent", and no request exists. Local-only selection needs no button.
+
       if (typeof v.submit === 'string' && v.submit.trim() !== ''
         && (typeof v.action !== 'string' || v.action.trim() === '')) {
         errors.push(`${at}: 'choices' with submit requires action — drop submit for a purely local selection`)
@@ -2496,7 +2238,7 @@ function validateNode(value: unknown, depth: number, at: string, errors: string[
       break
     case 'submit':
       if (typeof v.label !== 'string') errors.push(`${at}: type 'submit' requires label (string)`)
-      // 本地判卷可以不设置 action；不满足判卷条件时，渲染器会禁用无 action 的按钮。
+
       break
     case 'badge':
       if (typeof v.label !== 'string' && typeof v.text !== 'string' && typeof v.value !== 'string') {
@@ -2528,9 +2270,7 @@ function validateNode(value: unknown, depth: number, at: string, errors: string[
       if (!Array.isArray(v.items)) errors.push(`${at}: type 'list' requires items (array)`)
       if (Array.isArray(v.items)) {
         let keptItems = 0
-        // Descend into typed children so validation agrees with repair and
-        // rendering (they recurse into list items as GenuiNodes). Strings and
-        // {title,desc} list-item shapes are not nodes and are skipped.
+
         for (let i = 0; i < v.items.length; i++) {
           if (keptItems >= GENUI_LIMITS.maxListItems) break
           const value = v.items[i]
@@ -2543,9 +2283,7 @@ function validateNode(value: unknown, depth: number, at: string, errors: string[
       }
       break
     case 'table':
-      // `columns` may be satisfied by the 2D body itself (repair derives the
-      // header from the leading row); only a body that cannot state its
-      // columns is a contract error.
+
       if (!Array.isArray(v.columns) && !hasDerivableTableColumns(v)) errors.push(`${at}: type 'table' requires columns (array)`)
       if (!Array.isArray(v.rows)) errors.push(`${at}: type 'table' requires rows (array)`)
       if (v.types !== undefined && !Array.isArray(v.types)) {
@@ -2602,9 +2340,7 @@ function validateNode(value: unknown, depth: number, at: string, errors: string[
       break
     case 'divider':
     case 'spacer':
-      // No required fields; declared-field kinds are covered by the registry
-      // check below. Missing cases here made validate_dsh_ui reject ANY fence
-      // containing them as "unknown type" (found via the divider.label test).
+
       break
     case 'json':
       if (!('value' in v)) errors.push(`${at}: type 'json' requires value`)
@@ -2666,8 +2402,7 @@ function validateNode(value: unknown, depth: number, at: string, errors: string[
       if (!Array.isArray(v.options)) errors.push(`${at}: type 'quiz' requires options (array)`)
       break
     case 'blocks': {
-      // cells 是联合类型（string | null | record），无法挂到 schema 的 nested 上，
-      // 所以在这里显式校验对象那一半的形状与枚举。
+
       if (!Array.isArray(v.rows)) { errors.push(`${at}: type 'blocks' requires rows (array)`); break }
       isNum('columns')
       v.rows.forEach((entry, i) => {
@@ -2702,9 +2437,7 @@ function validateNode(value: unknown, depth: number, at: string, errors: string[
       break
 
     case 'echart':
-      // `links` alone is a valid payload: the sankey/graph presets are driven
-      // by edges only. Missing it here rejected the whole fence as
-      // un-renderable (the render gate turns any error into "render nothing").
+
       if (v.option === undefined && v.data === undefined && v.series === undefined
         && (!Array.isArray(v.links) || v.links.length === 0)) {
         errors.push(`${at}: type 'echart' requires option, data, series, or links`)
@@ -2712,7 +2445,7 @@ function validateNode(value: unknown, depth: number, at: string, errors: string[
       isNum('height')
       break
     default:
-      // Registered types without hand-written checks use the schema below.
+
       if (!Object.hasOwn(COMPONENT_SCHEMAS, type)) {
         const lower = type.toLowerCase()
         const hint = GENUI_NATIVE_TYPES.has(lower) ? `; use '${lower}'` : '; use a type from COMPONENT_SCHEMAS'

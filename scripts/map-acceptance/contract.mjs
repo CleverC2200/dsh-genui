@@ -1,4 +1,3 @@
-/** Pure, synthetic Map fixtures and CI launch contract. No browser/server at import. */
 export const MAP_TITLE = 'Map browser locations'
 export const MAP_ACTION = 'map-confirm'
 export const MAP_SUBMIT = 'Submit map selection'
@@ -18,17 +17,9 @@ export function mapBrowserLaunchOptions(executablePath) {
   return {
     ...(executablePath ? { executablePath } : { channel: 'chrome' }),
     headless: true, chromiumSandbox: true,
-    // Pinned host Playwright 1.61.1 adds this unsafe fallback by default.
-    // Remove only that exact default; retain all other defaults and the live
-    // forbidden-flag audit. Never use ignoreDefaultArgs: true.
-    // https://github.com/microsoft/playwright/blob/v1.61.1/packages/playwright-core/src/server/chromium/chromium.ts
+
     ignoreDefaultArgs: ['--enable-unsafe-swiftshader'],
-    // Chromium's supported OpenGL ES driver on GPU-less bots, NOT the unsafe
-    // WebGL fallback. Keep both renderer/GPU sandboxes and WebGL enabled.
-    // https://chromium.googlesource.com/chromium/src/+/HEAD/docs/gpu/swiftshader.md
-    // CDP Browser.getBrowserCommandLine requires this ordinary automation
-    // marker explicitly; do not rely on the host Playwright's default flags.
-    // https://chromedevtools.github.io/devtools-protocol/tot/Browser/#method-getBrowserCommandLine
+
     args: ['--enable-automation', '--use-gl=angle', '--use-angle=swiftshader'],
   }
 }
@@ -43,7 +34,7 @@ export function safeMapError(error) {
     .replace(/([?&](?:token|key|secret|password)=)[^\s&#"']*/giu, '$1[redacted]')
     .slice(0, 2500)
 }
-/** Keep independent checks running without ever converting a failure to a pass. */
+
 export async function recordMapCheckFailure(failures, stage, check) {
   try { await check(); return true } catch (error) {
     failures.push({ stage, error: safeMapError(error) })
@@ -53,7 +44,7 @@ export async function recordMapCheckFailure(failures, stage, check) {
 export function assertMapChecksPassed(failures) {
   if (failures.length) throw new Error('Map acceptance failed: ' + failures.map(failure => `${failure.stage}: ${failure.error}`).join('; '))
 }
-/** Analyze only the center screenshot crop, not same-blue endpoint markers. */
+
 export function measureRoutePixels({ data, width, height }) {
   if (width !== 80 || height !== 32 || data.length !== width * height * 4) throw new Error('Expected an 80x32 RGBA screenshot crop')
   let route = 0, background = 0, longest = 0
@@ -69,7 +60,7 @@ export function measureRoutePixels({ data, width, height }) {
   }
   return { width, height, route, background, longest, pass: longest >= 60 && route >= 120 && background >= 800 }
 }
-/** Check the DECODED artifact, since base64 can hide a host-config leak in HTML. */
+
 export function assertOfflineMapArtifact(artifact) {
   const map = artifact?.spec?.items?.find(node => node.type === 'map')
   if (!map || artifact?.state?.fields?.destination !== 'east') throw new Error('Export must contain the selected synthetic Map snapshot')

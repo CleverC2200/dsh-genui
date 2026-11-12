@@ -1,5 +1,3 @@
-// @vitest-environment jsdom
-// Achievements (0.9.5): rules, dedupe, persistence and the spec builder.
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ACHIEVEMENTS, buildAchievementsSpec, checkAchievements, countSpecKinds, emptyState } from '../src/client/achievements.ts'
 import { getAchievementSnapshot, recordFence, recordInteraction, recordPanel, recordTemplateUse, subscribeAchievements } from '../src/client/achievement-store.ts'
@@ -47,7 +45,7 @@ describe('埋点与持久化', () => {
     recordFence(SAMPLE)
     recordFence(SAMPLE)
     expect(getAchievementSnapshot().state.fences).toBe(1)
-    // 不同内容再计
+
     recordFence({ title: 'b', items: [{ type: 'text', content: 'x' }] })
     expect(getAchievementSnapshot().state.fences).toBe(2)
   })

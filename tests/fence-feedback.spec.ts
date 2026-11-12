@@ -1,6 +1,3 @@
-// Issue #160：回复中的 ```dsh-ui 围栏无法渲染时，模型应能在同一 turn 内收到可执行的修正要求。
-// 这些测试固定了修正边界：精确匹配围栏、共享 correction 上限、每个 fence body 在当前回合最多一次，
-// 不处理 subagent 与已中止的 turn，并在调用 steer 前完成记账。
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { createAssistantMessage, createUserMessage, markAgentLoopRequest } from '@deepseek-ai/dsh-llm'
@@ -21,16 +18,13 @@ import {
   MAX_CORRECTIONS_PER_TURN,
 } from '../src/plugin/fence-feedback.ts'
 
-/** A fence body that renders: one stat carrying a metric list (#172 case A). */
 const STAT_GROUP = JSON.stringify({ items: [{
   type: 'stat',
   items: [{ label: '质量门进度', value: '1/5' }, { label: '阻塞项', value: '0' }],
 }] })
 
-/** A fence body that renders: bare data-component root (#172 case B). */
 const BARE_STEPS = JSON.stringify({ type: 'steps', items: [{ title: '第一层' }] })
 
-/** A fence body that cannot render: required field missing. */
 const BROKEN = JSON.stringify({ items: [{ type: 'stat' }] })
 const REPAIRABLE = '{"title":"x","items":[{"type":"text","content":"好",},]}'
 const REPAIRED_SCHEMA_FAILURE = '{"items":[{"type":"stat","value":"好",},]}'
@@ -56,19 +50,16 @@ interface StreamHarness {
   stream: (options: GenerateOptions, chunks: readonly StreamChunk[]) => AsyncIterable<StreamChunk>
 }
 
-/** 根据标准 LLM chunk 构造可重复的测试 stream。 */
 async function* streamChunks(chunks: readonly StreamChunk[]): AsyncGenerator<StreamChunk> {
   yield* chunks
 }
 
-/** 收集 middleware 结果，以检查终止 finish。 */
 async function collectChunks(source: AsyncIterable<StreamChunk>): Promise<StreamChunk[]> {
   const chunks: StreamChunk[] = []
   for await (const chunk of source) chunks.push(chunk)
   return chunks
 }
 
-/** 使用 agent loop 的公开标记标识请求。 */
 function agentRequest(overrides: Partial<GenerateOptions> = {}): GenerateOptions {
   return markAgentLoopRequest({
     provider: 'test-provider',
@@ -79,7 +70,6 @@ function agentRequest(overrides: Partial<GenerateOptions> = {}): GenerateOptions
   })
 }
 
-/** 使用真实 Cordis Context 注册 session event 与 LLM stream middleware。 */
 function streamHarness(options: { parentSession?: string; enabled?: boolean } = {}): StreamHarness {
   const ctx = new Context()
   const session = {
@@ -134,7 +124,6 @@ function harness(options: { parentSession?: string; enabled?: boolean } = {}): H
 const assistantEvent = (text: string): unknown => ({ type: 'assistant/message', seq: 3, time: 1, data: { message: { content: [{ type: 'text', text }] } } }) as unknown as SessionEvent
 const userEvent = (): unknown => ({ type: 'user/message', seq: 2, time: 1, data: { content: [{ type: 'text', text: '问题' }], source: { kind: 'user' } } }) as unknown as SessionEvent
 
-/** 用真实宿主会话持久化消息，并通过插件卸载、重新安装验证恢复。 */
 async function persistedFeedbackHarness() {
   const ctx = new Context()
   const sessionPlugin = await ctx.plugin(SessionStore)
@@ -319,7 +308,7 @@ describe('planFenceFeedback: the bounds that prevent a retry storm', () => {
   it('allows a SECOND correction in the same turn, never a third', () => {
     expect(planFenceFeedback({ ...base, correctionsThisTurn: 1, correctionsTurn: 1 })).not.toBeNull()
     expect(planFenceFeedback({ ...base, correctionsThisTurn: 2, correctionsTurn: 1 })).toBeNull()
-    // A stale count from an earlier turn never bounds a new one.
+
     expect(planFenceFeedback({ ...base, correctionsThisTurn: 2, correctionsTurn: 0 })).not.toBeNull()
   })
 
@@ -342,38 +331,36 @@ describe('planFenceFeedback: the bounds that prevent a retry storm', () => {
 
   it('reminds only after a formal validate call that produced no delivery', () => {
     const idle = { text: '', turn: 2, correctedSpec: new Set<string>(), aborted: false }
-    // Nothing formal happened: silence (an empty body alone is not a GenUI turn).
+
     expect(planFenceFeedback(idle)).toBeNull()
-    // validate_dsh_ui ran, nothing was delivered: remind once.
+
     const plan = planFenceFeedback({ ...idle, validatedThisTurn: true })
     expect(plan).not.toBeNull()
     expect(plan!.kind).toBe('delivery')
     expect(plan!.fingerprints).toEqual([])
     expect(plan!.text).toContain('status=nothing_delivered')
     expect(plan!.text).toContain('本轮尚未产生正式回答')
-    // The reminder never quotes a draft.
+
     expect(plan!.text).not.toContain('```')
-    // Already reminded in this turn: silence.
+
     expect(planFenceFeedback({ ...idle, validatedThisTurn: true, deliveryRemindedTurns: new Set([2]) })).toBeNull()
-    // A new turn may be reminded again.
+
     expect(planFenceFeedback({ ...idle, turn: 3, validatedThisTurn: true, deliveryRemindedTurns: new Set([2]) })).not.toBeNull()
   })
 
   it('says nothing when the turn already delivered something formal', () => {
     const delivered = { text: '', turn: 5, correctedSpec: new Set<string>(), aborted: false, validatedThisTurn: true, deliveredThisTurn: true }
     expect(planFenceFeedback(delivered)).toBeNull()
-    // validate_dsh_ui alone is not a delivery; neither is an ordinary tool call.
+
     expect(planFenceFeedback({ ...delivered, deliveredThisTurn: false })).not.toBeNull()
   })
 
   it('has no reasoning input at all: the decision is formal-event only', () => {
-    // Structural assertion for the #236 boundary: the planner's input carries no
-    // reasoning/draft field, so a draft cannot influence publishing or retrying.
+
     const input = { ...base, validatedThisTurn: true }
     expect(Object.keys(input).some(key => key.toLowerCase().includes('reason') || key.toLowerCase().includes('draft'))).toBe(false)
   })
 })
-
 
 describe('the steered correction message', () => {
   it('uses the producer-owned source kind for Session format v4', () => {
@@ -396,7 +383,7 @@ describe('the steered correction message', () => {
       summary: 'genui fence repair requested',
     })
     expect(Object.isFrozen(message)).toBe(true)
-    // No triple backticks: the notice renders as markdown in the transcript.
+
     expect(text).not.toContain('```')
   })
 
@@ -452,7 +439,7 @@ describe('installFenceFeedback wiring', () => {
     expect(h.steer).toHaveBeenCalledTimes(1)
     const message = h.steer.mock.calls[0]![0] as { source: { kind: string } }
     expect(message.source.kind).toBe(FEEDBACK_SOURCE_KIND)
-    // A second boundary of the same turn must not steer again.
+
     h.boundary({ agent, turn: 4, signal: new AbortController().signal })
     expect(h.steer).toHaveBeenCalledTimes(1)
   })
@@ -517,16 +504,13 @@ describe('installFenceFeedback wiring', () => {
     expect(message.content[0]!.text).toContain('status=nothing_delivered')
     expect(message.content[0]!.text).toContain('本轮尚未产生正式回答')
     expect(message.content[0]!.text).toContain('或明确调用 render_ui')
-    // Only one reminder per turn.
+
     h.boundary({ agent, turn: 7, signal: new AbortController().signal })
     expect(h.steer).toHaveBeenCalledTimes(1)
   })
 
   it('never lets reasoning content change the decision (only formal events do)', () => {
-    // Same formal state (validate called, nothing delivered); the reasoning block
-    // differs wildly — including "a complete fence", "several fences" and "a later
-    // candidate that negates the first". The decision must be identical because the
-    // loop never reads the reasoning block (maintainer requirement on #236).
+
     const drafts = [
       '',
       '```dsh-ui\n{"items":[{"type":"text","content":"候选一"}]}\n```',
@@ -553,8 +537,6 @@ describe('installFenceFeedback wiring', () => {
     delivered.boundary({ agent, turn: 8, signal: new AbortController().signal })
     expect(delivered.steer).not.toHaveBeenCalled()
 
-    // render_ui 只由它的 tool/result 决定交付：结果成功才算（此前仅凭调用就算，
-    // 失败的渲染卡也被当成已交付 — review 确认的漏补救之一）。
     const card = harness()
     card.emitSession(userEvent())
     card.emitSession(toolCallEvent('validate_dsh_ui'))
@@ -616,10 +598,10 @@ describe('installFenceFeedback wiring', () => {
     h.emitSession(toolCallEvent('validate_dsh_ui'))
     h.emitSession(toolCallEvent('render_ui', 'render-late'))
     const agent = { session: { id: 'sess-1', header: { id: 'sess-1', version: 4 } }, steer: h.steer }
-    // Result not arrived yet: steering here would race the late result.
+
     h.boundary({ agent, turn: 6, signal: new AbortController().signal })
     expect(h.steer).not.toHaveBeenCalled()
-    // The result settles as failed: the next boundary can remind.
+
     h.emitSession(toolResultEvent('render-late', { blockError: true }))
     h.boundary({ agent, turn: 6, signal: new AbortController().signal })
     expect(h.steer).toHaveBeenCalledTimes(1)
@@ -628,9 +610,7 @@ describe('installFenceFeedback wiring', () => {
   })
 
   it('does not let synthetic same-turn context messages clear the turn state', () => {
-    // agent.inject() 通知、成员消息等同面上下文走 user/message 但 source.kind
-    // 不是 'user'：它们到达于回合中途，不得清掉验证/交付状态（review 确认的
-    // 漏补救之二）。真实用户提示（kind 'user'）仍开启干净的新回合。
+
     for (const kind of ['tool', 'agent', 'member']) {
       const h = harness()
       h.emitSession(userEvent())
@@ -652,8 +632,7 @@ describe('installFenceFeedback wiring', () => {
     const agent = { session: { id: 'sess-1', header: { id: 'sess-1', version: 4 } }, steer: h.steer }
     h.boundary({ agent, turn: 1, signal: new AbortController().signal })
     expect(h.steer).toHaveBeenCalledTimes(1)
-    // New turn: turn/start wiped the state, so a fresh validate + nothing
-    // delivered can be reminded again under a new turn number.
+
     h.emitSession(turnStartEvent(2))
     h.emitSession(userEvent())
     h.emitSession(toolCallEvent('validate_dsh_ui'))
@@ -667,10 +646,10 @@ describe('installFenceFeedback wiring', () => {
     h.emitSession(toolCallEvent('validate_dsh_ui'))
     const agent = { session: { id: 'sess-1', header: { id: 'sess-1', version: 4 } }, steer: h.steer }
     h.boundary({ agent, turn: 4, signal: new AbortController().signal })
-    expect(h.steer).toHaveBeenCalledTimes(1)          // delivery reminder (slot 1)
-    h.emitSession(assistantEvent(reply(BROKEN)))      // now a body fence fails to render
+    expect(h.steer).toHaveBeenCalledTimes(1)
+    h.emitSession(assistantEvent(reply(BROKEN)))
     h.boundary({ agent, turn: 4, signal: new AbortController().signal })
-    expect(h.steer).toHaveBeenCalledTimes(2)          // render correction (slot 2) still fires
+    expect(h.steer).toHaveBeenCalledTimes(2)
     const second = h.steer.mock.calls[1]![0] as { content: Array<{ text: string }> }
     expect(second.content[0]!.text).toContain('next=resend_corrected_fence_only')
   })
@@ -690,8 +669,6 @@ describe('installFenceFeedback wiring', () => {
     }
     expect(h.steer).toHaveBeenCalledTimes(2)
   })
-
-
 
   it('never steers for a subagent session', () => {
     const h = harness({ parentSession: 'parent-1' })
@@ -1047,7 +1024,7 @@ describe('persisted fence feedback lifecycle', () => {
     try {
       h.startTurn()
       h.validate()
-      // 第一次只有 reasoning：提醒尚可用，放行让 turn-stopping 去 steer。
+
       const first = await collectChunks(h.ctx.waterfall('llm/stream', agentRequest({ sessionId: h.session.id }), () => streamChunks([
         { type: 'block-start', index: 0, blockType: 'reasoning' },
         { type: 'reasoning-delta', index: 0, text: 'private reasoning draft' },
@@ -1059,7 +1036,6 @@ describe('persisted fence feedback lifecycle', () => {
       h.boundary()
       expect(h.steer).toHaveBeenCalledTimes(1)
 
-      // reload 后提醒记录被恢复：再次只有 reasoning 时仍交给宿主重试兜底。
       let chunks: StreamChunk[] = []
       await h.reload(async () => {
         chunks = await collectChunks(h.ctx.waterfall('llm/stream', agentRequest({ sessionId: h.session.id }), () => streamChunks([
@@ -1129,11 +1105,8 @@ describe('persisted fence feedback lifecycle', () => {
   })
 })
 
-// 端到端路径：只有 reasoning 的回合不再被当场判死，而是正常结束、在 turn-stopping
-// 边界 steer 一条交付提醒进会话；那条提醒就是 agent-loop 下一次请求的消息来源。
-// 第二次仍然只有 reasoning 时才退回 EMPTY_RESPONSE，交给宿主既有重试策略。
 describe('reasoning-only 交付提醒进入下一次模型请求', () => {
-  /** 只有 reasoning、没有任何正文与工具调用的流。 */
+
   const reasoningOnlyStream: StreamChunk[] = [
     { type: 'block-start', index: 0, blockType: 'reasoning' },
     { type: 'reasoning-delta', index: 0, text: 'private reasoning draft' },
@@ -1147,7 +1120,6 @@ describe('reasoning-only 交付提醒进入下一次模型请求', () => {
       h.startTurn()
       h.validate()
 
-      // 提醒尚未发出：放行原始 stop，回合正常结束，而不是把已产生的整轮输出判死。
       const chunks = await collectChunks(h.ctx.waterfall(
         'llm/stream',
         agentRequest({ sessionId: h.session.id }),
@@ -1155,7 +1127,6 @@ describe('reasoning-only 交付提醒进入下一次模型请求', () => {
       ))
       expect((chunks.at(-1) as Extract<StreamChunk, { type: 'finish' }>).reason.kind).toBe('stop')
 
-      // 回合边界：交付提醒被 steer 进会话，成为下一次请求的消息来源。
       h.boundary()
       expect(h.steer).toHaveBeenCalledTimes(1)
 
@@ -1186,7 +1157,6 @@ describe('reasoning-only 交付提醒进入下一次模型请求', () => {
       h.boundary()
       expect(h.steer).toHaveBeenCalledTimes(1)
 
-      // 提醒已发仍然只有 reasoning：才交给宿主重试兜底。
       const second = await collectChunks(h.ctx.waterfall(
         'llm/stream',
         agentRequest({ sessionId: h.session.id }),

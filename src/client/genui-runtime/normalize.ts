@@ -1,4 +1,3 @@
-/** Deterministic GenUI alias and structural normalization. */
 import { getComponentSchema } from './schema.ts'
 import type { ComponentRecordSchema } from './schema.ts'
 import { isComponentRoot } from '../spec.ts'
@@ -12,12 +11,6 @@ function record(value: unknown): Record<string, unknown> | undefined {
     : undefined
 }
 
-/**
- * Resolve an explicit component type or a type uniquely identified by fields.
- *
- * @param value - Value to inspect without changing it.
- * @returns The explicit or inferred component type when available.
- */
 function nodeTypeOf(value: unknown): string | undefined {
   const candidate = record(value)
   if (candidate === undefined) return undefined
@@ -33,24 +26,13 @@ function nodeTypeOf(value: unknown): string | undefined {
   return matches.length === 1 ? matches[0] : undefined
 }
 
-/**
- * Check whether a value can be treated as a component node.
- *
- * @param value - Value to inspect without changing it.
- * @returns Whether the value has an explicit or uniquely inferred type.
- */
 function isNode(value: unknown): value is Record<string, unknown> {
   return nodeTypeOf(value) !== undefined
 }
 
-/** Fields a `stat` keeps when a metric record is folded into its own node. */
 const STAT_METRIC_FIELDS = ['label', 'value', 'delta', 'spark', 'size'] as const
 const LIST_ITEM_ALIASES = { label: 'title', name: 'title', description: 'desc', content: 'desc', text: 'desc', body: 'desc', detail: 'desc' } as const
 
-/**
- * Normalize one metric record of a stat group into a single-metric `stat`
- * node, or null when the entry is not a metric at all.
- */
 function statMetricsOf(
   entries: readonly unknown[],
   path: string,
@@ -62,8 +44,7 @@ function statMetricsOf(
     const entry = entries[index]
     const metric = record(entry)
     if (metric === undefined) return null
-    // An entry that is already a node passes through: the model enumerated
-    // its own components instead of bare metrics.
+
     if (isNode(entry)) {
       metrics.push(normalizeChild(entry, `${path}.items[${index}]`))
       continue
@@ -117,13 +98,6 @@ function normalizeAliasFields(value: Record<string, unknown>, path: string, type
   return out
 }
 
-/**
- * Apply a nested record schema's field aliases to a record tree: every entry
- * of an array (and every nested record collection below it) is rewritten in
- * place-equivalent copies, so validation, repair, and diagnostics all see the
- * canonical record fields (`keyvalue.pairs[].label → key`,
- * `file-tree.items[].label → name`, issue #186).
- */
 function normalizeRecordTree(
   value: unknown,
   definition: ComponentRecordSchema,
@@ -159,11 +133,6 @@ function normalizeRecordTree(
   return out
 }
 
-/**
- * file-tree parents without a `type`: a record that carries `children` is a
- * directory in every model-written tree, and the renderer's collapse
- * affordance depends on the marker (issue #186).
- */
 function defaultFileTreeDirectories(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(defaultFileTreeDirectories)
   const holder = record(value)
@@ -174,25 +143,16 @@ function defaultFileTreeDirectories(value: unknown): unknown {
   return out
 }
 
-/**
- * Normalize one component node and its renderer-reachable children.
- *
- * @param value - Raw component or other value.
- * @param path - Stable diagnostic path for this node.
- * @param warnings - Alias and structural normalization diagnostics.
- * @returns The normalized component, or the original value when it is not a node.
- */
 function normalizeNode(value: unknown, path: string, warnings: GenuiDiagnostic[]): unknown {
   const type = nodeTypeOf(value)
   const candidate = record(value)
   if (type === undefined || candidate === undefined) return value
   const node = typeof candidate.type === 'string' ? candidate : { ...candidate, type }
   const definition = getComponentSchema(type)
-  // Keep unsupported input intact for the validator's type/path diagnostic.
+
   if (definition === undefined) return node
   const out = normalizeAliasFields(node, path, type, warnings)
-  // Nested data records (keyvalue pairs, file-tree items, …) carry their own
-  // field aliases — apply them before validation/repair see the records.
+
   for (const [field, nested] of Object.entries(definition.nested)) {
     if (out[field] === undefined) continue
     const nestedValue = out[field]
@@ -220,12 +180,7 @@ function normalizeNode(value: unknown, path: string, warnings: GenuiDiagnostic[]
   }
 
   if (type === 'stat' && Array.isArray(out.items) && out.label === undefined && out.value === undefined) {
-    // Model-side generalization: one `stat` carrying a metric list
-    // ({type:'stat',items:[{label,value},…]}) means "these metrics, side by
-    // side". Normalize it into a row of single-metric stats, the documented
-    // multi-stat idiom (SKILL.md), instead of letting repair drop the node and
-    // reject the whole fence (issue #172, case A). A group that also declares
-    // `label`/`value` is a single stat with stray fields and stays untouched.
+
     const metrics = statMetricsOf(out.items, path, normalizeNodeValue)
     if (metrics !== null) {
       warnings.push({
@@ -253,7 +208,7 @@ function normalizeNode(value: unknown, path: string, warnings: GenuiDiagnostic[]
       }
     }
   } else if (type === 'list' && Array.isArray(out.items)) {
-    // List records and nested nodes share items; aliases only belong to records.
+
     out.items = out.items.map((child, index) => {
       if (isNode(child)) return normalizeNodeValue(child, `${path}.items[${index}]`)
       if (Array.isArray(child) && child.length === 1 && typeof child[0] === 'string') return child[0]
@@ -281,11 +236,7 @@ function normalizeNode(value: unknown, path: string, warnings: GenuiDiagnostic[]
       return normalizedHolder
     })
   } else if (type === 'keyvalue' && Array.isArray(out.pairs)) {
-    // Pair-as-array (`[[key, value], …]` or `[[key], …]`) is what a model
-    // writes when it treats keyvalue as a 2-column list. Canonicalize before
-    // validation: the record validator rejects every array entry ("must be an
-    // object"), and those errors take the whole fence down even though repair
-    // could read the data.
+
     if (out.pairs.length > 0 && out.pairs.every(pair => Array.isArray(pair))) {
       out.pairs = out.pairs.map(pair => {
         const cells = pair as unknown[]
@@ -336,22 +287,10 @@ function normalizeNode(value: unknown, path: string, warnings: GenuiDiagnostic[]
   return out
 }
 
-/**
- * Normalize a raw GenUI value into canonical field names.
- *
- * Only deterministic aliases and structural aliases are changed. Resource
- * limits, type repair, security filtering, and semantic validation remain in
- * the guard layer. Unknown component types are returned opaque.
- *
- * @param value - Raw GenUI spec or bare native component.
- * @returns Canonical value and stable alias diagnostics.
- */
 export function normalizeGenuiSpec(value: unknown): { value: unknown; warnings: GenuiDiagnostic[] } {
   const warnings: GenuiDiagnostic[] = []
   if (typeof value === 'string') {
-    // Double-encoded body (issue #186): the model escaped the whole spec into
-    // a JSON string. Decode exactly once — anything deeper is quoted prose,
-    // not a spec, and stays unrenderable.
+
     try {
       const decoded: unknown = JSON.parse(value)
       if (record(decoded) !== undefined || Array.isArray(decoded)) {
@@ -363,13 +302,11 @@ export function normalizeGenuiSpec(value: unknown): { value: unknown; warnings: 
         })
       }
     } catch {
-      // Not JSON text: leave as-is; repair rejects the root as usual.
+
     }
   }
   if (Array.isArray(value) && value.length > 0) {
-    // A root-level component list is the envelope minus its braces (issue
-    // #186): adopt it as `items` instead of rejecting the whole fence. An
-    // empty list has nothing to render and stays an invalid root.
+
     value = { items: value }
     warnings.push({
       kind: 'alias',
@@ -380,9 +317,7 @@ export function normalizeGenuiSpec(value: unknown): { value: unknown; warnings: 
   const root = record(value)
   if (root === undefined) return { value, warnings }
   const out = { ...root }
-  // A bare component root is normalized as a node, not as an envelope whose
-  // `items` are its children: for a data component (steps/list/timeline/…)
-  // `items` is the record list and its aliases must still apply (issue #172).
+
   if (isComponentRoot(out)) {
     return { value: normalizeNode(out, 'spec', warnings), warnings }
   }

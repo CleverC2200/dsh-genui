@@ -76,7 +76,7 @@ it('keeps live and persisted edits when a real dock receives an append; replacem
   applyPanelOperation(sessionId, base)
   const sent: Array<Record<string, unknown>> = []
   const send = (_action: string, payload: Record<string, unknown>) => { sent.push(payload) }
-  /** 挂载当前会话面板，检查面板更新和重新打开后的输入状态。 */
+
   const renderPanel = () => render(<GenuiPanel sessionId={sessionId} sendGenuiAction={send} insertTemplate={() => { throw new Error('Unexpected template insertion') }} />)
   const view = renderPanel()
   act(() => requestPanelExpand(sessionId))

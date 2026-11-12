@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GenuiBlock } from '../src/client/GenuiBlock.tsx'
@@ -36,11 +35,9 @@ describe('GenUI durable state identity', () => {
     view.rerender(<GenuiBlock spec={fieldSpec} stateKey="state-b" />)
     expect(fieldValue()).toBe('')
 
-    // The old in-memory value must never be written under the new durable key.
     act(() => { vi.advanceTimersByTime(300) })
     expect(loadBlockState('state-b')?.fields?.name).toBeUndefined()
 
-    // Returning to the original durable identity restores its own state.
     view.rerender(<GenuiBlock spec={fieldSpec} stateKey="state-a" />)
     expect(fieldValue()).toBe('Alice')
   })

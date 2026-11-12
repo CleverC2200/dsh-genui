@@ -18,7 +18,6 @@
     <script>
       const browserErrors = document.getElementById('browser-errors')
 
-      /** 记录浏览器异常，方便从 CI 产物中查看页面错误。 */
       function recordBrowserError(message) {
         browserErrors.textContent += `${message}\n`
       }

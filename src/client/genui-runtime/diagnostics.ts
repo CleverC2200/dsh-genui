@@ -1,4 +1,3 @@
-/** GenUI runtime diagnostics for aliases and unknown fields. */
 import { getComponentSchema, GENUI_SPEC_SCHEMA } from './schema.ts'
 import { isComponentRoot } from '../spec.ts'
 import type { ComponentRecordSchema, ComponentSchema } from './schema.ts'
@@ -13,7 +12,6 @@ export interface GenuiDiagnostic {
   readonly field?: string
   readonly canonical?: string
 }
-
 
 function record(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -121,15 +119,6 @@ function diagnoseNestedFields(
   }
 }
 
-/**
- * Diagnose unknown direct fields on native nodes.
- *
- * Unknown types are intentionally skipped so custom renderers retain their
- * opaque extension payloads. Native unknown fields are warnings, not errors.
- *
- * @param value - Canonical or raw GenUI value.
- * @returns Stable field diagnostics in tree order.
- */
 export function diagnoseUnknownGenuiFields(value: unknown): GenuiDiagnostic[] {
   const warnings: GenuiDiagnostic[] = []
   const root = record(value)
@@ -156,15 +145,13 @@ export function diagnoseUnknownGenuiFields(value: unknown): GenuiDiagnostic[] {
   if (Array.isArray(root.items) && !isComponentRoot(root)) {
     for (const field of Object.keys(root)) {
       if (field in GENUI_SPEC_SCHEMA.fields) continue
-      // The optional native projection shares the envelope, never web node fields.
+
       if (root.type === 'stack' && Array.isArray(root.children) && (field === 'type' || field === 'children')) continue
       pushUnknownField(warnings, 'spec', field, 'spec')
     }
     root.items.forEach((item, index) => visitNativeNodes(item, `items[${index}]`, visit))
   } else if (typeof root.type === 'string') {
-    // A bare component root is a documented shorthand, so its `type` belongs
-    // to the native node schema rather than the root specification schema —
-    // including data components whose `items` is their record list (#172).
+
     visitNativeNodes(root, 'spec', visit)
   } else {
     for (const field of Object.keys(root)) {

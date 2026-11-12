@@ -1,4 +1,3 @@
-/** Actual UI and composited-pixel oracles; no Map instance or state injection. */
 import assert from 'node:assert/strict'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -39,7 +38,7 @@ export function watchMapPage(page, allowedOrigins, { allowFile = false } = {}) {
   page.on('request', request => {
     const url = new URL(request.url())
     if (['blob:', 'data:'].includes(url.protocol) || (allowFile && url.protocol === 'file:')) return
-    const safe = `${url.origin}${url.pathname}` // Never persist the host bootstrap token/query.
+    const safe = `${url.origin}${url.pathname}`
     evidence.requests.push(safe)
     if (!allowedOrigins.includes(url.origin)) evidence.externalRequests.push(safe)
   })
@@ -54,7 +53,7 @@ export async function installCspObserver(page) {
     })
   }
   await page.addInitScript(observe)
-  await page.evaluate(observe) // Current host page as well as subsequent reloads.
+  await page.evaluate(observe)
 }
 export async function webglEvidence(section) {
   const canvas = section.locator('canvas.maplibregl-canvas')
@@ -72,8 +71,7 @@ export async function assertRoutePixels(page, section, path) {
   await canvas.scrollIntoViewIfNeeded()
   let observation
   await until(async () => {
-    // Fixed camera: endpoints are ~114px from center. This central 80x32 crop
-    // excludes both same-blue DOM markers, attribution, and container borders.
+
     const box = await canvas.boundingBox()
     assert.ok(box && box.width >= 240 && box.height >= 200, 'Map canvas must have usable dimensions')
     const png = await page.screenshot({ clip: { x: box.x + box.width / 2 - 40, y: box.y + box.height / 2 - 16, width: 80, height: 32 }, scale: 'css' })

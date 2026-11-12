@@ -1,23 +1,3 @@
-/**
- * The `render_ui` tool: a model-facing channel that renders a GenUI spec as
- * an interactive card in the conversation TOOL ROW (route A of the design
- * doc). The ```dsh-ui fence channel renders inline in the reply; this tool
- * renders in the tool row and rides the harness's result `meta` projection:
- * `presentationMeta` stores the repaired spec, the browser toolview
- * (`src/client/toolview.tsx`) reads it from the result node and renders.
- *
- * Zero runtime harness imports, deliberately: an external plugin's node half
- * must not depend on the harness module graph at runtime (the profile
- * resolves only the plugin package itself). The definition is therefore a
- * plain `ToolDefinition` object — the exact shape `defineTool` returns — with
- * the arguments schema authored as JSON Schema (the harness validates args
- * and output with the same JSON Schema validator defineTool uses). Deep
- * validation, deterministic repair, and resource limits live in the shared
- * guard (`src/client/guard.ts`), which the schema deliberately stays loose
- * enough to reach.
- * @module @changfenhuang/dsh-genui/plugin/tool
- */
-
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { GenericCallView, GenericResultView, JsonSchemaNode, ToolDefinition } from '@deepseek-ai/dsh-tools'
@@ -32,18 +12,6 @@ import type { GenuiSpec } from '../client/spec.ts'
 import { toDshGoView } from './dsh-go-view.ts'
 import { dualNativeFence } from './dsh-go-compiler.ts'
 
-/**
- * Arguments schema: an open `spec` slot. The schema must NOT reject anything
- * the guard could repair — the model's component trees are imperfect by
- * nature, and the guard heals them; argument validation would only strand
- * them. `additionalProperties: false` keeps the call shape honest.
- *
- * `spec` IS typed `object` on purpose: the guard can only repair plain
- * records (a serialized JSON string, array, or scalar root is unusable), so
- * argument validation rejecting non-objects loses nothing repairable — and
- * it stops the model from double-encoding the tree as a string (observed
- * twice in the wild), failing fast with a clear schema error instead.
- */
 const RENDER_UI_PARAMETERS: Record<string, unknown> = {
   type: 'object',
   properties: {
@@ -54,13 +22,7 @@ const RENDER_UI_PARAMETERS: Record<string, unknown> = {
       'Same white-listed vocabulary as the ```dsh-ui fence (see the GenUI system-prompt section). Pick the fence when the UI belongs in the message body; pick this tool when the deliverable is a self-contained card.',
       'Deep-validated and repaired by the renderer. Pass the spec as a JSON OBJECT — never as a serialized JSON string (a string fails argument validation).',
     ].join(' '),
-      // Structural hints for the tool-call bridge. A bare `object` here was
-      // observed to make some bridge layers stringify the whole spec into an
-      // OpenAI-style `{ arguments: "<JSON>" }` wrapper (and to corrupt long
-      // specs mid-stream). Declaring the known top-level fields gives the
-      // bridge a concrete shape to serialize directly, while the schema stays
-      // deliberately open (unknown keys tolerated, `items` elements are free
-      // objects) so the guard — not the schema — remains the repair authority.
+
       properties: {
         title: { type: 'string', description: 'Short title shown as the card banner.' },
         gap: { type: 'number', description: 'Vertical gap between root items in px.' },
@@ -77,24 +39,8 @@ const RENDER_UI_PARAMETERS: Record<string, unknown> = {
   additionalProperties: false,
 }
 
-/** The tool's canonical value is a short model-facing summary string. */
 const RENDER_UI_OUTPUT_SCHEMA: JsonSchemaNode = { type: 'string', description: 'One-line human-readable render summary for the model.' }
 
-/**
- * Read the `spec` argument defensively (presenters run on replayed args).
- *
- * The harness tool-call bridge has been observed to deliver arguments in
- * shapes other than the authored `{ spec: <object> }`:
- * - `{ spec: "<JSON string>" }` — spec serialized to text;
- * - `{ arguments: "<JSON string>" }` / `{ arguments: <object> }` — a
- *   double-encoded wrapper from the SDK tool-call bridge (seen live in the
- *   web GUI: small specs arrived wrapped this way, large specs arrived with
- *   their JSON corrupted mid-stream);
- * - a bare JSON string (double-encoded root).
- * Each shape is unwrapped here so the guard can repair the actual tree.
- * Corrupted JSON cannot be recovered (bytes were lost in transit): it yields
- * `undefined` plus a diagnostic log line for the transport-layer bug.
- */
 function specOf(args: unknown): unknown {
   if (typeof args === 'string') {
     return parseSpecJson(args, 'bare-string')
@@ -114,12 +60,6 @@ function specOf(args: unknown): unknown {
   return undefined
 }
 
-/**
- * Peel nested `{ spec: ... }` wrapper layers. Observed bridge shapes nest the
- * authored `spec` object one or more levels deep (e.g. the serialized text
- * inside `{ arguments: "..." }` is itself `{ spec: { title, gap, items } }`),
- * so unwrapping stops only at a value that carries no `spec` key.
- */
 function unwrapSpec(value: unknown, shape: string): unknown {
   if (typeof value === 'object' && value !== null) {
     const record = value as Record<string, unknown>
@@ -132,7 +72,6 @@ function unwrapSpec(value: unknown, shape: string): unknown {
   return value
 }
 
-/** Try to decode a serialized spec; log a diagnostic when it is broken. */
 function parseSpecJson(raw: string, shape: string): unknown {
   try {
     return unwrapSpec(JSON.parse(raw), shape)
@@ -144,17 +83,14 @@ function parseSpecJson(raw: string, shape: string): unknown {
   }
 }
 
-/** Process a raw tool value once for all render-time decisions. */
 function processRenderableValue(value: unknown): GenuiProcessResult {
   return processGenuiSpec(value)
 }
 
-/** Wrap model-facing validation fields in the stable GenUI protocol envelope. */
 function validationProtocol(lines: string[]): string {
   return ['[genui-validation]', ...lines, 'reply_language=conversation'].join('\n')
 }
 
-/** Render process diagnostics as stable model-facing warning fields. */
 function formatProcessWarnings(processed: GenuiProcessResult): string[] {
   return processed.warnings.map(warning => {
     if (warning.kind === 'alias' && warning.canonical !== undefined) {
@@ -174,13 +110,11 @@ function formatProcessWarnings(processed: GenuiProcessResult): string[] {
   })
 }
 
-/** 将行内字段的块级 Markdown 诊断写入稳定的验证协议。 */
 function formatInlineContentWarnings(spec: GenuiSpec): string[] {
   return collectInlineContentWarnings(spec).map(warning =>
     `warning=block_markdown path=${warning.path} kind=${warning.kind} replacement=${warning.replacement}`)
 }
 
-/** Format chart-specific process errors while keeping other schema errors generic. */
 function formatProcessFailure(processed: GenuiProcessResult): string | undefined {
   const chartErrors = processed.errors.filter(error => /(?:variant is unsupported|kind must be bars, line, or donut|requires data or series|(?:data|series) is required for|(?:\.data|\.series)(?:\[\d+\])?(?:\.(?:data|label|value|color))? must|series is only supported for bars)/.test(error))
   return chartErrors.length === 0 ? undefined : validationProtocol([
@@ -191,17 +125,12 @@ function formatProcessFailure(processed: GenuiProcessResult): string | undefined
   ])
 }
 
-/** Tool-call title shared by the pending and completed presentations. */
 function cardTitle(args: unknown): string | undefined {
   const processed = processRenderableValue(specOf(args))
   if (!isRenderableProcess(processed) || processed.spec === null) return undefined
   return `渲染 UI：${processed.spec.title ?? '未命名'}`
 }
 
-/**
- * Build the render_ui tool definition. Registered by the plugin node half;
- * `ctx.tools.register` consumes it exactly like a `defineTool` result.
- */
 export function createRenderUiTool(): ToolDefinition {
   return {
     name: 'render_ui',
@@ -216,14 +145,11 @@ export function createRenderUiTool(): ToolDefinition {
         return [{ type: 'text', text: String(value) }]
       },
       presentationMeta(args: unknown): JsonValue {
-        // The browser toolview reads the repaired spec from result meta. The
-        // spec is JSON-safe by construction (only string/number/boolean/array
-        // fields after repair), so the widening cast is lossless.
+
         const processed = processRenderableValue(specOf(args))
         if (!isRenderableProcess(processed) || processed.spec === null) return null
         const nativeView = toDshGoView(processed.spec)
-        // Keep the original root fields for existing web clients and replay.
-        // dsh-go reads only the namespaced, read-only native projection.
+
         return (nativeView === null ? processed.spec : {
           ...processed.spec, 'dsh-go/view': nativeView,
         }) as unknown as JsonValue
@@ -260,15 +186,6 @@ export function createRenderUiTool(): ToolDefinition {
   }
 }
 
-/**
- * The `validate_dsh_ui` tool: a model-facing pre-flight check for the
- * ```dsh-ui fence channel. The model calls it with the JSON text it is about
- * to put inside a fence; it reports whether the body parses as a valid GenUI
- * spec, and when it does not, WHERE it breaks and WHAT is likely wrong
- * (bracket counts, common typo classes) so the model can fix and re-validate
- * before emitting — turning "render a red banner after the fact" into
- * "verify before you send". Purely local: no LLM, no network, no DOM.
- */
 const VALIDATE_DESCRIPTION =
   'Validate the JSON body of a ```dsh-ui fence BEFORE emitting it — use for non-trivial specs (≥3 nodes or containing a table); skip for trivial ones (≤2 nodes). '
   + 'Pass the exact JSON text you are about to put inside the fence as the "spec" argument (a string). '
@@ -293,7 +210,6 @@ const VALIDATE_PARAMETERS: Record<string, unknown> = {
   additionalProperties: false,
 }
 
-/** Read the fence-body text from the call args (string preferred, object serialized). */
 function fenceTextOf(args: unknown): string | null {
   if (typeof args === 'string') return args
   if (typeof args !== 'object' || args === null) return null
@@ -304,7 +220,6 @@ function fenceTextOf(args: unknown): string | null {
   return null
 }
 
-/** Count structural brackets outside string literals. */
 function bracketCounts(raw: string): { '{': number; '}': number; '[': number; ']': number } {
   const counts = { '{': 0, '}': 0, '[': 0, ']': 0 }
   let inString = false
@@ -332,7 +247,6 @@ function bracketCounts(raw: string): { '{': number; '}': number; '[': number; ']
   return counts
 }
 
-/** Return stable structural count fields for an invalid JSON body. */
 function bracketDiagnostic(raw: string): string[] {
   const c = bracketCounts(raw)
   const fields = [`braces_open=${c['{']}`, `braces_close=${c['}']}`, `brackets_open=${c['[']}`, `brackets_close=${c[']']}`]
@@ -349,7 +263,6 @@ function bracketDiagnostic(raw: string): string[] {
 
 const COMMON_CAUSES = 'likely_causes=unbalanced_delimiters,unescaped_quote,trailing_comma,unterminated_string'
 
-/** Build the validate_dsh_ui tool definition (registered alongside render_ui). */
 export function createValidateDshUiTool(): ToolDefinition {
   return {
     name: 'validate_dsh_ui',
@@ -371,10 +284,7 @@ export function createValidateDshUiTool(): ToolDefinition {
         parsed = JSON.parse(raw)
       } catch (error: unknown) {
         const detail = error instanceof Error ? error.message : String(error)
-        // Pre-emission, both repair tiers are safe (no streaming half exists
-        // in a validation call). When the repair succeeds, hand the model the
-        // FIXED JSON instead of asking it to re-author the fix — re-writing
-        // the whole fence by hand is where the next typo comes from.
+
         const repaired = completeFenceJson(raw)
         if (repaired !== null) {
           const repairedValue = JSON.parse(repaired.text) as unknown

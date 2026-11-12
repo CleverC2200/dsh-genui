@@ -1,13 +1,3 @@
-// @vitest-environment jsdom
-// v2.8 batch regressions:
-// 1) GenuiBlock memo comparator skips re-renders when the spec content is
-//    unchanged (streaming re-parse produces a fresh object per chunk);
-// 2) select gains id/selected (durable + submit collection + placeholder);
-// 3) link renders a real anchor for whitelisted hrefs and plain text without;
-// 4) file-tree directories are locally collapsible;
-// 5) negative chart values clamp (bars/donut) without breaking rendering;
-// 6) blur sends an action ONLY when the field value changed since the last
-//    delivery (no more empty focus-in/focus-out round trips).
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'
@@ -61,7 +51,7 @@ describe('v2.8: select id/selected', () => {
       ],
     }, actions)
     fireEvent.change(container.querySelector('select')!, { target: { value: 'dev' } })
-    // No groups → answered counts filled fields; the submit enables once a field has a value.
+
     const submit = container.querySelector('[class*="submitRow"] button')!
     expect((submit as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(submit)
@@ -136,8 +126,7 @@ describe('v2.8/v3: negative chart values draw below the zero line', () => {
     })
     const fills = container.querySelectorAll('[class*="barFill"]')
     expect(fills).toHaveLength(2)
-    // v3: the axis spans -5..10, so the zero line sits at 33.3% and the
-    // negative bar occupies the band below it — a real height, not 0%.
+
     const negative = fills[1] as HTMLElement
     expect(Number.parseFloat(negative.style.height)).toBeGreaterThan(0)
     expect(Number.parseFloat(negative.style.bottom)).toBe(0)
@@ -151,7 +140,7 @@ describe('v2.8/v3: negative chart values draw below the zero line', () => {
         { label: 'A', value: 30 }, { label: 'B', value: -7 },
       ] }],
     })
-    // No crash; total clamps to the positive sum; the negative label still shows.
+
     expect(container.querySelector('svg')).not.toBeNull()
     expect(container.textContent).toContain('30')
     expect(container.textContent).toContain('B')

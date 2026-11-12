@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// Plot view affordances: an accidental zoom used to be a one-way door (the
-// wheel was swallowed unconditionally and nothing showed the new domain).
 import { cleanup, fireEvent, render, act } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { PlotBlock } from '../src/client/PlotBlock.tsx'
@@ -20,7 +17,7 @@ describe('plot view affordances', () => {
     )
     const svg = container.querySelector('[data-genui-plot] svg') as Element
     mockRect(svg)
-    // Initial state: hint only, no reset affordance.
+
     expect(container.textContent).toContain('滚轮缩放')
     expect(container.querySelector('[class*="plotReset"]')).toBeNull()
 
@@ -29,7 +26,7 @@ describe('plot view affordances', () => {
         deltaY: -120, clientX: 240, clientY: 160, bubbles: true, cancelable: true, metaKey: true,
       }))
     })
-    // Zoomed: the domain is surfaced and the way back exists.
+
     expect(container.textContent).toContain('x ∈ [')
     const reset = container.querySelector('[class*="plotReset"]') as HTMLButtonElement
     expect(reset).not.toBeNull()

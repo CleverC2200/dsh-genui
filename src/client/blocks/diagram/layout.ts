@@ -1,20 +1,3 @@
-/**
- * Editorial diagram layout: resolves a `diagram` spec into positioned boxes
- * and routed edges. Two layout modes mirror diagram-design's grammar:
- *
- *  - Coordinate kinds (architecture, it-state, high-level, process,
- *    medallion, data-flow, dp-integration): the spec carries x/y/w/h per
- *    node; this module passes them through (4px-grid already enforced by the
- *    guard) and routes edges.
- *  - Rule kinds (flowchart, sequence, state, er, timeline, swimlane,
- *    quadrant, radar, loop, nested, tree, org-chart, layers, venn, pyramid,
- *    bar, line, gantt, scatter, dp-security-matrix): the spec carries data
- *    only; this module lays the nodes out on the editorial grid.
- *
- * The output is a plain layout object consumed by the SVG renderer — no
- * React, no DOM, fully unit-testable.
- * @module @changfenhuang/dsh-genui/client/blocks/diagram/layout
- */
 import type { GenuiDiagram, GenuiDiagramEdge, GenuiDiagramKind, GenuiDiagramNode } from '../../spec.ts'
 import { Box } from './geometry.ts'
 
@@ -25,7 +8,7 @@ export interface LayoutNode {
 
 export interface LayoutEdge {
   edge: GenuiDiagramEdge
-  /** Resolved box references for routing. */
+
   fromId: string
   toId: string
 }
@@ -33,17 +16,16 @@ export interface LayoutEdge {
 export interface DiagramLayout {
   nodes: LayoutNode[]
   edges: LayoutEdge[]
-  /** Canvas size (width/height). */
+
   width: number
   height: number
 }
 
-/** Coordinate-mode kinds: nodes carry explicit positions. */
 const COORDINATE_KINDS: readonly GenuiDiagramKind[] = [
   'architecture', 'it-state', 'high-level', 'process', 'medallion', 'data-flow', 'dp-integration',
 ]
 
-const GAP = 32 // editorial gap between nodes
+const GAP = 32
 const NODE_W = 128
 const NODE_H = 64
 const MARGIN = 40
@@ -52,7 +34,6 @@ function isCoord(kind: GenuiDiagramKind): boolean {
   return COORDINATE_KINDS.includes(kind)
 }
 
-/** Default box for a node without coordinates. */
 function defaultBox(i: number, cols: number): Box {
   const col = i % cols
   const row = Math.floor(i / cols)
@@ -64,7 +45,6 @@ function defaultBox(i: number, cols: number): Box {
   }
 }
 
-/** Simple top-down flow layout: nodes in a column, one per row. */
 function columnLayout(nodes: GenuiDiagramNode[]): LayoutNode[] {
   return nodes.map((node, i) => ({
     node,
@@ -72,7 +52,6 @@ function columnLayout(nodes: GenuiDiagramNode[]): LayoutNode[] {
   }))
 }
 
-/** Simple left-right flow layout: nodes in a row. */
 function rowLayout(nodes: GenuiDiagramNode[]): LayoutNode[] {
   return nodes.map((node, i) => ({
     node,
@@ -80,7 +59,6 @@ function rowLayout(nodes: GenuiDiagramNode[]): LayoutNode[] {
   }))
 }
 
-/** Layered horizontal layout (layers, pyramid, gantt phases): stacked rows. */
 function layerLayout(nodes: GenuiDiagramNode[], perRow = 3): LayoutNode[] {
   return nodes.map((node, i) => {
     const row = Math.floor(i / perRow)
@@ -97,7 +75,6 @@ function layerLayout(nodes: GenuiDiagramNode[], perRow = 3): LayoutNode[] {
   })
 }
 
-/** Tree layout: level = depth, children fan out horizontally under the parent. */
 function treeLayout(nodes: GenuiDiagramNode[], parentOf: (id: string) => string | undefined): LayoutNode[] {
   const byId = new Map(nodes.map(n => [n.id, n]))
   const childrenOf = new Map<string, string[]>()
@@ -115,7 +92,6 @@ function treeLayout(nodes: GenuiDiagramNode[], parentOf: (id: string) => string 
   const placed = new Map<string, Box>()
   const depthOf = new Map<string, number>()
 
-  // measure: leaf width = 1; parent width = sum of children widths.
   const measure = (id: string, depth: number): number => {
     depthOf.set(id, depth)
     const kids = childrenOf.get(id) ?? []
@@ -123,7 +99,6 @@ function treeLayout(nodes: GenuiDiagramNode[], parentOf: (id: string) => string 
     return kids.reduce((sum, k) => sum + measure(k, depth + 1), 0)
   }
 
-  // assign: place children left→right, then center the parent above them.
   const assign = (id: string, left: number): number => {
     const depth = depthOf.get(id) ?? 0
     const kids = childrenOf.get(id) ?? []
@@ -148,10 +123,6 @@ function treeLayout(nodes: GenuiDiagramNode[], parentOf: (id: string) => string 
   return nodes.map(n => ({ node: n, box: placed.get(n.id) ?? { x: MARGIN, y: MARGIN, w: NODE_W, h: NODE_H } }))
 }
 
-/**
- * Resolve a diagram spec into a positioned layout. `parentOf` lets tree-like
- * kinds pass their hierarchy; other rule kinds use a generic grid.
- */
 export function resolveLayout(
   diagram: GenuiDiagram,
   parentOf?: (id: string) => string | undefined,
@@ -175,7 +146,7 @@ export function resolveLayout(
   } else if (diagram.kind === 'layers' || diagram.kind === 'pyramid' || diagram.kind === 'gantt') {
     placed = layerLayout(nodes)
   } else if (diagram.kind === 'flowchart' || diagram.kind === 'process' || diagram.kind === 'sequence') {
-    // Directed flows read top-down.
+
     placed = columnLayout(nodes)
   } else if (diagram.kind === 'timeline' || diagram.kind === 'line' || diagram.kind === 'scatter' || diagram.kind === 'bar') {
     placed = rowLayout(nodes)
@@ -183,7 +154,6 @@ export function resolveLayout(
     placed = nodes.map((node, i) => ({ node, box: defaultBox(i, 3) }))
   }
 
-  // Canvas bounds.
   let width = 0
   let height = 0
   for (const l of placed) {
@@ -191,9 +161,7 @@ export function resolveLayout(
     height = Math.max(height, l.box.y + l.box.h)
   }
   width = Math.max(320, Math.ceil((width + MARGIN) / 4) * 4)
-  // Hug the content: the old 200px floor plus the legend strip made a 4-node
-  // single row render inside a canvas twice its needed height, and the SVG
-  // scales to the container width, so the empty band was amplified on screen.
+
   height = Math.max(96, Math.ceil((height + MARGIN) / 4) * 4)
 
   const edgesOut: LayoutEdge[] = edges.map(e => ({ edge: e, fromId: e.from, toId: e.to }))

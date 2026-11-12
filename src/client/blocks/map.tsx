@@ -9,7 +9,7 @@ import css from './map.module.css'
 
 export function MapNode({ node: raw, answers }: { node: GenuiMap; answers?: AnswersState | undefined }) {
   const t = useT()
-  // Direct typed callers receive the same resource and URL boundary as fences.
+
   const node = useMemo(() => repairMap(raw) ?? { type: 'map' as const, locations: [] }, [raw])
   const config = useGenuiMapConfig()
   const [localSelection, setLocalSelection] = useState(node.selected ?? '')
@@ -31,7 +31,7 @@ export function MapNode({ node: raw, answers }: { node: GenuiMap; answers?: Answ
     controller.current?.select(id)
   }
   useEffect(() => {
-    // Preserve a valid stable ID across streaming updates; never restore a removed choice.
+
     if (candidate !== selected) setLocalSelection('')
     if (node.id !== undefined && answers !== undefined && stored !== selected && (stored !== undefined || selected !== '')) {
       answers.setField(node.id, selected)

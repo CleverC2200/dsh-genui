@@ -1,5 +1,3 @@
-/** Real public embed entry. Fixture controls change public props only; selection
- * and submission are driven through the component's actual DOM controls. */
 import { useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { GenuiBlock, GenuiActionContext, GenuiMapContext, setGenuiAssetBase,
@@ -7,7 +5,7 @@ import { GenuiBlock, GenuiActionContext, GenuiMapContext, setGenuiAssetBase,
 import type { GenuiSpec, BlockInteractionState } from '@changfenhuang/dsh-genui/embed'
 import { setLocale } from '@map-test/i18n'
 import { STANDALONE_THEME_CSS } from '@map-test/theme'
-// @ts-expect-error Pure JS fixture shared with the Node runner.
+
 import { createMapSpec } from '../../scripts/map-acceptance/contract.mjs'
 setLocale('en')
 setGenuiAssetBase('/__map-assets__/')

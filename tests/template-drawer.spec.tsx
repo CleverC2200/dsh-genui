@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// TemplateDrawer: the GenUI template center (0.9.4) — category filter,
-// card grid, in-place demo preview, and the "try it" hook.
 import { cleanup, fireEvent, render, screen, act } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TemplateDrawer } from '../src/client/TemplateDrawer.tsx'
@@ -40,7 +37,7 @@ describe('TemplateDrawer', () => {
   it('点击卡片：预览渲染 demo 并显示「试用/复制」', async () => {
     renderDrawer()
     fireEvent.click(screen.getByText('项目仪表盘'))
-    // Demo 预览由 GenuiBlock 渲染：首屏应有示例标题与 stat 标签
+
     const preview = document.querySelector('[data-genui-template-preview]')
     expect(preview).toBeTruthy()
     expect(screen.getByText('本周关键指标')).toBeTruthy()
@@ -75,7 +72,7 @@ describe('TemplateDrawer', () => {
     const withTab = render(<TemplateDrawer tab="achievements" onUse={() => {}} />)
     expect(document.querySelector('[data-genui-achievements]')).toBeTruthy()
     expect(screen.getByText(/GenUI 探索成就/)).toBeTruthy()
-    // 抽屉内不再有「模板|成就」mode 切换（面板 header 按钮负责）
+
     expect(screen.queryByRole('tab', { name: '成就' })).toBeNull()
     withTab.unmount()
   })

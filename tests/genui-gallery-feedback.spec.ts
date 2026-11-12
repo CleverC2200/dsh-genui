@@ -51,7 +51,7 @@ describe('gallery standalone media URLs', () => {
     const artifact = createGenuiArtifact({ items: [{ type: 'image-group', items: [{ src: '/safe.png' }] }] })
     const group = artifact.spec.items[0]!
     if (group.type !== 'image-group') throw new Error('wrong fixture type')
-    // Exercise the serializer boundary directly; normal parsing also rejects these.
+
     group.items[0]!.src = src
     expect(() => createStandaloneHtmlDocument(artifact, bundles, 'https://example.test/page')).toThrow('media URL cannot be exported')
   })

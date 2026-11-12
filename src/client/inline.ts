@@ -1,12 +1,9 @@
-/** Shared rich text for GenUI labels and content. Data values stay unchanged. */
 import { createElement, useLayoutEffect, useRef, type ReactNode } from 'react'
 import katex from 'katex'
 import css from './GenuiBlock.module.css'
 import { classifyLinkTarget } from './file-link.ts'
 import { FileLink } from './file-link-context.tsx'
 
-/** KaTeX owns this span's children; React owns the span and its lifecycle.
- * The host's ui-primitives already supplies KaTeX CSS/fonts, including embeds. */
 function InlineMath({ source, display }: { source: string; display: boolean }) {
   const ref = useRef<HTMLSpanElement>(null)
   useLayoutEffect(() => {
@@ -19,15 +16,6 @@ function InlineMath({ source, display }: { source: string; display: boolean }) {
   return createElement('span', { ref, className: css.inlineMath })
 }
 
-// Code is literal. TeX tokens are opaque to emphasis/link parsing; the other
-// rich-text tokens recurse so **$x$** and ==\\(x\\)== work without nested DOM roots.
-// A real newline in the string stays a REAL newline in the DOM — not a `<br>`.
-// A `<br>` paints a visual break but contributes nothing to `textContent`, so
-// selecting and copying a multi-line cell yielded one run-on line: a pasted
-// `python - <<'PY' … PY` heredoc lost its line structure and could no longer
-// run. Real newlines survive both the paint and the copy path; containers that
-// can carry them declare `white-space: pre-line` (prose) or `pre-wrap` (code).
-// No HTML parsing happens here, only the model's `\n`.
 const INLINE = /(?<!`)`[^`\n]+`(?!`)|\\\\|\\\$|(?<![\\$])\$\$(?:\\.|[^\\])*?\$\$|\\\[(?:\\(?!\])[^]|[^\\])*?\\\]|\\\((?:\\(?!\))[^]|[^\\])*?\\\)|(?<![\\$])\$(?!\s|\$)(?:\\.|[^$\\\n])+(?<!\s)\$(?!\d|\$)|\*\*[\s\S]+?\*\*|==[\s\S]+?==|\[[^\]\n]+\]\([^)\s]+\)|\r?\n/g
 const FENCE_MARKER = /`{3,}|~{3,}/g
 
@@ -35,7 +23,6 @@ export function hasInlineMarkup(text: string): boolean {
   return typeof text === 'string' && /[`*=$\\\n\r]|\[/.test(text)
 }
 
-/** Render safe phrasing content, usable in headings, buttons and labels too. */
 export function renderInline(text: string, allowLinks: boolean | 'file' = true, depth = 0): ReactNode {
   if (typeof text !== 'string' || text === '' || !hasInlineMarkup(text) || depth >= 8) return text
   const segments: ReactNode[] = []
@@ -53,7 +40,7 @@ export function renderInline(text: string, allowLinks: boolean | 'file' = true, 
       }
     }
     if (openingStart > fenceEnd) segments.push(renderInline(text.slice(fenceEnd, openingStart), allowLinks, depth))
-    // 围栏及其中的代码、换行和行内标记都保持原文。
+
     fenceEnd = closingEnd ?? text.length
     segments.push(text.slice(openingStart, fenceEnd))
     if (closingEnd === undefined) break
@@ -70,15 +57,12 @@ export function renderInline(text: string, allowLinks: boolean | 'file' = true, 
     const token = match[0]
     if (index > last) out.push(text.slice(last, index))
     if (token === '\n' || token === '\r\n') {
-      // Keep the newline character itself: it is what `textContent`,
-      // `Selection.toString()` and the clipboard carry. `pre-line`/`pre-wrap`
-      // on the owning container turns it into a visible line break.
+
       out.push('\n')
     } else if (token.startsWith('`')) {
       out.push(createElement('code', { key: key++, className: css.inlineCode }, token.slice(1, -1)))
     } else if (token === '\\$' || token === '\\\\') {
-      // Escaped markers: the regex consumed the backslash to keep the literal
-      // character from opening math/emphasis, so render it without the escape.
+
       out.push(token.slice(1))
     } else if (token.startsWith('$') || token.startsWith('\\(') || token.startsWith('\\[')) {
       const display = token.startsWith('$$') || token.startsWith('\\[')

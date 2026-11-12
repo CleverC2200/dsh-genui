@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { renderGenuiFence, resolveGenuiSpec } from '../src/client/fence-render.tsx'
@@ -8,8 +7,7 @@ afterEach(cleanup)
 
 describe('native chart renderability contract', () => {
   it('accepts grouped bars that carry their points in series (data: [])', () => {
-    // Regression: the empty-data rule used to reject the grouped-bars form
-    // wholesale, so a fence containing one never rendered.
+
     const raw = JSON.stringify({
       items: [{
         type: 'chart',
@@ -23,7 +21,7 @@ describe('native chart renderability contract', () => {
     const spec = resolveGenuiSpec(raw)
     expect(spec).not.toBeNull()
     expect(spec?.items).toHaveLength(1)
-    // Still undrawable when neither data nor series carries a point.
+
     expect(resolveGenuiSpec(JSON.stringify({
       items: [{ type: 'chart', data: [], series: [{ label: 'A', data: [] }] }],
     }))).toBeNull()
@@ -44,7 +42,6 @@ describe('native chart renderability contract', () => {
     expect(spec).not.toBeNull()
     expect(spec?.items).toHaveLength(1)
 
-    // Donut is a share-of-total shape: series stays rejected there.
     const donut = JSON.stringify({
       items: [{ type: 'chart', kind: 'donut', series: [{ label: 'A', data: [{ label: 'X', value: 1 }] }] }],
     })

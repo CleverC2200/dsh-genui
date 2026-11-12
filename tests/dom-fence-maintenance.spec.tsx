@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// Synthetic observer regressions for #321. These exercise real React roots and
-// MutationObserver/rAF, not wall-clock benchmarks or a real DSH session.
 import { cleanup, fireEvent } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
@@ -51,8 +48,7 @@ function diagnostic(f: ReturnType<typeof fixture>) {
 }
 let slowSweep: (() => void) | undefined
 beforeEach(() => {
-  // jsdom's requestAnimationFrame is itself interval-backed: suppress ONLY
-  // the explicit 1000 ms safety sweep, leaving observer/rAF behavior real.
+
   const realSetInterval = window.setInterval.bind(window)
   const realClearInterval = window.clearInterval.bind(window)
   const excludedSweep = 2147483647
@@ -226,7 +222,7 @@ it('retains the full slow maintenance sweep for unobserved host changes', async 
     await until(() => replacement(f)?.childElementCount ? true : false)
     await tick(80)
     const reads = vi.spyOn(f.block, 'querySelectorAll')
-    f.block.style.display = '' // style is deliberately not observed
+    f.block.style.display = ''
     slowSweep?.()
     expect(reads).toHaveBeenCalled()
     expect(f.block.style.display).toBe('none')

@@ -1,16 +1,5 @@
-/**
- * GenUI gallery: the canonical component anthology (选集). Chapters demo the
- * composition patterns (hero → 摘要 → 数据 → 图表册 → 叙事与代码 → 交互), and
- * the appendix lays out the full vocabulary flat. Docs, demos, and renderer
- * tests reuse it as the canonical fence — one spec, four consumers (tests,
- * e2e-visual, README screenshots, the Pages anthology page).
- *
- * Every B-programme field is exercised here: divider.label chapters,
- * card.eyebrow overlines, text display/align, image.caption.
- */
 import type { GenuiSpec } from './spec.ts'
 
-/** Canonical gallery spec for the built-in GenUI component vocabulary. */
 export const gallerySpec: GenuiSpec = {
   title: 'GenUI · 组件选集',
   gap: 14,
@@ -29,9 +18,7 @@ export const gallerySpec: GenuiSpec = {
     { type: 'divider', label: '数据' },
     { type: 'grid', cols: 2, items: [
       { type: 'card', eyebrow: '档案', title: '性能指标', items: [
-        // 表头可点击排序：数值感知（千分位 / k / 万 / % 都能正确比较），
-        // 数值列自动右对齐；升序后首行是 0.3% 的错误率行（e2e 断言依赖：
-        // 本表必须是页面上第一个带 Q1 列的表，点击才会命中这里）。
+
         { type: 'table', columns: ['指标', 'Q1', 'Q2', 'Q3'], rows: [
           ['延迟', 92, 87, 81], ['吞吐', '1.2k', '1.4k', '1.6k'], ['错误率', '0.3%', '0.2%', '0.1%'],
           ['营收', '3.5万', '4.1万', '5.2万'], ['注册', '1,234', '2,345', '3,456'],
@@ -199,9 +186,7 @@ export const gallerySpec: GenuiSpec = {
       { type: 'avatar', name: 'Bob', color: '#3d9e8f' },
       { type: 'link', label: '详情链接' },
     ], wrap: true },
-    // v12 figure primitives: the tinted icon plate carries a stage's semantic
-    // role, and `blocks` draws the diagram without a single hand-written
-    // coordinate.
+
     { type: 'row', items: [
       { type: 'icon', name: 'Function', tone: 'info', tile: true },
       { type: 'icon', name: 'Nodes', tone: 'success', tile: true },

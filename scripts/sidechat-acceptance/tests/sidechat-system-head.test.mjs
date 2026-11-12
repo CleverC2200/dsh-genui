@@ -1,5 +1,3 @@
-/** Source-shaped seed contracts only; real official format/persistence reproduction
- * is separate evidence, not a mock-host or browser acceptance claim. */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'

@@ -1,5 +1,3 @@
-// Synthetic regressions for issue #239. The original 539-fence corpus is not
-// available here; these pin the three reported mixed-escaping shapes instead.
 import { describe, expect, it, vi } from 'vitest'
 import { completeFenceJson, repairFenceJson } from '../src/shared/fence-repair.ts'
 import { resolveFence } from '../src/shared/fence-resolve.ts'
@@ -152,8 +150,7 @@ describe('quote disambiguation for JSON-like text in values (issue #239)', () =>
       let result: ReturnType<typeof repair>
       try {
         result = repair(raw)
-        // Initial body/prefix checks, at most 32 candidate parses and 32
-        // prefix validations. This is a deterministic cap, not a timing test.
+
         expect(parse.mock.calls.length).toBeLessThanOrEqual(66)
         if (repair === completeFenceJson) expect(parse.mock.calls.length).toBeGreaterThan(2)
       } finally {

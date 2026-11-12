@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// Asset-bundle loader: URL resolution (rev from the boot graph), memoized
-// script injection, engine handoff, and the failure path.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { assetUrl, loadGenuiAsset } from '../src/client/asset-loader.ts'
 import { prefetchGenuiAssets } from '../src/client/index.tsx'
@@ -36,11 +33,11 @@ describe('loadGenuiAsset', () => {
     const scripts = document.head.querySelectorAll('script')
     expect(scripts).toHaveLength(1)
     expect(scripts[0]!.getAttribute('src')).toBe(`/plugins/${PLUGIN_ID}/assets/mermaid.js`)
-    // Simulate the bundle having executed and registered its engine.
+
     ;(window as unknown as Record<string, unknown>).__GenuiAssets__ = { mermaid: api }
     scripts[0]!.dispatchEvent(new Event('load'))
     await expect(promise).resolves.toBe(api)
-    // Memoized: a second request reuses the same promise, no new script tag.
+
     await loadGenuiAsset('mermaid')
     expect(document.head.querySelectorAll('script')).toHaveLength(1)
   })
@@ -53,8 +50,7 @@ describe('loadGenuiAsset', () => {
   })
 
   it('rejects when the script loads but registers no engine', async () => {
-    // Fresh module instance: the memoized map in the static import already
-    // holds this file's promise from the previous test.
+
     vi.resetModules()
     const fresh = await import('../src/client/asset-loader.ts')
     const promise = fresh.loadGenuiAsset('three')
@@ -74,7 +70,7 @@ describe('idle prefetch', () => {
       `/plugins/@changfenhuang/dsh-genui/assets/three.js`,
     ])
     expect(links.every(l => (l as HTMLLinkElement).as === 'script')).toBe(true)
-    // idempotent: a second call adds nothing
+
     prefetchGenuiAssets()
     expect(document.head.querySelectorAll('link[rel="prefetch"]').length).toBe(2)
   })

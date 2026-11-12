@@ -1,30 +1,4 @@
 #!/usr/bin/env node
-/**
- * dsh-genui 真机 e2e：真实 dsh web + 插件 → 模型输出 dsh-ui fence → 浏览器渲染
- * → 点击 action 按钮 → 模型收到 [genui-action] 并响应更新。全程走真实链路，
- * 不 mock 任何环节。
- *
- * 防假通过：点击后的"响应"只认「出现新的 assistant-step key（且新节点不再
- * streaming）或面板/块数由新操作驱动」——按钮的本地 chip 文案变化不算响应。
- * 失败日志可读：web 的 stdout/stderr 真写进 dsh-web.log，失败时输出日志尾部，
- * 截图保留到当前目录；清理在 finally 中完成，只杀自己起的进程组。
- *
- * 用法：
- *   node scripts/e2e.mjs [--port 3088] [--keep] [--install link|npm|tarball]
- *                        [--tarball <路径> --tarball-sha256 <sha>] [--smoke] [--sidechat | --map]
- *
- *   --install link    （默认）装当前工作区，测的就是当前代码
- *   --install npm     从公开 npm 包安装
- *   --install tarball 必须给 --tarball 绝对路径与 --tarball-sha256（防假安装）
- *   --smoke           不要求模型 Key：安装 → 启动 → 首页/client.js 200 →
- *                     无页面异常 → 插件 boot → Diff/Code/JSON 渲染与复制；
- *                     rc.3 / alpha.2 Gallery 使用官方本地 replay 验证真实会话动作，不访问真实模型。
- *   --sidechat        显式启用双插件验收；仅允许 --smoke --install tarball，
- *                     会构建固定提交的 Better Sidebar，不改变原有 smoke 模式。
- *   --map             仅现有 Linux CI：sandboxed Chrome + 真实 Map WebGL/worker、
- *                     packed embed、离线 HTML；rc.3 / alpha.2 官方 replay 验证一次显式提交。
- * 退出码 0 = PASS，1 = FAIL。
- */
 
 import { spawn, spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
@@ -48,7 +22,7 @@ import { runMapAcceptance } from './map-acceptance/run.mjs'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const DSH_ROOT = process.env.DSH_ROOT ?? resolve(process.env.HOME ?? '', '.dsh/source/current')
-// 精确宿主二进制：必须是 DSH_ROOT 内构建出的绝对路径；默认不从 PATH 找 dsh。
+
 const DSH_BIN = process.env.DSH_BIN ?? join(DSH_ROOT, 'apps/cli/lib/bin.js')
 if (!resolve(DSH_BIN).startsWith('/')) fail('DSH_BIN 必须是绝对路径')
 if (!existsSync(DSH_BIN)) fail(`DSH_BIN 不存在: ${DSH_BIN}（在 DSH_ROOT 内先 pnpm run build）`)
@@ -78,7 +52,6 @@ const PROMPT = '请严格照抄以下三行 Markdown，不要增加或删除任�
 const fail = (msg) => { console.error(`✗ ${MAP ? safeMapError(msg) : msg}`); process.exit(1) }
 const log = (msg) => console.log(`· ${msg}`)
 
-// ── 预检：参数、端口、工具 ─────────────────────────────────────────────────
 if (!['link', 'npm', 'tarball'].includes(INSTALL)) fail(`--install 仅允许 link | npm | tarball，收到 "${INSTALL}"`)
 validateSidechatMode({ sidechat: SIDECHAT, smoke: SMOKE, install: INSTALL })
 validateMapMode({ map: MAP, smoke: SMOKE, sidechat: SIDECHAT, install: INSTALL, env: process.env, uid: process.getuid?.() })
@@ -104,7 +77,6 @@ if (!SMOKE && !process.env.DEEPSEEK_API_KEY) fail('缺少 DEEPSEEK_API_KEY（模
 log(`DSH_BIN: ${DSH_BIN}`)
 log(`pnpm: ${spawnSync('pnpm', ['--version'], { encoding: 'utf8' }).stdout.trim()}`)
 
-// ── 临时环境 ──────────────────────────────────────────────────────────────
 const DSH_HOME = await mkdtemp(join(tmpdir(), 'dsh-genui-e2e-host-'))
 const env = SMOKE
   ? { ...gallerySmokeEnvironment(process.env, DSH_HOME), HOME: join(DSH_HOME, 'tool-home') }
@@ -119,13 +91,12 @@ let galleryConversation = null
 
 const killWeb = () => {
   if (webChild === null) return
-  // 只杀自己启动的进程组（detached spawn 的负 pid），绝不 broad pkill
-  try { process.kill(-webChild.pid, 'SIGTERM') } catch { /* already gone */ }
-  try { process.kill(webChild.pid, 'SIGTERM') } catch { /* already gone */ }
+
+  try { process.kill(-webChild.pid, 'SIGTERM') } catch {                    }
+  try { process.kill(webChild.pid, 'SIGTERM') } catch {                    }
   webChild = null
 }
 
-// fail() 会直接退出；exit 钩子保证失败路径也只清理本脚本创建的临时环境。
 process.on('exit', () => {
   killWeb()
   if (!KEEP) rmSync(DSH_HOME, { recursive: true, force: true })
@@ -157,18 +128,17 @@ const logTail = async (n = 30) => {
     const lines = content.split('\n').filter(Boolean).slice(-n)
     console.error('── dsh-web.log 尾部 ──')
     console.error(MAP ? safeMapError(lines.join('\n') || '(空)') : lines.join('\n') || '(空)')
-  } catch { /* no log yet */ }
+  } catch {                  }
 }
 
 try {
-  // The official launcher reads cwd/.env. A no-key run must not load a real
-  // project environment, even after inherited credential variables are removed.
+
   if (SMOKE) {
     await mkdir(smokeCwd, { recursive: true })
     await mkdir(env.HOME, { recursive: true })
   }
   const installCwd = SMOKE ? smokeCwd : undefined
-  // ── 安装插件 ────────────────────────────────────────────────────────────
+
   if (INSTALL === 'npm') {
     log('安装插件（npm 公开包）...')
     const r = spawnSync(DSH_BIN, ['plugin', '--profile', 'web', 'add', '@changfenhuang/dsh-genui'], { env, cwd: installCwd, stdio: 'inherit' })
@@ -196,7 +166,6 @@ try {
     }
   }
 
-  // ── 启动 dsh web（stdout/stderr 真写进 webLog）──────────────────────────
   log('预置工作区注册表...')
   const workspaceId = randomUUID()
   const now = new Date().toISOString()
@@ -220,7 +189,7 @@ try {
 
   log(`启动 dsh web (port ${PORT}, DSH_HOME=${DSH_HOME})...`)
   const logStream = createWriteStream(webLog, { flags: 'a' })
-  // Launcher --patch flags precede web-app flags; both are official CLI paths.
+
   webChild = spawn(DSH_BIN, ['web', ...(galleryConversation?.webArgs ?? []), '--no-open', '--port', String(PORT)], {
     env, cwd: SMOKE ? galleryConversation?.cwd ?? smokeCwd : undefined,
     detached: true, stdio: ['ignore', 'pipe', 'pipe'],
@@ -245,7 +214,6 @@ try {
   }
   log('dsh web 就绪')
 
-  // ── 浏览器链路 ──────────────────────────────────────────────────────────
   const { chromium } = publishedHost === undefined
     ? await import(pathToFileURL(join(DSH_ROOT, 'apps/web/node_modules/playwright/index.mjs')).href)
     : createRequire(join(publishedHost.root, 'package.json'))('playwright')
@@ -262,7 +230,6 @@ try {
   await page.goto(readyUrl, { waitUntil: 'domcontentloaded', timeout: 60000 })
   await page.waitForTimeout(5000)
 
-  // 0.1.2 起使用启动图公告的不可变组合 URL；更早的受支持宿主使用裸插件地址。
   const boot = await page.evaluate(() => {
     const boot = window.__DSH_BOOT__
     if (boot === null || typeof boot !== 'object' || !Array.isArray(boot.entries)) return undefined
@@ -290,10 +257,7 @@ try {
   }
 
   if (SMOKE) {
-    // 空 profile 首次启动的引导：内测声明 → 凭据弹窗。DSH 0.2.0 系列凭据弹窗
-    // 提供「稍后配置」；DSH 0.2.1 系列只留关闭（Esc/×），且关闭只作用于当前
-    // 页面会话（刷新会重现）。遮罩可能在宿主重渲染时重新挂回，所以在后续每次
-    // 真实指针交互前幂等地再关一次。scratch 实例,不是产品行为断言（同 e2e-visual.mts）。
+
     const createDismissCredentialsOverlay = activePage => async () => {
       const later = activePage.getByRole('button', { name: '稍后配置', exact: true })
       if (await later.count() > 0) {
@@ -307,7 +271,7 @@ try {
       }
     }
     const dismissCredentialsOverlay = createDismissCredentialsOverlay(page)
-    // Fresh keyless profiles follow the host's normal onboarding.
+
     await page.getByRole('button', { name: '继续', exact: true }).click()
     await page.waitForTimeout(500)
     await dismissCredentialsOverlay()
@@ -321,10 +285,7 @@ try {
     await runGalleryFixedContexts({ browser, page, readyUrl, artifactsDir, galleryConversation, galleryAssets,
       createDismissCredentialsOverlay, log })
     await galleryConversation?.verifyComputed({ page, browser, artifactsDir })
-    // Percentage columns divide the space remaining after the row gap. Exercise
-    // the installed renderer, including min-content pressure from a long code line.
-    // The collapse follows the CONTAINER: above 560px the percentage split
-    // applies, at or below it every child owns its line.
+
     for (const { width, shares, split } of [
       { width: 700, shares: [50, 50], split: true },
       { width: 700, shares: [40, 60], split: true },
@@ -370,7 +331,7 @@ try {
             assert.ok(Math.abs(geometry.columns[index] - expected) < 1, `百分比列应按 ${shares.join('/')} 分配可用宽度：${JSON.stringify(geometry)}`)
           }
         } else {
-          // Container query: the row wraps and each child claims the whole line.
+
           for (const column of geometry.columns) {
             assert.ok(Math.abs(column - width) < 1, `窄容器应让每列独占一行：${JSON.stringify({ width, shares, geometry })}`)
           }
@@ -378,8 +339,7 @@ try {
         await fixture.evaluate(element => element.remove())
     }
     log('百分比列：宽容器按份额分配，窄容器（≤560px）每列独占一行且无横向溢出')
-    // Reuse the visual smoke's DOM fence channel with a deterministic primitive fixture.
-    // This exercises the installed tarball against the actual host, without a model call.
+
     await page.evaluate(() => {
       const fixture = document.createElement('div')
       fixture.setAttribute('data-primitives-smoke', '')
@@ -447,7 +407,7 @@ try {
     assert.equal(colors.width, '70%')
     log(`排序、颜色、悬停和节点重新插入验证通过：${JSON.stringify({ position, colors })}`)
     if (pageErrors.length > 0) throw new Error(`组件渲染异常: ${pageErrors.join(' | ')}`)
-    // Exercise the installed SVG without remounting it when the host changes theme.
+
     await page.emulateMedia({ colorScheme: 'light' })
     await page.evaluate(() => {
       const fixture = document.createElement('div')
@@ -477,8 +437,7 @@ try {
         const svg = element.querySelector('svg')
         const text = [...svg.querySelectorAll('text')].find(t => t.textContent === '服务')
         const probe = document.createElement('span')
-        // The diagram ground is the SAME surface the block's cards use (not the
-        // raw layer beneath them), so the probe reads the token the renderer reads.
+
         probe.style.backgroundColor = 'var(--dsl-g-surface)'
         probe.style.color = 'var(--dsw-alias-label-primary)'
         element.append(probe)
@@ -503,7 +462,6 @@ try {
     }
     log('图表深浅主题往返切换、节点配色及窄图例验证通过')
 
-    // Exercise every math-bearing field against the installed host and fonts.
     await page.evaluate(() => {
       const fixture = document.createElement('div')
       fixture.setAttribute('data-math-smoke', '')
@@ -555,10 +513,6 @@ try {
     if (pageErrors.length > 0) throw new Error(`公式渲染异常: ${pageErrors.join(' | ')}`)
     log('公式跨字段、深浅主题、窄卡布局和空白标签识别验证通过')
 
-    // Regression fixture for issue #172: two legal fence bodies the guard used
-    // to reject wholesale — the fence silently degraded to a raw JSON code
-    // block. Both must now render as UI, while a genuinely broken body must
-    // still stay a code block (all-or-nothing policy unchanged).
     await page.evaluate(() => {
       const fence = (marker, body) => {
         const fixture = document.createElement('div')
@@ -575,16 +529,16 @@ try {
         fixture.appendChild(host)
         document.body.prepend(fixture)
       }
-      // A: one stat carrying a metric list, next to a legal sibling node.
+
       fence('data-genui-172-stat', { title: '进度快照', gap: 12, items: [
         { type: 'stat', items: [{ label: '质量门进度', value: '1/5 施工中' }, { label: '阻塞项', value: '0' }] },
         { type: 'callout', tone: 'info', title: '进度说明', content: '内容' },
       ] })
-      // B: bare data-component root whose `items` is its record list.
+
       fence('data-genui-172-steps', { type: 'steps', title: '修复策略', items: [
         { title: '第一层', desc: 'a' }, { title: '第二层', desc: 'b' }, { title: '第三层', desc: 'c' },
       ] })
-      // Control: missing required fields stays a code block (no silent green).
+
       fence('data-genui-172-bad', { items: [{ type: 'stat' }] })
     })
     const statRow = page.locator('[data-genui-172-stat] [data-genui]')
@@ -600,7 +554,7 @@ try {
     for (const fragment of ['修复策略', '第一层', '第二层', '第三层']) {
       assert.ok(stepsText.includes(fragment), `#172 B：渲染结果缺少 ${fragment}`)
     }
-    // The stock code block is hidden only after a replacement mounted.
+
     for (const marker of ['data-genui-172-stat', 'data-genui-172-steps']) {
       const hidden = await page.locator(`[${marker}] > .md-code-block`).evaluate(block =>
         block.style.display === 'none' && block.hasAttribute('data-genui-rendered'))
@@ -610,7 +564,7 @@ try {
     const badKept = await page.locator('[data-genui-172-bad] > .md-code-block').evaluate(block =>
       getComputedStyle(block).display !== 'none' && block.textContent.includes('"stat"'))
     assert.ok(badKept, '#172 对照组：非法围栏应保留原始代码块')
-    // Issue #158: the rejected fence explains itself instead of failing silently.
+
     const badAlert = page.locator('[data-genui-172-bad] .genui-dom-fence-diagnostic [role="alert"]')
     await badAlert.waitFor({ state: 'visible' })
     const badAlertText = await badAlert.textContent()
@@ -618,7 +572,6 @@ try {
     assert.ok(badAlertText.includes('保持为代码块'), '#158 诊断应说明围栏保持为代码块')
     log('issue #172 围栏（stat 指标组、裸 steps 根、非法对照组+可见诊断）验证通过')
 
-    // 在真实宿主中验证打包产物的 source-unavailable 最终兜底；该 fixture 不代表真实模型消息验收。
     await page.evaluate(() => {
       const assistantRow = document.createElement('div')
       assistantRow.setAttribute('data-chat-flow-kind', 'assistant-step')
@@ -673,7 +626,6 @@ try {
     process.exit(0)
   }
 
-  // 新会话（工作区已预置）；点击失败不算容错——直接失败留证据
   const newSession = page.getByText('新会话', { exact: false }).first()
   await newSession.waitFor({ state: 'visible', timeout: 30000 }).catch(() => {})
   const clickedNew = await newSession.click().then(() => true).catch(() => false)
@@ -684,7 +636,6 @@ try {
   }
   await page.getByText('dsh-genui-e2e', { exact: true }).first().click()
 
-  // 使用宿主公开标记定位可编辑输入区，等待会话初始化完成。
   await page.waitForFunction(() => {
     const input = document.querySelector('[data-composer-input]')
     return input instanceof HTMLElement && input.isContentEditable && !input.closest('[inert]')
@@ -695,7 +646,7 @@ try {
   log('prompt 已发送，等待模型输出 dsh-ui fence...')
 
   const genuiCount = () => page.evaluate(() => document.querySelectorAll('[data-genui]').length)
-  /** 最后一个 assistant-step 的稳定 key（流式结束即稳定；出现新 key = 新回复） */
+
   const lastStepKey = () => page.evaluate(() => {
     const nodes = document.querySelectorAll('[data-chat-flow-kind="assistant-step"]')
     return nodes.length ? nodes[nodes.length - 1].getAttribute('data-chat-flow-key') : null
@@ -706,7 +657,6 @@ try {
     return nodes[nodes.length - 1].querySelector('[data-streaming]') === null
   })
 
-  // 等待第一个 fence 渲染
   let blocks = 0
   for (let i = 0; i < 180; i++) {
     blocks = await genuiCount()
@@ -736,7 +686,6 @@ try {
   assert.equal(await input.inputValue(), '保留状态', 'input 内容在重新渲染后保持')
   log('✓ radio、checkbox、input 状态在重新渲染后保持')
 
-  // 点击围栏声明的 action 按钮
   const beforeKey = await lastStepKey()
   await page.getByRole('button', { name: '发送动作' }).click()
   log('已点击 action 按钮，等待模型响应...')
@@ -744,8 +693,6 @@ try {
     .filter({ hasText: '[genui-action]' }).first().waitFor({ state: 'attached', timeout: 30000 })
   log('✓ [genui-action] 已进入宿主会话消息')
 
-  // 响应判定：新的 assistant-step key 出现且新节点结束 streaming；
-  // 或 genui 块数变化（面板/新 fence）。按钮 chip 的本地文本变化不算。
   let responded = false
   for (let i = 0; i < 180; i++) {
     const key = await lastStepKey()

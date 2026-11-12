@@ -1,9 +1,3 @@
-// @vitest-environment jsdom
-// Table smart-sort / numeric alignment / chart polish / live-region a11y.
-// The sortable-table upgrade (0.9): human-written cells like `1,234`, `1.2k`,
-// `3.5万`, `0.3%`, `¥99` compare as real numbers instead of strings, numeric
-// columns right-align, and the button/copy confirmations announce via hidden
-// live regions (button content is atomic to screen readers).
 import { cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { act } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -61,7 +55,7 @@ describe('table smart sorting', () => {
     ] }])
     const header = container.querySelectorAll('thead th button')[1]!
     fireEvent.click(header)
-    // 950 < 1,100 < 1.2k < 3万
+
     expect(bodyRows(container)).toEqual(['B950', 'C1,100', 'A1.2k', 'D3万'])
     expect(header.closest('th')!.getAttribute('aria-sort')).toBe('ascending')
   })
@@ -114,7 +108,7 @@ describe('chart polish', () => {
       { label: 'A', value: 3.3 }, { label: 'B', value: 6.6 },
     ] }])
     const totals = [...container.querySelectorAll('text')].map(t => t.textContent)
-    // 3.3 + 6.6 floats to 9.899999999999999 — the label must read 9.9.
+
     expect(totals).toContain('9.9')
     expect(totals).not.toContain('9.899999999999999')
   })
@@ -143,7 +137,7 @@ describe('live-region confirmations (a11y)', () => {
       const status = container.querySelector('[role="status"]')
       expect(status).not.toBeNull()
       await waitFor(() => expect(status!.textContent).toBe('已复制到剪贴板'))
-      // visually hidden, not merely display-less
+
       expect((status! as HTMLElement).className).toContain('visuallyHidden')
     } finally {
       restore()
@@ -175,7 +169,7 @@ describe('live-region confirmations (a11y)', () => {
       const container = renderBlock([{ type: 'copy', label: '复制', text: 'xyz' }])
       const button = container.querySelector('button')!
       fireEvent.click(button)
-      // flush the async write; a rejected write must not fake success
+
       await new Promise((r) => setTimeout(r, 0))
       expect(button.textContent).toBe('复制')
       expect(container.querySelector('[role="status"]')!.textContent).toBe('')
@@ -195,7 +189,7 @@ describe('live-region confirmations (a11y)', () => {
         </GenuiActionContext.Provider>,
       )
       fireEvent.click(container.querySelector('button')!)
-      // the block-level action debounce (300ms) delivers the action
+
       act(() => { vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS) })
       expect(actions).toHaveLength(1)
       expect(container.querySelector('[role="status"]')!.textContent).toBe('已触发')

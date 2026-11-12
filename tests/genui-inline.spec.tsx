@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// Inline markup: emphasis INSIDE a sentence. Every token must become a React
-// element — never HTML — and an unsafe link must degrade to its label.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { cleanup, render } from '@testing-library/react'
@@ -26,7 +23,6 @@ function selectionTextOf(node: Element): string {
   return selection.toString()
 }
 
-/** Match the exact owning selector, rather than a later unrelated CSS rule. */
 function whiteSpaceFor(selector: string): string | undefined {
   const css = readFileSync(join(process.cwd(), 'src/client/GenuiBlock.module.css'), 'utf8')
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -52,7 +48,7 @@ describe('inline markup', () => {
         expect(text.textContent).toBe('第一行\n第二行')
         expect(selectionTextOf(text)).toBe('第一行\n第二行')
       }
-      // jsdom has no line boxes; actual browser layout is verified separately.
+
       expect(whiteSpaceFor('.text')).toBe('pre-line')
     },
   )
@@ -98,11 +94,7 @@ describe('inline markup', () => {
   })
 
   it('keeps a real newline as a newline character (not a <br>)', () => {
-    // `<br>` paints a break but contributes NOTHING to `textContent`, so a
-    // user selecting and copying a multi-line cell used to get one run-on
-    // line — a `python - <<'PY' … PY` heredoc lost its structure and could not
-    // be pasted back into a shell. The newline must survive in the DOM; the
-    // owning container turns it into a visible break via pre-line/pre-wrap.
+
     const out = html('第一行\n第二行')
     expect(out).not.toContain('<br')
     expect(out).toContain('第一行\n第二行')
@@ -127,8 +119,7 @@ describe('inline markup', () => {
 
   it('keeps a newline out of code spans (code stays single-line)', () => {
     const out = html('`a\nb`')
-    // The newline ENDS the code-span attempt (no closing backtick before it);
-    // it stays a newline and the backticks remain literal.
+
     expect(out).not.toContain('<code')
     expect(out).not.toContain('<br')
     expect(out).toContain('`a\nb`')
@@ -183,15 +174,13 @@ describe('inline markup', () => {
     expect(container.textContent).toContain('```score = 1 - 0.05 × level ```')
     expect(container.textContent).toContain('|---|---|')
     expect(container.querySelector('table')).toBeNull()
-    // Both fields carry one real newline each — still newlines, not <br>.
+
     expect(container.querySelectorAll('br')).toHaveLength(0)
     expect(container.textContent).toContain('| 配置 | 级数 |\n|---|---|\n| 破例版 | 887 |')
   })
 
   it('expresses a line break inside a callout through the block path (#177)', () => {
-    // #177 gave a string field a way to express a break; the mechanism is now
-    // a real newline painted by `pre-line`, so the break also survives
-    // selection/copy (a `<br>` did not).
+
     const { container } = render(<GenuiBlock spec={{
       title: '换行',
       items: [
@@ -227,7 +216,7 @@ describe('inline markup', () => {
     expect(out).toContain('<mark')
     expect(out).toContain('href="https://example.com/a"')
     expect(out).toContain('rel="noreferrer noopener"')
-    // The literal markers must be gone from the visible text.
+
     expect(out).not.toContain('`')
     expect(out).not.toContain('**')
     expect(out).not.toContain('==')
@@ -283,7 +272,7 @@ describe('inline markup', () => {
   })
 
   it('returns the plain string untouched when there is no markup', () => {
-    // Identity: the fast path must not wrap plain prose in extra elements.
+
     const plain = '完全没有标记的一句话'
     expect(renderInline(plain)).toBe(plain)
     expect(html(plain)).toBe('<div>完全没有标记的一句话</div>')

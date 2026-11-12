@@ -1,13 +1,3 @@
-/**
- * English dictionary — the CANONICAL key set.
- *
- * `GenuiTextKey` derives from this object, so a key added here becomes a
- * compile error in every other dictionary until it is translated. English is
- * also the per-key fallback chain terminus (see runtime.ts).
- *
- * Keys are namespaced by surface: `panel.*`, `tpl.*`, `ach.*`, `label.*`,
- * `block.*`, `err.*`.
- */
 export const EN = {
   'map.title': 'Locations',
   'map.canvas': 'Interactive map',
@@ -24,7 +14,7 @@ export const EN = {
   'map.empty': 'No valid locations.',
   'map.locations': 'Choose a location',
   'map.routes': 'Route coordinates',
-  // --------------------------------------------------------- artifacts
+
   'artifact.export': 'Export',
   'artifact.exportHtml': 'HTML',
   'artifact.exportJson': 'GenUI JSON',
@@ -32,7 +22,6 @@ export const EN = {
   'artifact.unsupportedCustom': 'Cannot export HTML because the standalone runtime cannot render custom components: {types}. Export GenUI JSON to preserve these nodes.',
   'artifact.externalMediaNotice': 'External media may not appear when this file is opened offline.',
 
-  // ---------------------------------------------------------------- panel
   'panel.badge': 'Panel',
   'panel.title.default': 'GenUI panel',
   'panel.title.explore': 'GenUI explorer',
@@ -48,7 +37,6 @@ export const EN = {
   'panel.boundary': 'panel',
   'panel.flash.inserted': 'Instruction inserted into the composer — send it to generate',
 
-  // -------------------------------------------------------- panel command
   'panel.cmd.hint': 'Open the GenUI panel; /panel <instruction> to customize; /panel clear to empty',
   'panel.cmd.description': 'Open the GenUI panel (/panel clear empties it; /panel <instruction> tailors the content)',
   'panel.default.heading': 'GenUI generative interface',
@@ -66,7 +54,6 @@ export const EN = {
   'panel.default.callout.title': 'How to update',
   'panel.default.callout.body': 'Say “update the panel” in chat → the model emits a panel:true fence; /panel clear empties it.',
 
-  // ------------------------------------------------------ template center
   'tpl.category.all': 'All',
   'tpl.category.dashboard': 'Dashboard',
   'tpl.category.data': 'Data',
@@ -239,7 +226,6 @@ export const EN = {
   'tpl.breadcrumb.demo.title': 'Directory layout (example)',
   'tpl.breadcrumb.demo.workspace': 'Workspace',
 
-  // ------------------------------------------------------- achievements
   'ach.page.title': 'GenUI exploration trophies',
   'ach.stat.unlocked': 'Unlocked',
   'ach.stat.rendered': 'Interfaces rendered',
@@ -277,16 +263,15 @@ export const EN = {
   'ach.template-1.name': 'Template student',
   'ach.template-1.desc': 'Tried a template from the template center.',
 
-  // ------------------------------------------------- primitive chrome
   'label.copyViewText': 'View text',
   'label.copyHideText': 'Hide text',
   'label.copyPreviewTruncated': 'Preview truncated. Copy still includes the component’s full text.',
   'label.copy': 'Copy',
-  /** CodeBlock's post-copy button label. */
+
   'label.copied': 'Copied',
-  /** Bare "done" state used by JsonTree and the table copy chips. */
+
   'label.copiedDone': 'Copied',
-  /** Inline chip with its check mark. */
+
   'label.copiedShort': '✓ Copied',
   'label.copiedToClipboard': 'Copied to clipboard',
   'label.copyFailed': 'Copy failed',
@@ -307,7 +292,6 @@ export const EN = {
   'label.expandNode': 'Expand JSON node',
   'label.copyButtonTitle': '{action}; right-click for copy options',
 
-  // ------------------------------------------------- component chrome
   'block.copyMarkdown': 'Copy Markdown',
   'block.copyCsv': 'Copy CSV',
   'block.table.expandDetails': 'Expand details for {label}',
@@ -369,12 +353,10 @@ export const EN = {
   'block.chart.donutSummary': 'Donut chart, {count} slices, total {total}',
   'block.chart.node': 'Point',
 
-  // ------------------------------------------------------ action prompt
   'action.inline': '[genui-action] {action}. The user just triggered this action "{action}" in the interface. Carry it out using the component data, then reply with an updated dsh-ui fence.{payload}',
   'action.panel': '[genui-action] {action}. The user just triggered this action "{action}" in the panel. Carry it out using the component data and emit a single panel:true dsh-ui fence that updates the panel, with at most a one-line confirmation in the reply (for example "Refreshed"). Do not explain, and do not emit an ordinary fence.{payload}',
   'action.payload': ' Component data: {json}',
 
-  // ------------------------------------------------------------- diagram
   'dgm.legend': 'LEGEND',
   'dgm.legend.focal': 'Focal',
   'dgm.legend.backend': 'Backend',
@@ -406,7 +388,6 @@ export const EN = {
   'block.datePicker.invalidDate': 'Date must be within the available range.',
   'block.segmentedControl': 'Choose an option',
 
-  // -------------------------------------------------------- error text
   'err.boundary.generic': 'this interface',
   'err.boundary.fence': 'this interface',
   'err.boundary.body': '⚠️ {label} failed to render (isolated — the rest of the reply is unaffected)',

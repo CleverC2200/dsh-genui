@@ -30,7 +30,6 @@ export type GenuiExportErrorCode =
   | 'artifact-invalid'
   | 'download-failed'
 
-/** 导出流程遇到可供界面识别的错误时使用。 */
 export class GenuiExportError extends Error {
   constructor(readonly code: GenuiExportErrorCode, message: string) {
     super(message)

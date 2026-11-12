@@ -1,4 +1,3 @@
-/** 为固定宿主的无密钥 smoke 验收提供真实会话校验；运行文件存放在本次 DSH_HOME。 */
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile, access, copyFile } from 'node:fs/promises'
@@ -7,14 +6,12 @@ import { fileURLToPath } from 'node:url'
 
 import { computedSpec, panelBase, panelAppend, editPanelBeforeAppend, checkPanelAfterAppend, runComputedBrowserChecks } from './computed-browser-checks.mjs'
 
-/** 将组件 spec 编码为 DSH 正文中的 dsh-ui 围栏。 */
 const fence = spec => `\`\`\`dsh-ui\n${JSON.stringify(spec)}\n\`\`\``
 const COMPUTED_ACK = 'Synthetic computed submission received.'
 const ACK = 'Synthetic gallery choice received.'
 const INITIAL = 'Display the synthetic gallery fixture.'
 const TITLE = 'Gallery browser synthetic conversation'
 
-/** 将给定文字组成官方 ReplayAdapter 使用的响应片段。 */
 export function replayChunks(text) {
   return { kind: 'chunks', chunks: [
     { type: 'block-start', index: 0, blockType: 'text' },
@@ -24,25 +21,22 @@ export function replayChunks(text) {
   ] }
 }
 
-/** 构造隔离的 smoke 环境变量，仅传入运行测试所需设置。 */
 export function gallerySmokeEnvironment(source, dshHome) {
   const allow = new Set(['PATH', 'HOME', 'TMPDIR', 'TMP', 'TEMP', 'LANG', 'LANGUAGE',
     'LC_ALL', 'LC_CTYPE', 'TZ', 'TERM', 'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE', 'SSL_CERT_DIR'])
-  // Provider/account keys, NODE_OPTIONS preload hooks, DSH_* settings and user
-  // configuration overrides are deliberately not inherited by the test host.
+
   return { ...Object.fromEntries(Object.entries(source).filter(([key]) => allow.has(key) || /_proxy$/iu.test(key))), DSH_HOME: dshHome }
 }
 
-/** 在真实宿主中建立本地 ReplayAdapter 会话并打开浏览器页面。 */
 export async function prepareGalleryConversation({ dshRoot, dshHome, spec, publishedHost }) {
   const host = publishedHost === undefined
     ? JSON.parse(await readFile(join(dshRoot, 'apps/cli/package.json'), 'utf8'))
     : { version: publishedHost.hostVersion }
-  // Minimum rc.1 continues to run the reusable DOM-fence visual checks only.
+
   if (host.version === '0.2.0-rc.1') return null
   assert.ok(['0.2.1-rc.3', '0.2.1-rc.5', '0.2.2-alpha.2', '0.2.2-rc.1'].includes(host.version), 'Unrecognized host must not silently skip conversation coverage')
   const replayModule = publishedHost?.modules.replayModule ?? join(dshRoot, 'packages/test-support/llm-replay/lib/index.js')
-  await access(replayModule) // Missing official build output is a failure, not a skip.
+  await access(replayModule)
   const root = join(dshHome, 'gallery-e2e')
   await mkdir(join(root, 'workspace'), { recursive: true })
   const sessionId = `session-e2e-gallery-${randomUUID()}`
@@ -55,10 +49,7 @@ export async function prepareGalleryConversation({ dshRoot, dshHome, spec, publi
   const choiceText = `${ACK}\n\n${fence(panelAppend)}`
   await writeFile(replayFile, JSON.stringify([replayChunks(initialText), replayChunks(choiceText), replayChunks(COMPUTED_ACK)]))
   const patchFile = join(root, 'cordis.patch.yml')
-  // Loader discovers client packages through the nearest package.json. Mounting
-  // scripts/fixtures directly would make this a second GenUI client source next
-  // to the installed tarball. Give the unchanged host-only fixture its own
-  // disposable package boundary; do not symlink back into the repository.
+
   const fixtureRoot = join(root, 'host-fixture')
   await mkdir(fixtureRoot, { recursive: true })
   await writeFile(join(fixtureRoot, 'package.json'), JSON.stringify({
@@ -66,20 +57,20 @@ export async function prepareGalleryConversation({ dshRoot, dshHome, spec, publi
   }))
   const plugin = join(fixtureRoot, 'index.mjs')
   await copyFile(fileURLToPath(new URL('./fixtures/gallery-host.mjs', import.meta.url)), plugin)
-  // JSON is YAML-compatible; the official --patch loader owns application.
+
   await writeFile(patchFile, JSON.stringify([
     { id: 'agent-default-model', config: { provider: config.provider, model: config.model } },
     { insert: [{ id: 'e2e-gallery-host', name: plugin, config }] },
   ]))
-  /** 读取宿主写入的会话审计记录。 */
+
   const readAudit = async () => (await readFile(auditFile, 'utf8')).split('\n').filter(Boolean).map(JSON.parse)
-  /** 检查会话记录中不存在未授权动作。 */
+
   const audit = async () => {
     const rows = await readAudit()
     assert.deepEqual(rows.filter(row => row.type === 'agent-error' || row.allowed === false), [], 'Synthetic host reported a rejected request or AgentLoop error')
     return rows
   }
-  /** 反复检查真实宿主状态，直到条件满足或宿主进程退出。 */
+
   const waitFor = async (predicate, label) => {
     const deadline = Date.now() + 30000
     do {
@@ -89,13 +80,11 @@ export async function prepareGalleryConversation({ dshRoot, dshHome, spec, publi
     } while (Date.now() < deadline)
     assert.fail(`${label} did not settle within 30 seconds`)
   }
-  /** 提取宿主审计记录中的文本内容。 */
+
   const textOf = row => row.message.content.filter(part => part.type === 'text').map(part => part.text).join('')
-  // The host also appends user-role runtime-context/time-context snapshots.
-  // Only source.kind=user represents admitted client input and carries rpcId.
-  /** 筛选由用户界面提交的消息。 */
+
   const users = rows => rows.filter(row => row.type === 'user-message' && row.message.source.kind === 'user')
-  /** 确认本地 ReplayAdapter 尚未收到动作请求。 */
+
   const assertNoActions = async () => {
     const rows = await audit()
     const inputs = users(rows)
@@ -107,7 +96,7 @@ export async function prepareGalleryConversation({ dshRoot, dshHome, spec, publi
     return { userMessages: 1, genuiActions: 0, replayCalls: 1 }
   }
   let workspaceId = null
-  /** 打开本次 DSH 会话，并按需要关闭凭据提示。 */
+
   const openExistingConversation = async ({ page, dismissCredentialsOverlay }) => {
     assert.ok(workspaceId, 'Create the one gallery session before selecting it in another context')
     await assertNoActions()
@@ -129,11 +118,11 @@ export async function prepareGalleryConversation({ dshRoot, dshHome, spec, publi
   return {
     webArgs: ['--patch', patchFile], cwd: join(root, 'workspace'), sessionId, auditFile,
     openExistingConversation,
-    /** 创建一次本地回放会话并打开对应页面。 */
+
     async openConversation({ page, dismissCredentialsOverlay }) {
       assert.equal(workspaceId, null, 'The replay fixture must be created and prompted only once')
       await waitFor(rows => rows.some(row => row.type === 'ready'), 'Replay configuration')
-      /** 通过浏览器主进程调用会话 RPC。 */
+
       const rpc = async (method, request) => {
         const response = await page.request.post(new URL(`/api/${method}`, page.url()).href, {
           data: { type: 'client-request', rpcId: randomUUID(), method, payload: { args: { request } } }, timeout: 15000,
@@ -159,7 +148,7 @@ export async function prepareGalleryConversation({ dshRoot, dshHome, spec, publi
     },
     assertNoActions,
     editPanelBeforeAppend, checkPanelAfterAppend,
-    /** 在已安装的固定宿主中验收计算组件和提交动作。 */
+
     async verifyComputed({ page, browser, artifactsDir }) {
       return runComputedBrowserChecks({ page, browser, artifactsDir, verifySubmit: async renderedRoot => {
         await renderedRoot.getByRole('button', { name: 'Send computed', exact: true }).click()
@@ -187,7 +176,7 @@ export async function prepareGalleryConversation({ dshRoot, dshHome, spec, publi
       await renderedRoot.getByRole('button', { name: 'Choose One', exact: true }).click({ timeout: 15000 })
       await waitFor(rows => rows.some(row => row.type === 'turn-end' && row.turn === 2), 'Real Choose action and second replay turn')
       await page.getByText(ACK, { exact: true }).waitFor({ state: 'visible', timeout: 15000 })
-      // Include the renderer's trailing debounce window before final counts.
+
       await page.waitForTimeout(1000)
       const rows = await audit()
       const inputs = users(rows)

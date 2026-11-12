@@ -1,11 +1,3 @@
-/**
- * TemplateDrawer — the GenUI template center (new-user onboarding).
- *
- * Browse by category → click a card → inline preview (the demo spec rendered
- * directly by GenuiBlock, dogfooding) + "try it" (insert into the composer) /
- * "copy instruction". The user sees the result first and only then decides to
- * send the instruction to the model — the genui capability manual.
- */
 import { useMemo, useRef, useState } from 'react'
 import { genuiTemplates, TEMPLATE_CATEGORIES, categoryLabelKey, type GenuiTemplate, type TemplateCategory } from './templates.ts'
 import { useLocaleRevision, useT } from './i18n/index.ts'
@@ -18,17 +10,15 @@ import { useSyncExternalStore } from 'react'
 import css from './TemplateDrawer.module.css'
 
 export interface TemplateDrawerProps {
-  /** Try it: insert the template instruction into the composer draft. */
+
   onUse: (instruction: string) => void
-  /** Which drawer is open (template center / trophies), driven by the header. */
+
   tab: 'templates' | 'achievements'
 }
 
-/** Filter ids: `all` plus every template category. Labels are localized. */
 const CATEGORIES = ['all', ...TEMPLATE_CATEGORIES] as const
 type Category = TemplateCategory | 'all'
 
-/** Copy to clipboard with a legacy fallback (like GenuiCopy). */
 function copyText(text: string): Promise<void> {
   if (navigator.clipboard !== undefined) return navigator.clipboard.writeText(text)
   return new Promise((resolve, reject) => {
@@ -55,15 +45,13 @@ export function TemplateDrawer({ onUse, tab }: TemplateDrawerProps) {
   const [selected, setSelected] = useState<GenuiTemplate | null>(null)
   const [copied, setCopied] = useState(false)
   const timer = useRef(0)
-  // Achievements tab: live state snapshot.
+
   const achievements = useSyncExternalStore(subscribeAchievements, () => getAchievementSnapshot())
   const achievementSpec = useMemo(
     () => buildAchievementsSpec(achievements.state, achievements.unlocked),
     [achievements, localeRevision],
   )
 
-  // Rebuilt when the locale changes: `t` keeps a stable identity, so the
-  // revision — not `t` — is what invalidates this memo.
   const items = useMemo(
     () => {
       const all = genuiTemplates()
@@ -79,8 +67,7 @@ export function TemplateDrawer({ onUse, tab }: TemplateDrawerProps) {
       window.clearTimeout(timer.current)
       timer.current = window.setTimeout(() => setCopied(false), 1500)
     } catch {
-      // Clipboard denied: the instruction stays in the drawer; nothing else
-      // to do — the use flow does not depend on it.
+
     }
   }
 

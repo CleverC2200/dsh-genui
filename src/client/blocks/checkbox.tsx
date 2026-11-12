@@ -5,16 +5,6 @@ import type { GenuiCheckbox } from '../spec.ts'
 import { GENUI_CHECKBOX_VALUE } from '../spec.ts'
 import type { AnswersState, GenuiBlockProps } from './state.ts'
 
-/**
- * Checkbox with two backwards-compatible modes:
- *
- * - no `group`: legacy local toggle + optional per-click action;
- * - with `group`: local-only multi-select state collected by a sibling submit.
- *
- * A persisted group key wins over `checked`, including an explicit empty
- * array. This lets a user clear every default-checked option without those
- * defaults reappearing after refresh.
- */
 export function CheckboxNode({ node, onAction, answers }: {
   node: GenuiCheckbox
   onAction?: GenuiBlockProps['onAction']
@@ -33,12 +23,9 @@ export function CheckboxNode({ node, onAction, answers }: {
 
   useEffect(() => {
     if (group === undefined || node.checked !== true || hasRecordedGroup) return
-    // Model-provided defaults are real initial selections, but never override
-    // a restored user choice (including an explicitly empty group).
+
     answers?.setMultiAnswer(group, value, true)
-    // answers is intentionally omitted: the callbacks are stable and a
-    // registry update should not re-register the same default.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [group, node.checked, value, hasRecordedGroup])
 
   return (
@@ -50,7 +37,7 @@ export function CheckboxNode({ node, onAction, answers }: {
           const next = e.currentTarget.checked
           setChecked(next)
           if (grouped) {
-            // Aggregation mode: update local multi-answer state only.
+
             answers?.setMultiAnswer(group, value, next)
           } else if (node.action !== undefined && onAction !== undefined) {
             onAction(node.action, { type: 'checkbox', checked: next })

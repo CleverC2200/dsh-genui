@@ -1,7 +1,3 @@
-// @vitest-environment jsdom
-// `compare` node: an ordered image pair. These tests pin the two behaviours
-// that make it different from image-group — both sides are required, and the
-// slider exposes a real range control — plus the media policy it shares.
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 

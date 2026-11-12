@@ -30,7 +30,6 @@
   gap: var(--dsl-g-gap-xs, 4px);
 }
 
-/* Overlay placement and touch hiding belong only to carousel navigation. */
 .carouselControls {
   position: absolute;
   z-index: 2;
@@ -88,7 +87,7 @@
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
   scrollbar-width: thin;
-  /* A little breathing room keeps child focus rings and card shadows visible. */
+
   padding: var(--dsl-g-gap-xs, 4px) 0 var(--dsl-g-gap-md, 12px);
 }
 
@@ -120,8 +119,7 @@
 }
 
 .imageTile {
-  /* Natural aspect ratios determine each tile's share of a justified row.
-     flex-wrap also adapts to a narrow chat pane, not just viewport width. */
+
   flex: var(--gallery-image-ratio, 1.333) 1 calc(var(--gallery-image-ratio, 1.333) * 160px);
   min-width: min(100%, 160px);
   max-width: 100%;

@@ -1,4 +1,3 @@
-// Synthetic issue #329 workflow: normalize and guard authored JSON before rendering.
 import { readFileSync } from 'node:fs'
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -209,7 +208,7 @@ describe('copy preview renderer', () => {
   })
 
   it('keeps the preview CSS bounded, scrollable, whitespace-preserving and monospace', () => {
-    // A static contract, not a claim about browser-painted geometry.
+
     const css = readFileSync('src/client/GenuiBlock.module.css', 'utf8')
     const rule = /\.copyPreview \{([^}]+)\}/.exec(css)?.[1] ?? ''
     expect(rule).toContain('max-height: 240px')

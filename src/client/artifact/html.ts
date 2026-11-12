@@ -8,7 +8,6 @@ import { walkGenuiNodes } from '../walk-spec.ts'
 
 const bundleCache = new Map<string, Promise<Uint8Array>>()
 
-/** 将二进制内容编码为不会闭合 script 标签的 Base64。 */
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
   const chunkSize = 0x8000
@@ -18,12 +17,10 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary)
 }
 
-/** 转义 HTML 属性和标题中的文本。 */
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!)
 }
 
-/** 获取并缓存构建产物字节，失败时保留可识别的导出错误。 */
 function cachedBundle(name: string, code: GenuiStandaloneAsset | 'runtime'): Promise<Uint8Array> {
   const existing = bundleCache.get(name)
   if (existing !== undefined) return existing
@@ -39,22 +36,20 @@ function cachedBundle(name: string, code: GenuiStandaloneAsset | 'runtime'): Pro
   return task
 }
 
-/** 创建仅存放 Base64 数据的非执行 payload 节点。 */
 function bundleElement(name: string, bytes: Uint8Array): string {
   return `<script type="application/octet-stream" data-genui-bundle="${name}">${bytesToBase64(bytes)}</script>`
 }
 
-/** 将媒体相对地址转换为导出页面所在站点的绝对地址。 */
 function resolveMediaUrls(spec: GenuiSpec, baseURI: string): GenuiSpec {
   const copy = structuredClone(spec)
-  /** 复用媒体节点的 URL 与协议规则，不修改原 JSON artifact。 */
+
   function resolveUrl(media: string): string {
     if (/^https?:\/\//i.test(media)) return media
     const url = new URL(media, baseURI)
     if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new GenuiExportError('artifact-invalid', `media URL cannot be exported: ${media}`)
     return url.href
   }
-  /** 遍历规范中的嵌套节点和容器。 */
+
   function visit(value: unknown): void {
     if (Array.isArray(value)) {
       for (const item of value) visit(item)
@@ -71,8 +66,7 @@ function resolveMediaUrls(spec: GenuiSpec, baseURI: string): GenuiSpec {
     for (const child of Object.values(node)) visit(child)
   }
   visit(copy.items)
-  // Gallery records have no node type. Only visit actual UI components, never
-  // similarly shaped raw JSON/chart data embedded in another component.
+
   walkGenuiNodes(copy, node => {
     if (node.type === 'image-group') {
       for (const item of node.items) item.src = resolveUrl(item.src)
@@ -81,7 +75,6 @@ function resolveMediaUrls(spec: GenuiSpec, baseURI: string): GenuiSpec {
   return copy
 }
 
-/** 返回执行内嵌 bundle 的静态启动代码。 */
 function bootstrapSource(): string {
   return `
 async function loadBundle(element) {
@@ -115,7 +108,6 @@ start().catch(error => {
 `
 }
 
-/** 使用已下载的运行文件生成完整的独立 HTML 文档。 */
 export function createStandaloneHtmlDocument(
   artifact: GenuiArtifactV1,
   bundles: ReadonlyMap<string, Uint8Array>,
@@ -150,12 +142,10 @@ export function createStandaloneHtmlDocument(
 </html>`
 }
 
-/** 返回 artifact 所需图形引擎名称。 */
 function artifactPortabilityAssets(artifact: GenuiArtifactV1): GenuiStandaloneAsset[] {
   return analyzeGenuiPortability(artifact.spec).requiredAssets
 }
 
-/** 获取独立运行文件及规格实际使用的图形引擎，生成单文件 HTML。 */
 export async function buildStandaloneHtml(rawArtifact: GenuiArtifactV1): Promise<string> {
   const artifact = parseGenuiArtifact(rawArtifact)
   if (artifact === null) throw new GenuiExportError('artifact-invalid', 'invalid GenUI artifact')

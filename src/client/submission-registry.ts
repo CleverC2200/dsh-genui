@@ -18,7 +18,7 @@ export interface RadioSubmissionMember {
 export interface CheckboxSubmissionMember {
   kind: 'checkbox'
   key: string
-  /** 来源文案模板 → 当前显示文案。 */
+
   choices: Map<string, string>
 }
 
@@ -39,7 +39,7 @@ export interface SubmitInteractionState {
   multiAnswers: Record<string, string[]>
   fields: Record<string, string>
   secretFields: ReadonlySet<string>
-  /** Field ids / groups hidden by a `when` condition: out of scope entirely. */
+
   hidden?: ReadonlySet<string>
 }
 
@@ -51,7 +51,6 @@ export interface ResolvedSubmitState {
   hasOutOfScopePayload: boolean
 }
 
-/** 从 spec 建立成员表，并诊断 submission key 和 submit.groups。 */
 export function analyzeSubmissionRegistry(spec: GenuiSpec, allowExternalGroups = false): { registry: SubmissionRegistry; diagnostics: string[] } {
   const members = new Map<string, SubmissionMember>()
   const paths = new Map<string, string>()
@@ -72,9 +71,7 @@ export function analyzeSubmissionRegistry(spec: GenuiSpec, allowExternalGroups =
         keyPath = `${path}.group`
         break
       case 'choices':
-        // A `choices` list with a `group` is a paper question: single-select,
-        // graded from `answer` exactly like `radio` — but each option keeps its
-        // cost line, which `radio`'s bare strings cannot carry.
+
         if (node.group === undefined) return
         member = {
           kind: 'radio',
@@ -138,12 +135,10 @@ export function analyzeSubmissionRegistry(spec: GenuiSpec, allowExternalGroups =
   return { registry: { members }, diagnostics }
 }
 
-/** 编译供运行时读取的静态 submission 成员表。 */
 export function compileSubmissionRegistry(spec: GenuiSpec): SubmissionRegistry {
   return analyzeSubmissionRegistry(spec).registry
 }
 
-/** 根据当前交互状态判断一个 submission member 是否完成。 */
 export function isSubmissionMemberAnswered(member: SubmissionMember, state: SubmitInteractionState): boolean {
   switch (member.kind) {
     case 'radio': return state.answers[member.key] !== undefined
@@ -161,16 +156,14 @@ export function isSubmissionMemberAnswered(member: SubmissionMember, state: Subm
   }
 }
 
-/** 计算 submit 进度和纯本地判卷条件。 */
 export function resolveSubmitState({ registry, groups, state }: {
   registry: SubmissionRegistry
   groups?: string[]
   state: SubmitInteractionState
 }): ResolvedSubmitState {
-  // Hidden members are out of scope entirely: a control the reader cannot see
-  // must neither count toward completion nor keep the submit disabled.
+
   const hidden = state.hidden ?? new Set<string>()
-  // A member is identified by its own key (a group, or a field id).
+
   const isHidden = (member: SubmissionMember): boolean => hidden.has(member.key)
   const hasUnknownMember = groups?.some(key => !registry.members.has(key) && !hidden.has(key)) ?? false
   const scope = groups === undefined

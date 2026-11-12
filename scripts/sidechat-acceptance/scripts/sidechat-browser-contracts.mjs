@@ -1,4 +1,3 @@
-/** Pure oracle contracts. Passing these tests is NOT browser/host acceptance. */
 import assert from 'node:assert/strict'
 
 export const TITLE = 'DSH354 isolation fixture'
@@ -59,10 +58,6 @@ export function appendExpected(expected, step) {
   return next
 }
 
-/** Validate actual durable public user/message evidence, never an invented RPC ID.
- * Only GenUI action messages belong in actions; official first-contact context
- * is separate and must not be counted as a GenUI action by the host adapter.
- */
 export function validateSnapshot(snapshot, expected, assistantEventSeq) {
   assert.ok(snapshot && typeof snapshot.sessions === 'object', 'Backend snapshot is required')
   const ids = Object.keys(expected)
@@ -108,10 +103,6 @@ export async function bounded(operation, ms, label) {
   } finally { clearTimeout(timer) }
 }
 
-/** One real UI action transaction. click is a Playwright locator.click in the
- * browser helper; pure tests replace only this orchestration input, not a DOM.
- * No action retry: an uncertain click/transport outcome fails the lane closed.
- */
 export async function executeOwnedAction({ step, stage, expected, assistantEventSeq,
   previousSnapshot, click, readBackendSnapshot, waitForBackendAction, timeoutMs = 30000 }) {
   for (const [name, fn] of Object.entries({ click, readBackendSnapshot, waitForBackendAction })) {
@@ -122,15 +113,14 @@ export async function executeOwnedAction({ step, stage, expected, assistantEvent
   if (previousSnapshot) assert.deepEqual(before, previousSnapshot, 'Prior durable identities changed before action')
   const next = appendExpected(expected, step)
   const wanted = next[step.ownerId].actions.at(-1)
-  // This await is the safety boundary: no wait/oracle call races the input.
+
   await bounded(click, timeoutMs, 'trusted UI click')
   const received = await bounded(() => waitForBackendAction({ stage, ownerId: step.ownerId,
     action: wanted.action, payload: structuredClone(wanted.payload), text: wanted.text,
     expectedCounts: Object.fromEntries(Object.entries(next).map(([id, item]) => [id, item.actions.length])),
     expectedTurn: wanted.turn, expected: structuredClone(next), timeoutMs }), timeoutMs, 'owning replay settlement')
   const settled = validateSnapshot(received, next, assistantEventSeq)
-  // Freeze/check ALL previous receipts so an oracle cannot rewrite earlier
-  // IDs, event sequences or payloads while returning the expected new count.
+
   for (const id of Object.keys(expected)) {
     assert.deepEqual(settled.sessions[id].actions.slice(0, before.sessions[id].actions.length),
       before.sessions[id].actions, `Prior action evidence changed for ${id}`)

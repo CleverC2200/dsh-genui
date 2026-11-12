@@ -1,4 +1,3 @@
-/** Pure synthetic callbacks only. No HTTP request, browser, DOM or host. */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { isSidechatActionRequest, validateActionTransport, verifyActionResponse } from '../scripts/sidechat-browser-transport.mjs'

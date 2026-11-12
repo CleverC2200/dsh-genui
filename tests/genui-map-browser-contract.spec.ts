@@ -1,4 +1,3 @@
-/** Pure/script checks only. Passing this suite is NOT browser/WebGL acceptance. */
 import { afterEach, describe, expect, it } from 'vitest'
 import assert from 'node:assert/strict'
 import { within } from '@testing-library/dom'
@@ -45,7 +44,7 @@ describe('Map real-browser acceptance contract (no browser launched)', () => {
     let workers = 1
     expect(await recordMapCheckFailure(failures, 'embed-worker-cleanup', async () => assert.equal(workers, 0))).toBe(false)
     expect(await recordMapCheckFailure(failures, 'offline-file', async () => { throw new Error('https://synthetic.invalid/?token=private-value') })).toBe(false)
-    workers = 0 // A later context close cannot erase the earlier failed verdict.
+    workers = 0
     expect(await recordMapCheckFailure(failures, 'touch-embed', async () => assert.equal(workers, 0))).toBe(true)
     expect(failures.map(failure => failure.stage)).toEqual(['embed-worker-cleanup', 'offline-file'])
     expect(failures[1]!.error).toContain('token=[redacted]')
@@ -100,8 +99,7 @@ describe('Map real-browser acceptance contract (no browser launched)', () => {
   })
   it('keeps the actual running-browser audit rejecting every forbidden flag and valued variant', async () => {
     const runner = await readFile('scripts/map-acceptance/run.mjs', 'utf8')
-    // Execute the unchanged production assertion, not a duplicated predicate.
-    // Fail closed if its source shape changes; no browser or command is run.
+
     const audit = runner.match(/      const forbidden = \[[^\n]+\]\n      assert\.ok\([^\n]+\)/u)?.[0]
     expect(audit).toBeDefined()
     const check = new Function('assert', 'command', audit!)

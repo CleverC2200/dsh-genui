@@ -8,7 +8,6 @@ import type { GenuiPortabilityReport, GenuiStandaloneAsset } from './types.ts'
 
 const ASSET_ORDER: GenuiStandaloneAsset[] = ['mermaid', 'three', 'echarts-core', 'echarts-full', 'icons', 'maplibre']
 
-/** 递归收集当前节点树依赖的引擎和媒体信息。 */
 function scan(items: unknown[], report: GenuiPortabilityReport, assets: Set<GenuiStandaloneAsset>): void {
   for (const item of items) {
     if (typeof item !== 'object' || item === null || !('type' in item) || typeof item.type !== 'string') continue
@@ -18,9 +17,7 @@ function scan(items: unknown[], report: GenuiPortabilityReport, assets: Set<Genu
     if (node.type === 'scene3d') assets.add('three')
     if (node.type === 'map') assets.add('maplibre')
     if (node.type === 'echart') assets.add(echartEngineFor(node as Extract<GenuiNode, { type: 'echart' }>))
-    // An icon outside the inlined 62 needs the lazily-fetched catalogue; a
-    // standalone export must therefore embed `icons` too, or the glyph degrades
-    // to the fallback dot in the exported HTML.
+
     if (node.type === 'icon' && typeof node.name === 'string' && ICONS[node.name] === undefined) assets.add('icons')
     if (typeof node.action === 'string' || node.type === 'entity-card' && Array.isArray(node.actions) && node.actions.some(action => typeof action.action === 'string')
       || node.type === 'submit' && (typeof node.action === 'string' || typeof node.resetAction === 'string')) report.hasModelActions = true
@@ -54,7 +51,6 @@ function scan(items: unknown[], report: GenuiPortabilityReport, assets: Set<Genu
   }
 }
 
-/** 扫描嵌套 GenUI 节点，选择运行资源并列出独立页面限制。 */
 export function analyzeGenuiPortability(spec: GenuiSpec): GenuiPortabilityReport {
   const report: GenuiPortabilityReport = { requiredAssets: [], customTypes: [], externalMedia: [], hasModelActions: false }
   const assets = new Set<GenuiStandaloneAsset>()

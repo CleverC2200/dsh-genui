@@ -90,9 +90,7 @@ describe('SVG content', () => {
   })
 
   it('renders HTML-style SVG without an explicit xmlns (issue #185)', () => {
-    // In HTML the parser infers the SVG namespace, so models routinely emit
-    // <svg> without xmlns; in XML mode that markup is well-formed but
-    // un-namespaced and used to be rejected 100% of the time.
+
     const source = '<svg viewBox="0 0 200 60"><rect width="200" height="60" fill="#111"/><text x="100" y="38" text-anchor="middle" fill="#fff">hello</text></svg>'
     const { getByRole, container } = renderSvg(source)
     const src = getByRole('img', { name: '模块图' }).getAttribute('src') ?? ''

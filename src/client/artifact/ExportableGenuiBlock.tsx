@@ -13,7 +13,6 @@ interface ArtifactExportMenuProps {
   getArtifact: () => ReturnType<typeof createGenuiArtifact>
 }
 
-/** 导出入口的图标字形：托盘 + 下箭头（“导出为文件”），14px 描边、随文字取色。 */
 function ExportGlyph() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -24,7 +23,6 @@ function ExportGlyph() {
   )
 }
 
-/** 提供 JSON 和 HTML 的本地化导出菜单。 */
 function ArtifactExportMenu({ getArtifact }: ArtifactExportMenuProps) {
   const t = useT()
   const rootRef = useRef<HTMLDivElement>(null)
@@ -48,7 +46,6 @@ function ArtifactExportMenu({ getArtifact }: ArtifactExportMenuProps) {
     }
   }, [open])
 
-  /** 执行用户选择的下载并更新辅助说明。 */
   const exportAs = async (format: 'html' | 'json'): Promise<void> => {
     setOpen(false)
     setErrorMessage('')
@@ -76,8 +73,8 @@ function ArtifactExportMenu({ getArtifact }: ArtifactExportMenuProps) {
     <div className={css.chrome} ref={rootRef} data-genui-export>
       {report.externalMedia.length > 0 && <span className={css.notice}>{t('artifact.externalMediaNotice')}</span>}
       {errorMessage !== '' && <span className={css.statusError} aria-live="polite">{errorMessage}</span>}
-      {/* 无边框图标入口：完成态内容不再多出一个描边按钮。图标按钮的 aria-label
-          + title 组合与项目里的 panelTpl / panelToggle 一致。 */}
+      {
+                                                       }
       <button
         type="button"
         className={css.trigger}
@@ -104,7 +101,6 @@ export interface ExportableGenuiBlockProps extends GenuiBlockProps {
   exportEnabled?: boolean
 }
 
-/** 在完成态 GenUI 外层显示 artifact 导出菜单。 */
 export function ExportableGenuiBlock(props: ExportableGenuiBlockProps) {
   const stateRef = useRef<BlockInteractionState | undefined>(undefined)
   const captureState = useCallback((state: BlockInteractionState) => {

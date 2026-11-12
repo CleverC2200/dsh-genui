@@ -6,7 +6,6 @@ import { writeClipboard } from '../primitive-adapter.ts'
 import type { AnswersState } from './state.ts'
 import css from './editor.module.css'
 
-/** 纯文本编辑器，草稿保存在所属 GenUI 区块中。 */
 export function EditorNode({ node, answers }: { node: GenuiEditor; answers?: AnswersState | undefined }): ReactElement {
   const t = useT()
   const id = useId()
@@ -32,7 +31,6 @@ export function EditorNode({ node, answers }: { node: GenuiEditor; answers?: Ans
     }
   }, [answers?.setField, node.id, node.value])
 
-  /** 更新当前文字，并通知区块状态保存草稿。 */
   const updateValue = (next: string): void => {
     touched.current = true
     setLocalValue(next)
@@ -40,7 +38,6 @@ export function EditorNode({ node, answers }: { node: GenuiEditor; answers?: Ans
     setEdited(true)
   }
 
-  /** 将当前文字复制到剪贴板。 */
   const copyValue = (): void => {
     void writeClipboard(value).then((ok) => {
       if (ok) {

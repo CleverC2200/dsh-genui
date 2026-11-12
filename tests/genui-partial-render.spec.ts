@@ -1,13 +1,7 @@
-// Issue #186: one defective node must no longer degrade the WHOLE fence to a
-// raw code block. The strict gate (isRenderableProcess) keeps its exact
-// semantics — validate_dsh_ui and render_ui still refuse and diagnose — while
-// the FENCE channel gains one bounded retry that drops the erroring nodes and
-// renders whatever survives cleanly.
 import { describe, expect, it } from 'vitest'
 import { isRenderableProcess, partialRepairGenuiSpec, processGenuiSpec, validateGenuiSpec } from '../src/client/guard.ts'
 import { resolveGenuiSpec } from '../src/client/fence-render.tsx'
 
-/** The render decision the fence channels make (parse → strict → partial). */
 function fenceSpec(raw: string): ReturnType<typeof resolveGenuiSpec> {
   return resolveGenuiSpec(raw)
 }
@@ -47,11 +41,11 @@ describe('partial fence rendering (issue #186)', () => {
   })
 
   it('still degrades when every node fails or the retry is not clean', () => {
-    // All nodes bad: nothing would survive the prune.
+
     expect(fenceSpec('{"items":[{"type":"progress","value":200},{"type":"stat","label":1,"value":2}]}')).toBeNull()
-    // A single-node fence has no siblings to keep.
+
     expect(fenceSpec('{"items":[{"type":"progress","value":200}]}')).toBeNull()
-    // A defective bare root has no surviving content after pruning.
+
     expect(fenceSpec('{"type":"steps","items":[{"desc":"no title"}]}')).toBeNull()
   })
 
@@ -61,9 +55,7 @@ describe('partial fence rendering (issue #186)', () => {
   })
 
   it('renders the only declared node next to undeclared junk siblings (issue #254)', () => {
-    // 真实样本：模型漏了 keyvalue 包装，把两个 pair 对象直接放进 items。杂项
-    // 没有 type，不计入 declaredNativeCount —— 部分修复剪掉的是杂项，唯一合法
-    // 的 table 必须存活，不能被「声明数 ≤ 1」连坐（#253 已删该早退）。
+
     const raw = '{"items":[{"type":"table","columns":["Item","Qty"],"rows":[["a","1"],["b","2"]]},{"key":"k1","value":"v1"},{"key":"k2","value":"v2"}]}'
     const processed = processGenuiSpec(JSON.parse(raw))
     expect(processed.declaredNativeCount).toBe(1)

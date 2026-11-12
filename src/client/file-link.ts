@@ -10,7 +10,6 @@ export type LinkTarget =
   | { type: 'file'; file: ParsedFileLink }
   | { type: 'invalid' }
 
-/** Decode a local file destination and its optional first line fragment. */
 export function parseFileLink(value: string): ParsedFileLink | undefined {
   if (value.length > 2048) return undefined
   const hash = value.indexOf('#')
@@ -36,7 +35,6 @@ export function parseFileLink(value: string): ParsedFileLink | undefined {
   return { path, line }
 }
 
-/** Classify a link destination while preserving the existing external URL policy. */
 export function classifyLinkTarget(value: unknown): LinkTarget {
   const external = safeHref(value)
   if (external !== undefined) return { type: 'external', href: external }

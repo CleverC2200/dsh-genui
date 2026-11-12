@@ -2,7 +2,6 @@ import { GENUI_LIMITS } from './genui-runtime/index.ts'
 import { GENUI_COMPUTED_CELL } from './spec.ts'
 import type { GenuiComputedCell, GenuiComputedRef } from './spec.ts'
 
-/** 保存 repair 所需的原始 table 字段。 */
 export interface TableDetailSource {
   columns?: unknown
   rows?: unknown
@@ -10,19 +9,11 @@ export interface TableDetailSource {
   types?: unknown
 }
 
-/** 保存 repair 后的 table 列和行。 */
 export interface PreparedTableRows {
   columns: string[]
   rows: Array<Array<string | number | GenuiComputedRef | GenuiComputedCell>>
 }
 
-/**
- * 使用 table repair 相同的转换规则处理列和行。
- *
- * @param table - 原始 table 数据。
- * @param onRowsTruncated - 有效行被行数上限略过时接收数量的回调。
- * @returns 修复后的列和行；无法处理时返回 null。
- */
 export function prepareTableRows(table: TableDetailSource, onRowsTruncated?: (count: number) => void): PreparedTableRows | null {
   const declaredColumns = table.columns
   const columnsSpecified = Array.isArray(declaredColumns) && declaredColumns.length > 0
@@ -64,19 +55,16 @@ export function prepareTableRows(table: TableDetailSource, onRowsTruncated?: (co
   return { columns: columns.slice(0, GENUI_LIMITS.maxTableCols), rows: repairedRows.rows }
 }
 
-/** 返回 repair 后可显示详情的 table 行。 */
 export function tableRowsForDetails<Row = unknown>(table: TableDetailSource): Row[] {
   return (prepareTableRows(table)?.rows ?? []) as Row[]
 }
 
-/** 按照 table renderer 的规则识别分组标题行。 */
 export function isTableGroupHeaderRow(row: unknown, types: unknown): boolean {
   if (!Array.isArray(row) || !Array.isArray(types) || types[0] !== 'group') return false
   return String(row[0] ?? '').trim() !== ''
     && row.slice(1).every(cell => String(cell ?? '').trim() === '')
 }
 
-/** 判断详情索引对应的行是否可展开并显示。 */
 export function isTableDetailReachable(table: TableDetailSource, rowIndex: number): boolean {
   const rows = tableRowsForDetails(table)
   return rowIndex >= 0
@@ -84,7 +72,6 @@ export function isTableDetailReachable(table: TableDetailSource, rowIndex: numbe
     && !isTableGroupHeaderRow(rows[rowIndex], table.types)
 }
 
-/** 按照 guard 接受的 object alias 规则修复 table 列。 */
 function repairColumnValues(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   const columns: string[] = []
@@ -104,7 +91,6 @@ function repairColumnValues(value: unknown): string[] {
   return columns
 }
 
-/** 按照 table repair 的单元格规则清理行，并统计行数上限之后的有效行。 */
 function repairRows(value: unknown): {
   rows: Array<Array<string | number | GenuiComputedRef | GenuiComputedCell>>
   truncatedRows: number
@@ -133,7 +119,6 @@ function repairRows(value: unknown): {
   return { rows, truncatedRows }
 }
 
-/** 从有效的首行表头生成 table 列。 */
 function deriveTableColumns(rows: Array<Array<string | number | GenuiComputedRef | GenuiComputedCell>>): PreparedTableRows | null {
   const header = rows[0]
   if (header === undefined || header.length === 0) return null
@@ -148,7 +133,6 @@ function deriveTableColumns(rows: Array<Array<string | number | GenuiComputedRef
   return { columns: Array.from({ length: header.length }, (_unused, index) => `列${index + 1}`), rows }
 }
 
-/** 读取 object row 映射到列时使用的 key。 */
 function columnKeyOf(value: unknown): string | undefined {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined
   const column = value as Record<string, unknown>
@@ -158,7 +142,6 @@ function columnKeyOf(value: unknown): string | undefined {
   return undefined
 }
 
-/** 将 object row 中的值转换为 table 单元格，并保留列位置。 */
 function cellText(value: unknown): string | number | GenuiComputedRef | GenuiComputedCell {
   if (isComputedCell(value)) return value
   if (typeof value === 'string') return value
@@ -172,7 +155,6 @@ function cellText(value: unknown): string | number | GenuiComputedRef | GenuiCom
   return JSON.stringify(value)
 }
 
-/** 验证只由 Computed 解析器生成的表格显示单元格。 */
 function isComputedCell(value: unknown): value is GenuiComputedCell {
   if (value === null || typeof value !== 'object' || Array.isArray(value) || !Object.hasOwn(value, GENUI_COMPUTED_CELL)) {
     return false
@@ -181,7 +163,6 @@ function isComputedCell(value: unknown): value is GenuiComputedCell {
   return cell[GENUI_COMPUTED_CELL] === true && Number.isFinite(cell.value) && typeof cell.formatted === 'string'
 }
 
-/** 读取 object column 显示的标题。 */
 function columnHeaderText(value: unknown): string {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return String(value)
   const column = value as Record<string, unknown>
