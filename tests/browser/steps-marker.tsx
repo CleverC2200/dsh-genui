@@ -67,6 +67,7 @@ const results = [...document.querySelectorAll<HTMLElement>(`.${css.stepMarker}`)
   const group = section.closest<HTMLElement>('[data-font]')!
   const title = marker.parentElement!.querySelector<HTMLElement>(`.${css.stepTitle}`)!
   const titleBox = title.getBoundingClientRect()
+  const descStyle = getComputedStyle(marker.parentElement!.querySelector(`.${css.stepDesc}`)!)
   return {
     hostFont: Number(group.dataset.font), hostLineHeight: Number(group.dataset.lineHeight),
     state: section.dataset.state, text: marker.textContent,
@@ -76,7 +77,7 @@ const results = [...document.querySelectorAll<HTMLElement>(`.${css.stepMarker}`)
     textCenterOffset: (text.top + text.bottom - box.top - box.bottom) / 2,
     titleLineHeight: parseFloat(getComputedStyle(title).lineHeight),
     titleLines: titleBox.height / parseFloat(getComputedStyle(title).lineHeight),
-    descLineHeight: parseFloat(getComputedStyle(marker.parentElement!.querySelector(`.${css.stepDesc}`)!).lineHeight),
+    descFont: parseFloat(descStyle.fontSize), descLineHeight: parseFloat(descStyle.lineHeight),
     titleClear: titleBox.left >= box.right && titleBox.right <= innerWidth,
   }
 })

@@ -23,6 +23,20 @@ function renderBlock(items: unknown[]) {
 const bodyRows = (container: HTMLElement): string[] =>
   [...container.querySelectorAll('tbody tr')].map(tr => tr.textContent ?? '')
 
+describe('table status badges', () => {
+  it('keeps unfinished and unknown states out of success while retaining completed controls', () => {
+    const states = ['已完成', '未完成', '未知', '未通过', '不正常', 'inactive', 'broken', 'token', '正常', 'partial', '失败']
+    const container = renderBlock([{ type: 'table', columns: ['环节', '状态'], types: ['text', 'badge'],
+      rows: states.map((state, index) => [`环节 ${index + 1}`, state]) }])
+    const badges = [...container.querySelectorAll('tbody td:nth-child(2) span')]
+    expect(badges.map(badge => badge.textContent)).toEqual(states)
+    for (const index of [0, 8]) expect(badges[index]!.className).toMatch(/success/)
+    for (const index of [1, 2, 3, 4, 5, 6, 7]) expect(badges[index]!.className).not.toMatch(/success/)
+    expect(badges[9]!.className).toMatch(/warn/)
+    expect(badges[10]!.className).toMatch(/danger/)
+  })
+})
+
 describe('parseSortableNumber', () => {
   it('reads plain numbers and numeric strings', () => {
     expect(parseSortableNumber(42)).toBe(42)

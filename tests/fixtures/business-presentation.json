@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "dataScope": "synthetic; no production query or business execution",
+  "provenance": {
+    "pagination": "Read-only recovery from mounted GenuiBlock props in a surviving isolated Electron window on 2026-11-12. Original checkout, screenshot, and business-v2 disk files were missing. This is recovered window memory, not an original disk file.",
+    "stress": "New synthetic companion based on issue #3 acceptance requirements; not a recovered original spec.",
+    "recoveryEvidence": ".e2e-artifacts/recovery/live-specs.json, live-page.png, live-page.json in the integration checkout; local evidence is not bundled here"
+  },
+  "specs": {
+    "pagination": {
+      "title": "订单缺口查询 · 读取情况汇报",
+      "gap": 14,
+      "items": [
+        {
+          "type": "grid",
+          "cols": 3,
+          "items": [
+            {
+              "type": "stat",
+              "label": "已读行数 / 总记录数",
+              "value": "2 / 100"
+            },
+            {
+              "type": "stat",
+              "label": "返回状态",
+              "value": "partial",
+              "delta": "未完成"
+            },
+            {
+              "type": "stat",
+              "label": "是否还有更多",
+              "value": "是（hasMore=true）"
+            }
+          ]
+        },
+        {
+          "type": "progress",
+          "value": 2,
+          "label": "读取进度（按行数）",
+          "valueLabel": "2%（2/100 行）"
+        },
+        {
+          "type": "table",
+          "columns": [
+            "订单",
+            "未满足数量（箱）",
+            "数据状态"
+          ],
+          "rows": [
+            [
+              "订单 A",
+              "120",
+              "已读"
+            ],
+            [
+              "订单 B",
+              "80",
+              "已读"
+            ]
+          ],
+          "types": [
+            "text",
+            "num",
+            "badge"
+          ]
+        },
+        {
+          "type": "callout",
+          "content": "已读 2 行的缺口小计为 200 箱，但这 **只覆盖 100 笔订单中的 2 笔**，不能当作全部 100 笔的缺口总量。\n当前不具备全量分子与分母，因此**不计算完整订单缺货率**，也不输出任何基于 200 箱的占比、排名或趋势结论。",
+          "tone": "warning",
+          "title": "口径边界（请勿外推）"
+        },
+        {
+          "type": "text",
+          "content": "建议的下一步（尚未执行）",
+          "size": "h3"
+        },
+        {
+          "type": "list",
+          "items": [
+            {
+              "title": "继续翻页取数",
+              "desc": "按 nextQuery=当前筛选下一页 继续读取，直至 hasMore=false，再对 100 笔订单做汇总"
+            },
+            {
+              "title": "暂缓口径结论",
+              "desc": "在全量返回前，缺货率、缺口总量、订单满足率一律标注“数据未齐”，不做对外汇报"
+            },
+            {
+              "title": "保留读取凭证",
+              "desc": "保留本次 status=partial、loadedRows=2/totalRows=100 的回读记录，作为后续核对的依据"
+            }
+          ]
+        },
+        {
+          "type": "row",
+          "items": [
+            {
+              "type": "button",
+              "label": "取下一页（待执行）",
+              "tone": "primary",
+              "action": "fetch_next_page"
+            },
+            {
+              "type": "button",
+              "label": "先看已读明细",
+              "tone": "ghost",
+              "action": "show_loaded_rows"
+            }
+          ]
+        }
+      ]
+    },
+    "stress": {
+      "title": "合成夹具 · 文本、数值与未知状态",
+      "items": [
+        {
+          "type": "grid",
+          "cols": 3,
+          "items": [
+            {
+              "type": "stat",
+              "label": "库存数量",
+              "value": "12,345.67 箱",
+              "delta": "+3.2%"
+            },
+            {
+              "type": "stat",
+              "label": "同步状态",
+              "value": "等待上游补齐数据后重新核对本次查询范围和分页记录，当前不能计算完整订单满足率或对外发布结论。reference_identifier_for_unreturned_page_abcdefghijklmnopqrstuvwxyz0123456789",
+              "delta": "未知"
+            },
+            {
+              "type": "stat",
+              "label": "审核状态",
+              "value": "未完成",
+              "delta": "待核对"
+            }
+          ]
+        },
+        {
+          "type": "button",
+          "label": "核对合成明细",
+          "action": "inspect_synthetic_rows"
+        }
+      ]
+    }
+  }
+}

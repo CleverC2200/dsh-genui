@@ -1,0 +1,180 @@
+{
+  "schemaVersion": 1,
+  "dataScope": "All prompts are synthetic, including the recovered pagination example. Do not describe these runs as production queries or anonymized production input.",
+  "presentationRules": {
+    "required": "At least one useful component must actually render, through render_ui or inline dsh-ui. Record tool invocation and inline rendering separately. A tool call alone does not pass.",
+    "optional": "Either accurate concise prose or a useful rendered component passes. No component quota.",
+    "short": "Answer the narrow question directly without render_ui, dsh-ui, or controls."
+  },
+  "evidenceFields": [
+    "caseId",
+    "model",
+    "sessionId",
+    "toolCalls",
+    "inlineDshUi",
+    "actualRender",
+    "contentResult",
+    "interactionResult",
+    "evidencePath"
+  ],
+  "cases": [
+    {
+      "id": "status-explicit",
+      "presentation": "required",
+      "topic": "status",
+      "request": "explicit",
+      "prompt": "以下是合成测试数据，请用组件展示读取状态和下一步，不执行查询：已读 2/100，status=partial，hasMore=true；只读到订单 A 缺口 120 箱、订单 B 缺口 80 箱。提供“取下一页”和“先看已读明细”按钮。",
+      "content": [
+        "完整保留 2/100、partial、hasMore=true 和未完成语义",
+        "200 箱仅为已读两笔小计；不计算全量缺货率或全量排行",
+        "明确下一步尚未执行"
+      ],
+      "interaction": [
+        "两个按钮各派发一次对应动作；不得声称已完成翻页或访问业务系统"
+      ]
+    },
+    {
+      "id": "status-implicit",
+      "presentation": "required",
+      "topic": "status",
+      "request": "implicit",
+      "prompt": "合成周报中有三项：取数已完成、核对未完成、发布状态未知。请整理成方便我逐项查看的状态总览，并给出核对入口。只用这些测试数据。",
+      "content": [
+        "三项名称和状态逐项对应",
+        "未知和未完成不得用成功语义或绿色完成标记",
+        "核对入口清楚可见"
+      ],
+      "interaction": [
+        "核对入口派发本地核对动作；不实际发布"
+      ]
+    },
+    {
+      "id": "inventory-explicit",
+      "presentation": "required",
+      "topic": "inventory",
+      "request": "explicit",
+      "prompt": "请用组件对比这组虚构库存：甲仓 120 箱，安全库存 100 箱；乙仓 40 箱，安全库存 60 箱。标出低于安全库存的仓库，并给一个查看明细入口，不执行调拨。",
+      "content": [
+        "甲仓 120/100 箱；乙仓 40/60 箱",
+        "乙仓低于安全库存 20 箱，甲仓高于 20 箱",
+        "数量与箱单位完整可读"
+      ],
+      "interaction": [
+        "查看明细派发本地动作；不得执行调拨"
+      ]
+    },
+    {
+      "id": "inventory-implicit",
+      "presentation": "required",
+      "topic": "inventory",
+      "request": "implicit",
+      "prompt": "用以下合成数据帮我快速看出哪里需要补货：A 商品可用 25 箱、安全量 30 箱；B 商品可用 80 箱、安全量 50 箱；C 商品可用 50 箱、安全量 50 箱。让我能逐项查看数量和差额。",
+      "content": [
+        "A 差 5 箱、B 余 30 箱、C 恰好达到安全量",
+        "三种状态可区分，C 不算缺货",
+        "所有商品及单位保留"
+      ],
+      "interaction": [
+        "只读总览可无动作；若提供筛选或明细入口须可用且仅本地派发"
+      ]
+    },
+    {
+      "id": "ranking-explicit",
+      "presentation": "required",
+      "topic": "ranking",
+      "request": "explicit",
+      "prompt": "请用组件显示虚构销售排名并让我切换月份：十月 甲 120 万元、乙 90 万元、丙 60 万元；十一月 甲 70 万元、乙 130 万元、丙 80 万元。",
+      "content": [
+        "十月甲乙丙，十一月乙丙甲，按金额从高到低",
+        "月份、金额和万元单位明确",
+        "切换月份后显示对应顺序与金额"
+      ],
+      "interaction": [
+        "切换月份实际更新显示或派发带月份的动作；记录派发与后续模型响应各自结果"
+      ]
+    },
+    {
+      "id": "ranking-implicit",
+      "presentation": "required",
+      "topic": "ranking",
+      "request": "implicit",
+      "prompt": "这些是测试门店数据：北店 80 单、南店 120 单、东店 95 单。请把本周前三名整理得一眼能比较高低，保留订单数和名次。",
+      "content": [
+        "第一南店 120 单、第二东店 95 单、第三北店 80 单",
+        "名次和单单位可读",
+        "不编造上周数据、趋势或占比"
+      ],
+      "interaction": [
+        "只读排行可无动作；若生成动作则检查其可用性"
+      ]
+    },
+    {
+      "id": "comparison-optional",
+      "presentation": "optional",
+      "topic": "comparison",
+      "request": "implicit",
+      "prompt": "只根据以下虚构信息给我选仓建议：近仓运费 20 元、一天到；远仓运费 10 元、三天到。我明天必须收到。",
+      "content": [
+        "推荐近仓，理由是一天到符合时限",
+        "保留 20 元和远仓三天到的取舍"
+      ],
+      "interaction": [
+        "短文或简单比较组件均可；不需要为了使用组件增加确认按钮"
+      ]
+    },
+    {
+      "id": "steps-optional",
+      "presentation": "optional",
+      "topic": "steps",
+      "request": "implicit",
+      "prompt": "这只是合成操作说明：先下载测试清单，再核对数量，最后保存草稿。请帮我整理这三个步骤，不实际操作。",
+      "content": [
+        "三个步骤顺序保留",
+        "保存的是草稿，不能写成提交或发布"
+      ],
+      "interaction": [
+        "短列表或步骤组件均可；不声称已执行"
+      ]
+    },
+    {
+      "id": "status-short",
+      "presentation": "short",
+      "topic": "status",
+      "request": "implicit",
+      "prompt": "只用一句话回答：合成记录 status=partial 是什么意思？",
+      "content": [
+        "表示只返回部分数据，不能视为已完成",
+        "一句话即可"
+      ],
+      "interaction": [
+        "无 render_ui 调用、无 dsh-ui 块、无按钮"
+      ]
+    },
+    {
+      "id": "inventory-short",
+      "presentation": "short",
+      "topic": "inventory",
+      "request": "implicit",
+      "prompt": "仅回答数字和单位。虚构库存 40 箱，安全库存 60 箱，还差多少？",
+      "content": [
+        "20 箱"
+      ],
+      "interaction": [
+        "无 render_ui 调用、无 dsh-ui 块、无按钮"
+      ]
+    },
+    {
+      "id": "ranking-short",
+      "presentation": "short",
+      "topic": "ranking",
+      "request": "implicit",
+      "prompt": "只告诉我谁第一，不用表格：测试门店北店 80 单、南店 120 单、东店 95 单。",
+      "content": [
+        "南店"
+      ],
+      "interaction": [
+        "无 render_ui 调用、无 dsh-ui 块、无按钮"
+      ]
+    }
+  ]
+}

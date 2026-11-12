@@ -4,7 +4,7 @@
    sizes/gaps/radii (17 font sizes, 6 radii, 10+ gap values, 13 tint levels)
    into five scales:
 
-   · type      mega 52 / stat-hero 44 / stat 34 / display 28 / h1 24 / h2 19 /
+   · type      mega 52 / stat-hero 44 / stat host-scaled / display 28 / h1 24 / h2 19 /
                h3 16 / body 14.5 / title 13.5 / meta 12.5 / data 12 (v11)
    · spacing   4 · 8 · 12 · 16 · 24 (--dsl-g-gap-*; 24 is the section step)
    · motion    fast 0.15s / grow 0.6s / reveal 0.45s on one ease-out curve (v11)
@@ -56,14 +56,7 @@ body[data-ds-dark-theme] .panel {
   --dsl-g-radius-sm: 6px;
   --dsl-g-radius-pill: 999px;
 
-  /* Design system v4: the v3 scale was too compressed — every level sat
-     within 26..12px, so nothing dominated. v4 restores a display contrast
-     (34/28/24/19/16) against a 14.5px body, and the reading floor stays 12px.
-     v11 names the three big figures by their OWNER: stat values, the single
-     hero stat, and the hero cover's mega figure are three different jobs on
-     one scale (before v11: "--dsl-g-font-hero", a bare 44px and a bare 52px).
-     宿主内容字号超过 17px 后按比例放大；原字号作为下限，保留默认设置下的层级。 */
-  --dsl-g-font-stat: max(34px, calc(var(--dsh-content-font-size, 14px) * 2));
+  --dsl-g-font-stat: max(22px, calc(var(--dsh-content-font-size, 14px) * 1.65));
   --dsl-g-font-stat-hero: max(44px, calc(var(--dsh-content-font-size, 14px) * 2.588235294));
   --dsl-g-font-mega: max(52px, calc(var(--dsh-content-font-size, 14px) * 3.058823529));
   --dsl-g-font-display: max(28px, calc(var(--dsh-content-font-size, 14px) * 1.647058824));
@@ -72,7 +65,7 @@ body[data-ds-dark-theme] .panel {
   --dsl-g-font-h3: max(16px, calc(var(--dsh-content-font-size, 14px) * 0.941176471));
   --dsl-g-font-body: max(14.5px, calc(var(--dsh-content-font-size, 14px) * 0.852941176));
   --dsl-g-font-title: max(13.5px, calc(var(--dsh-content-font-size, 14px) * 0.794117647));
-  --dsl-g-font-meta: max(12.5px, calc(var(--dsh-content-font-size, 14px) * 0.735294118));
+  --dsl-g-font-meta: max(12.5px, calc(var(--dsh-content-font-size, 14px) * 0.75));
   --dsl-g-font-data: max(12px, calc(var(--dsh-content-font-size, 14px) * 0.705882353));
 
   --dsl-g-gap-lg: 16px;
@@ -681,8 +674,6 @@ img.mediaPlayer { aspect-ratio: 16 / 9; object-fit: cover; background: var(--dsl
   display: flex;
   flex-direction: column;
   gap: 4px;
-  /* Metric card: the number IS the design. No accent stripe, no bar — the
-     40px figure against a 12px uppercase label carries the hierarchy. */
   padding: 14px 16px 15px;
   border: 1px solid var(--dsl-g-border-surface);
   border-radius: var(--dsl-g-radius-surface);
@@ -717,7 +708,7 @@ img.mediaPlayer { aspect-ratio: 16 / 9; object-fit: cover; background: var(--dsl
 .statHero { padding: 18px 20px 20px; }
 .statHero .statValue { font-size: var(--dsl-g-font-stat-hero); line-height: 1.02; letter-spacing: -0.035em; }
 .statHero .statLabel { font-size: var(--dsl-g-font-title); }
-.grid > .stat, .row > .stat { border-left: 1px solid var(--dsl-g-border); }
+.grid > .stat, .row > .stat { border-left: 1px solid var(--dsl-g-border); align-self: stretch; }
 .statLabel {
   font-size: var(--dsl-g-font-meta);
   color: var(--dsw-alias-label-secondary);
@@ -740,15 +731,20 @@ img.mediaPlayer { aspect-ratio: 16 / 9; object-fit: cover; background: var(--dsl
   line-height: 1.05;
   overflow-wrap: anywhere;
 }
-/* Unit suffix (%, GB, k, ms): same baseline, half the size, muted — the
-   number keeps the weight. This is the real typography win in v5. */
 .statUnit {
-  font-size: 0.5em;
+  font-size: max(12px, calc(var(--dsh-content-font-size, 14px) * 0.75), 0.5em);
   font-weight: 600;
   letter-spacing: 0;
   color: var(--dsw-alias-label-secondary);
 }
-.statHero .statUnit { font-size: 0.46em; }
+.statHero .statUnit { font-size: max(12px, calc(var(--dsh-content-font-size, 14px) * 0.75), 0.46em); }
+.statValue.statText {
+  display: block;
+  font-size: max(14px, calc(var(--dsh-content-font-size, 14px) * 0.95));
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
 .statDelta {
   font-size: var(--dsl-g-font-meta);
   font-weight: 600;

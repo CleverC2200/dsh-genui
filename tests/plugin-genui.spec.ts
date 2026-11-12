@@ -121,23 +121,20 @@ describe('genui:fence section', () => {
     }
   })
 
-  it('carries a judgment, not a component quota', async () => {
-    // The quota ("默认就该出 UI", "≥3 条要点就出 list", "一条回答 3–8 个组件")
-    // shaped every answer into the same skeleton. The replacement is one
-    // question; a reintroduced count is a regression, so it is asserted here.
+  it('guides useful business overviews while preserving narrow answers', async () => {
     const assembly = await assemble()
     const section = assembly.sections.find(s => s.name === 'genui:fence')
     const text = typeof section!.text === 'string' ? section!.text : ''
-    expect(text).toContain('删掉这个组件，读者会不会更费劲')
-    for (const quota of ['默认就该出 UI', '3–8 个组件', '最后自检一次']) {
-      expect(text).not.toContain(quota)
-    }
+    expect(text).toMatch(/状态总览.*库存对比.*排行.*用组件/)
+    expect(text).toContain('简单建议或短步骤可用正文或组件')
+    expect(text).toContain('单个状态含义、差额或第一名直接短答')
+    expect(text).toContain('渲染器负责字号和间距')
   })
 
   it('keeps the skill a reference instead of a menu', async () => {
     const skill = readFileSync('SKILL.md', 'utf8')
-    expect(skill).toContain('删掉这个组件，读者会不会更费劲')
-    expect(skill).toContain('没有配额，也没有硬触发')
+    expect(skill).toContain('状态总览、库存对比、排行')
+    expect(skill).toContain('简单建议或短步骤可用正文或组件')
     for (const quota of ['硬触发（出现就至少出一个围栏', '从成套结构出发']) {
       expect(skill).not.toContain(quota)
     }
