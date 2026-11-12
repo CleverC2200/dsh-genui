@@ -37,3 +37,55 @@ jobs:
           name: dsh-genui-package
           path: ${{ steps.pack.outputs.tarball }}
           retention-days: 7
+
+  browser-presentation:
+    if: github.repository == 'CleverC2200/dsh-genui'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BROWSER_BIN: google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check real browser newline layout and selection
+        run: node scripts/check-text-newlines-browser.mjs
+      - name: Check host content font size in real browser
+        run: node scripts/check-content-font-size-browser.mjs
+      - name: Check optional table wrapping in real browser
+        run: node scripts/check-table-wrap-browser.mjs
+      - name: Check semantic block contrast in real browser
+        run: node scripts/check-blocks-theme-browser.mjs
+      - name: Check native interaction state in real browser
+        run: node scripts/check-interaction-state-browser.mjs
+      - name: Check step marker line height in real browser
+        run: node scripts/check-steps-marker-browser.mjs
+      - name: Check business presentation in real browser
+        run: node scripts/check-business-presentation-browser.mjs
+      - name: Archive synthetic browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: company-browser-presentation
+          retention-days: 7
+          include-hidden-files: true
+          path: |
+            .e2e-artifacts/text-newlines/*.png
+            .e2e-artifacts/text-newlines/*.json
+            .e2e-artifacts/table-wrap/*.png
+            .e2e-artifacts/table-wrap/*.json
+            .e2e-artifacts/blocks-theme/*.png
+            .e2e-artifacts/blocks-theme/*.json
+            .e2e-artifacts/interaction-state/*.png
+            .e2e-artifacts/interaction-state/*.json
+            .e2e-artifacts/steps-marker/*.png
+            .e2e-artifacts/steps-marker/*.json
+            .e2e-artifacts/business-presentation/*.png
+            .e2e-artifacts/business-presentation/result.json
+          if-no-files-found: ignore
