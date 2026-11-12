@@ -11,6 +11,15 @@ const tool = createRenderUiTool()
 const text = (content: string) => ({ type: 'text', content })
 
 describe('render_ui tool definition', () => {
+  it('keeps presentation guidance visible without a global prompt section', () => {
+    for (const definition of [tool, createValidateDshUiTool()]) {
+      expect(definition.description).toMatch(/状态总览.*库存对比.*排行.*用组件/)
+      expect(definition.description).toContain('单个状态含义、差额或第一名直接短答')
+      expect(definition.description).toContain('渲染器负责字号和间距')
+    }
+    expect(JSON.stringify(tool.parameters)).not.toContain('USE THIS whenever')
+  })
+
   it('registers under the render_ui name with an open spec argument', () => {
     expect(tool.name).toBe('render_ui')
     expect(typeof tool.description).toBe('string')
