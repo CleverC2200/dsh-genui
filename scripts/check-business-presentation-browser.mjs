@@ -128,7 +128,7 @@ try {
       if (delta) {
         check(delta.textContent === item.delta && visible(delta), 'content', item.delta)
         check(font(delta) >= readingFloor - .1, 'reading-text', { delta:item.delta, font:font(delta), readingFloor })
-        if (!/^[+−-]\s*\d/.test(item.delta)) {
+        if (item.delta !== '+3.2%') {
           const s = getComputedStyle(delta)
           check(!/success|(?:^|[ _])up(?:[ _]|$)/i.test(delta.className) && s.color !== 'rgb(24, 128, 56)' && s.color !== 'rgb(31, 157, 99)', 'neutral-status', { text:item.delta, color:s.color, className:delta.className })
         } else if (item.delta === '+3.2%') {
@@ -182,15 +182,16 @@ try {
     }
     results.push({ id, width, hostFontSize, deviceScaleFactor:1, screenshot, input:fixtures.specs[id], ...result, events:await evaluate('window.genuiPresentation.events') })
   }
-  await evaluate(`window.genuiPresentation.mount(${JSON.stringify({ items:[{type:'grid',cols:2,items:[{type:'text',content:'Short'},{type:'text',content:'A longer nonstat item that occupies multiple lines at this width. '.repeat(6)}]},{type:'stat',label:'Numeric prefix status',value:'2 pages remain to be read'},{type:'stat',label:'Currency amount',value:'¥1,024'},{type:'stat',label:'Compact number',value:'1.2k'},{type:'stat',label:'Scientific notation',value:'1e6'},{type:'stat',label:'Localized decimal',value:'1,6328 $'}] })}, {width:960,hostFontSize:17})`)
+  await evaluate(`window.genuiPresentation.mount(${JSON.stringify({ items:[{type:'grid',cols:2,items:[{type:'text',content:'Short'},{type:'text',content:'A longer nonstat item that occupies multiple lines at this width. '.repeat(6)}]},{type:'stat',label:'Numeric prefix status',value:'2 pages remain to be read'},{type:'stat',label:'Currency amount',value:'¥1,024'},{type:'stat',label:'Compact number',value:'1.2k'},{type:'stat',label:'Scientific notation',value:'1e6'},{type:'stat',label:'Localized decimal',value:'1,6328 $'},{type:'stat',label:'Bottle count',value:'20 瓶'},{type:'stat',label:'Transfer rate',value:'8 MB/s'},{type:'stat',label:'Multiplier',value:'3.2x'}] })}, {width:960,hostFontSize:17})`)
   await evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))')
   const compatibility = await evaluate(`(() => {
     const spans=[...document.querySelectorAll('span')]
     const value=label => spans.find(element=>element.textContent===label).nextElementSibling
     const grid=document.querySelector('div[style*="grid-template-columns"]')
     const children=[...grid.children].map(element=>({top:element.getBoundingClientRect().top,height:element.getBoundingClientRect().height}))
-    return { numericPrefix:{text:value('Numeric prefix status').textContent,font:parseFloat(getComputedStyle(value('Numeric prefix status')).fontSize)}, currency:{text:value('Currency amount').textContent,font:parseFloat(getComputedStyle(value('Currency amount')).fontSize)}, compact:{text:value('Compact number').textContent,font:parseFloat(getComputedStyle(value('Compact number')).fontSize)}, scientific:value('Scientific notation').textContent, localized:value('Localized decimal').textContent, children }
+    return { numericPrefix:{text:value('Numeric prefix status').textContent,font:parseFloat(getComputedStyle(value('Numeric prefix status')).fontSize)}, currency:{text:value('Currency amount').textContent,font:parseFloat(getComputedStyle(value('Currency amount')).fontSize)}, compact:{text:value('Compact number').textContent,font:parseFloat(getComputedStyle(value('Compact number')).fontSize)}, scientific:value('Scientific notation').textContent, localized:value('Localized decimal').textContent, metrics:['Bottle count','Transfer rate','Multiplier'].map(label=>({label,text:value(label).textContent,font:parseFloat(getComputedStyle(value(label)).fontSize),units:[...value(label).querySelectorAll('span')].map(element=>({text:element.textContent,font:parseFloat(getComputedStyle(element).fontSize)}))})), children }
   })()`)
+  await writeFile(join(out, 'compatibility.png'), Buffer.from((await command('Page.captureScreenshot', {captureBeyondViewport:true})).data, 'base64'))
   assert.equal(compatibility.numericPrefix.text, '2 pages remain to be read')
   assert.ok(compatibility.numericPrefix.font <= 21.25, 'A numeric prefix must not turn a status sentence into a numeric stat')
   assert.equal(compatibility.currency.text, '¥1,024')
@@ -199,11 +200,40 @@ try {
   assert.ok(compatibility.compact.font >= 22, 'Compact numbers remain numeric stats')
   assert.equal(compatibility.scientific, '1e6')
   assert.equal(compatibility.localized, '1,6328$')
+  for (const [index, expected] of ['20瓶', '8MB/s', '3.2x'].entries()) {
+    const metric = compatibility.metrics[index]
+    assert.equal(metric.text, expected)
+    assert.ok(metric.font >= 22, `${metric.label}: arbitrary metric units retain numeric emphasis`)
+    assert.ok(metric.units.some(unit => unit.font < metric.font), `${metric.label}: unit remains smaller than its number`)
+  }
   assert.ok(Math.abs(compatibility.children[0].top - compatibility.children[1].top) <= 1 && compatibility.children[0].height < compatibility.children[1].height, 'Nonstat grid items retain start alignment')
   assert.deepEqual(await evaluate('window.genuiPresentation.events'), [], 'Compatibility mounts emit no actions')
+  const deltaCases = [
+    { text:'+3.2%', color:'rgb(17, 128, 68)' },
+    { text:'−2%', color:'rgb(176, 36, 36)' },
+    ...['+2 待核对', '+2 pending', '−2 pending', '未完成', '未知'].map(text => ({ text, color:'rgb(78, 83, 92)' })),
+  ]
+  const deltaResults = []
+  for (const type of ['stat', 'hero']) {
+    const items = deltaCases.map(({text}) => type === 'stat'
+      ? {type, label:text, value:'2', delta:text}
+      : {type, title:'Change', value:'2', delta:text})
+    await evaluate(`window.genuiPresentation.mount(${JSON.stringify({items})})`)
+    await waitFor("[...document.querySelectorAll('span')].filter(element => element.className.includes('heroValue')).every(element => element.textContent === '2')", 'numeric change fixture settles')
+    const colors = await evaluate(`(() => {
+      const root = document.querySelector('#root')
+      root.style.setProperty('--dsw-alias-state-success-secondary', '#118044')
+      root.style.setProperty('--dsw-alias-state-error-primary', '#b02424')
+      root.style.setProperty('--dsw-alias-label-secondary', '#4e535c')
+      return [...root.querySelectorAll('span')].filter(element => element.className.includes('statDelta')).map(delta => ({text:delta.textContent, color:getComputedStyle(delta).color}))
+    })()`)
+    await writeFile(join(out, `delta-${type}.png`), Buffer.from((await command('Page.captureScreenshot', {captureBeyondViewport:true})).data, 'base64'))
+    assert.deepEqual(colors, deltaCases, `${type}: only fully numeric changes receive positive or negative colors`)
+    deltaResults.push({type, colors})
+  }
   assert.deepEqual(errors, [], 'Browser runtime errors')
   const failures = results.flatMap(result => result.failures.map(failure => ({ id:result.id, width:result.width, hostFontSize:result.hostFontSize, ...failure })))
-  await writeFile(join(out, 'result.json'), JSON.stringify({ passed:failures.length === 0, browser:version, dataScope:fixtures.dataScope, provenance:fixtures.provenance, results, compatibility, failures }, null, 2) + '\n')
+  await writeFile(join(out, 'result.json'), JSON.stringify({ passed:failures.length === 0, browser:version, dataScope:fixtures.dataScope, provenance:fixtures.provenance, results, compatibility, deltaResults, failures }, null, 2) + '\n')
   console.log(JSON.stringify({ passed:failures.length === 0, cells:results.length, failures:failures.length, criteria:[...new Set(failures.map(failure => failure.criterion))], out }))
   assert.equal(failures.length, 0, `Business presentation criteria failed; see ${join(out, 'result.json')}`)
 } catch (error) {

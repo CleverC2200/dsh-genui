@@ -60,7 +60,7 @@ function splitStatValue(value: string): {
   const match = /^([+\-−]?[\d.,]+(?:[eE][+\-]?\d+)?)\s*(.*)$/.exec(value.trim())
   if (match === null || match[1] === undefined) return text
   const unit = match[2] ?? ''
-  if (!/^(?:[%‰°℃℉$€£¥₹₽]|[kmgtpeµμnu]?(?:[bB](?:ps)?|[wWvVAaHzJjSsMmLlGg])|k|万|亿|ms|sec|min|hrs?|days?|weeks?|months?|years?|USD|CNY|RMB|EUR|GBP|JPY|KiB|MiB|GiB|TiB|箱|件|个|笔|行|条|人|户|台|套|份|张|次|天|小时|分钟|秒|元|万元|亿元|吨|公斤|千克|克|米|千米|平方米|立方米)?$/i.test(unit)) return text
+  if (!/^[\p{L}\p{N}\p{Sc}%‰°℃℉]*(?:[/·⋅^][\p{L}\p{N}]+)*$/u.test(unit)) return text
   const raw = match[1]
   // A comma is a thousands separator only in the unambiguous grouped shape
   // (`1,234`, `1,632.80`). Anywhere else it is a decimal separator — ru/de/fr
@@ -76,6 +76,12 @@ function splitStatValue(value: string): {
     : undefined
   const decimals = plain.includes('.') ? (plain.split('.')[1] ?? '').length : 0
   return { num: raw, unit, isNumeric: true, numeric, decimals: Math.min(decimals, 4) }
+}
+
+function statDeltaTone(delta: string | undefined) {
+  const change = /^([+\-−])\s*(?:\d+(?:[.,]\d+)?|\d{1,3}(?:,\d{3})+(?:\.\d+)?)\s*[%‰]?$/.exec(delta?.trim() ?? '')
+  if (!change) return ''
+  return change[1] === '+' ? css.up : css.down
 }
 
 /**
@@ -439,9 +445,6 @@ function renderNodeBody(
     case 'hero': {
       const tone = node.tone ?? 'accent'
       const heroTone = css[`hero${tone[0]!.toUpperCase()}${tone.slice(1)}`] ?? ''
-      const heroDeltaTone = node.delta !== undefined && /^[+\-−]\s*\d/.test(node.delta)
-        ? /^[\-−]/.test(node.delta) ? css.down : css.up
-        : ''
       return (
         <div key={key} className={`${css.hero} ${heroTone}`}>
           {node.label !== undefined && <span className={css.heroLabel}>{renderInline(node.label, false)}</span>}
@@ -450,7 +453,7 @@ function renderNodeBody(
               <span className={css.heroValue}><AnimatedValue value={node.value} unitClass={css.heroUnit} animate /></span>
             )}
             {node.delta !== undefined && (
-              <span className={`${css.statDelta} ${heroDeltaTone}`}>{renderInline(node.delta)}</span>
+              <span className={`${css.statDelta} ${statDeltaTone(node.delta)}`}>{renderInline(node.delta)}</span>
             )}
             {node.spark !== undefined && <span className={css.heroSpark}><Sparkline values={node.spark} /></span>}
           </div>
@@ -460,9 +463,6 @@ function renderNodeBody(
       )
     }
     case 'stat': {
-      const deltaTone = node.delta !== undefined && /^[+\-−]\s*\d/.test(node.delta)
-        ? /^[\-−]/.test(node.delta) ? css.down : css.up
-        : ''
       const numeric = splitStatValue(node.value).isNumeric
       return (
         <div key={key} className={`${css.stat}${node.size === 'hero' ? ` ${css.statHero}` : ''}`}>
@@ -470,7 +470,7 @@ function renderNodeBody(
           <span className={`${css.statValue}${numeric ? '' : ` ${css.statText}`}`}>
             <AnimatedValue value={node.value} animate={node.size === 'hero'} />
           </span>
-          {node.delta !== undefined && <span className={`${css.statDelta} ${deltaTone}`}>{renderInline(node.delta)}</span>}
+          {node.delta !== undefined && <span className={`${css.statDelta} ${statDeltaTone(node.delta)}`}>{renderInline(node.delta)}</span>}
           {node.spark !== undefined && <Sparkline values={node.spark} />}
         </div>
       )

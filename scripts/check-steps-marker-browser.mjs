@@ -151,7 +151,8 @@ try {
           check(sample.titleClear, `${label}: marker/title overlap or clipped title`)
           // Only marker leading changes; readable title/description leading stays intact.
           check(Math.abs(sample.titleLineHeight / Math.max(14.5, sample.hostFont * 0.852941176) - 1.45) < 0.01, `${label}: title leading changed`)
-          check(Math.abs(sample.descLineHeight / Math.max(12.5, sample.hostFont * 0.735294118) - 1.55) < 0.01, `${label}: description leading changed`)
+          check(sample.descFont >= 12 && sample.descFont >= sample.hostFont * 0.75 - 0.01, `${label}: description font below readable floor`)
+          check(Math.abs(sample.descLineHeight / sample.descFont - 1.55) < 0.01, `${label}: description leading changed`)
           const peer = results.samples.find(other => other.hostFont === sample.hostFont && other.state === sample.state && other.text === sample.text && other.hostLineHeight !== sample.hostLineHeight)
           check(Math.abs(sample.textCenterOffset - peer.textCenterOffset) < 0.05, `${label}: body leading moves text`)
         }

@@ -88,4 +88,5 @@ jobs:
             .e2e-artifacts/steps-marker/*.json
             .e2e-artifacts/business-presentation/*.png
             .e2e-artifacts/business-presentation/result.json
+            .e2e-artifacts/business-presentation/failure.json
           if-no-files-found: ignore
