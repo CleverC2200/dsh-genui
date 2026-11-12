@@ -46,22 +46,21 @@ function isListItemNode(item: GenuiList['items'][number]): item is GenuiNode {
   return typeof item === 'object' && item !== null && 'type' in item
 }
 
-/**
- * Split a stat value into its numeric core and unit suffix so the unit can
- * render at half size on the same baseline (`99.96%` → `99.96` + `%`,
- * `6.8 GB` → `6.8` + `GB`). Values that do not start with a number are left
- * whole.
- */
 function splitStatValue(value: string): {
   num: string
   unit: string
+  isNumeric: boolean
   /** Parsed number when the numeric core is a plain decimal (for count-up). */
   numeric: number | undefined
   /** Decimal places to keep while animating. */
   decimals: number
 } {
+  const text = { num: value, unit: '', isNumeric: false, numeric: undefined, decimals: 0 }
+  if (/^(?:[¥$€£₹₽]\s*[+\-−]?[\d.,]+|[+\-−]?[\d.,]+\s*[/／]\s*[+\-−]?[\d.,]+)$/.test(value.trim())) return { ...text, isNumeric: true }
   const match = /^([+\-−]?[\d.,]+(?:[eE][+\-]?\d+)?)\s*(.*)$/.exec(value.trim())
-  if (match === null || match[1] === undefined) return { num: value, unit: '', numeric: undefined, decimals: 0 }
+  if (match === null || match[1] === undefined) return text
+  const unit = match[2] ?? ''
+  if (!/^(?:[%‰°℃℉$€£¥₹₽]|[kmgtpeµμnu]?(?:[bB](?:ps)?|[wWvVAaHzJjSsMmLlGg])|k|万|亿|ms|sec|min|hrs?|days?|weeks?|months?|years?|USD|CNY|RMB|EUR|GBP|JPY|KiB|MiB|GiB|TiB|箱|件|个|笔|行|条|人|户|台|套|份|张|次|天|小时|分钟|秒|元|万元|亿元|吨|公斤|千克|克|米|千米|平方米|立方米)?$/i.test(unit)) return text
   const raw = match[1]
   // A comma is a thousands separator only in the unambiguous grouped shape
   // (`1,234`, `1,632.80`). Anywhere else it is a decimal separator — ru/de/fr
@@ -76,7 +75,7 @@ function splitStatValue(value: string): {
     ? parsed
     : undefined
   const decimals = plain.includes('.') ? (plain.split('.')[1] ?? '').length : 0
-  return { num: raw, unit: match[2] ?? '', numeric, decimals: Math.min(decimals, 4) }
+  return { num: raw, unit, isNumeric: true, numeric, decimals: Math.min(decimals, 4) }
 }
 
 /**
@@ -440,7 +439,9 @@ function renderNodeBody(
     case 'hero': {
       const tone = node.tone ?? 'accent'
       const heroTone = css[`hero${tone[0]!.toUpperCase()}${tone.slice(1)}`] ?? ''
-      const heroDown = node.delta !== undefined && node.delta.startsWith('-')
+      const heroDeltaTone = node.delta !== undefined && /^[+\-−]\s*\d/.test(node.delta)
+        ? /^[\-−]/.test(node.delta) ? css.down : css.up
+        : ''
       return (
         <div key={key} className={`${css.hero} ${heroTone}`}>
           {node.label !== undefined && <span className={css.heroLabel}>{renderInline(node.label, false)}</span>}
@@ -449,7 +450,7 @@ function renderNodeBody(
               <span className={css.heroValue}><AnimatedValue value={node.value} unitClass={css.heroUnit} animate /></span>
             )}
             {node.delta !== undefined && (
-              <span className={`${css.statDelta} ${heroDown ? css.down : css.up}`}>{renderInline(node.delta)}</span>
+              <span className={`${css.statDelta} ${heroDeltaTone}`}>{renderInline(node.delta)}</span>
             )}
             {node.spark !== undefined && <span className={css.heroSpark}><Sparkline values={node.spark} /></span>}
           </div>
@@ -459,14 +460,17 @@ function renderNodeBody(
       )
     }
     case 'stat': {
-      const down = node.delta !== undefined && node.delta.startsWith('-')
+      const deltaTone = node.delta !== undefined && /^[+\-−]\s*\d/.test(node.delta)
+        ? /^[\-−]/.test(node.delta) ? css.down : css.up
+        : ''
+      const numeric = splitStatValue(node.value).isNumeric
       return (
         <div key={key} className={`${css.stat}${node.size === 'hero' ? ` ${css.statHero}` : ''}`}>
           <span className={css.statLabel}>{renderInline(node.label, false)}</span>
-          <span className={css.statValue}>
+          <span className={`${css.statValue}${numeric ? '' : ` ${css.statText}`}`}>
             <AnimatedValue value={node.value} animate={node.size === 'hero'} />
           </span>
-          {node.delta !== undefined && <span className={`${css.statDelta} ${down ? css.down : css.up}`}>{renderInline(node.delta)}</span>}
+          {node.delta !== undefined && <span className={`${css.statDelta} ${deltaTone}`}>{renderInline(node.delta)}</span>}
           {node.spark !== undefined && <Sparkline values={node.spark} />}
         </div>
       )
