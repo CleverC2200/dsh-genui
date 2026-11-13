@@ -2,7 +2,7 @@
 
 本仓库为 [CleverC2200/dsh-genui](https://github.com/CleverC2200/dsh-genui)，基于 [omdsh-dev/dsh-genui v0.16.0](https://github.com/omdsh-dev/dsh-genui/tree/92209256d3c27f99a7b363823f4d654679e97204)，保留上游源码历史、MIT 许可和贡献署名。
 
-插件本体、公司 DSH 兼容性检查和独立构建产物在此维护。GEA 仅引用固定产物并完成宿主装配。维护与验证入口见 [公司 DSH 适配](docs/company-dsh.md)。
+插件本体、公司 DSH 兼容性检查和独立构建产物在此维护。GEA 仅引用固定产物并完成宿主装配。维护与验证入口见 [公司 DSH 适配](docs/company-dsh.md)。公司版本从本仓 [GitHub Release](https://github.com/CleverC2200/dsh-genui/releases) 获取，以下公共 npm、徽章和安装迁移说明属于上游版本，不代表公司 company 产物。
 
 ---
 
@@ -28,7 +28,7 @@
 <p align="center">
   <a href="https://omdsh-dev.github.io/dsh-genui/"><strong>🌐 Live Product Site</strong></a> · 
   <a href="#-real-interface-showcase"><strong>🎬 Real Demo</strong></a> · 
-  <a href="#-quick-start"><strong>🚀 Quick Start</strong></a> · 
+  <a href="#-quick-start-for-the-upstream-npm-version"><strong>🚀 Quick Start</strong></a> ·
   <a href="#-capability-matrix"><strong>🧩 Feature Matrix</strong></a> · 
   <a href="./SKILL.md"><strong>📖 Component Syntax (SKILL.md)</strong></a>
 </p>
@@ -81,12 +81,12 @@ https://github.com/user-attachments/assets/f5db33ec-7471-4d4a-a85b-79c9962ab4ef
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start for the upstream npm version
 
 ### 1. Prerequisites
 
 Ensure your environment meets the following requirements:
-- **DSH Version**: `^0.2.0-rc.1 || ^0.2.1-rc.1 || ^0.2.2-alpha.2`. Packed browser acceptance covers `0.2.0-rc.1`, `0.2.1-rc.3` and the exact npm hosts `0.2.2-rc.1` (current `latest` / `next`) and `0.2.2-alpha.2`; `0.2.1-rc.4` and `0.2.1-rc.5` retain separate public-API, full-unit-suite and build checks. The current RC and alpha hosts require **Node.js >=24.9.0**. Its gallery, computed-field and Map acceptance uses official local replay; third-party sidebar integration is checked on rc.3.
+- **DSH Version**: `^0.2.0-rc.1 || ^0.2.1-rc.1 || ^0.2.2-alpha.2`. Packed browser acceptance covers `0.2.0-rc.1`, `0.2.1-rc.3` and the exact npm hosts `0.2.2-rc.1` (pinned upstream acceptance input) and `0.2.2-alpha.2`; `0.2.1-rc.4` and `0.2.1-rc.5` retain separate public-API, full-unit-suite and build checks. The current RC and alpha hosts require **Node.js >=24.9.0**. Its gallery, computed-field and Map acceptance uses official local replay; third-party sidebar integration is checked on rc.3.
 - **pnpm on PATH**: The `dsh plugin` CLI requires pnpm. If missing: run `corepack enable` or `npm i -g pnpm`, then **open a new terminal** and confirm `pnpm -v` prints a version number.
 
 ### 2. Install & Activate
@@ -386,7 +386,7 @@ DSH plugin management calls `pnpm` under the hood. Run `corepack enable` or `npm
 <details>
 <summary><strong>Q: npm install returns 404?</strong></summary>
 
-The package is public and requires no login. Verify the package name via `npm view @changfenhuang/dsh-genui version`. If a version was published very recently, allow a few moments for registry mirrors to synchronize.
+The upstream npm package is public and requires no login; company artifacts follow [Company DSH](docs/company-dsh.md). Verify the package name via `npm view @changfenhuang/dsh-genui version`. If a version was published very recently, allow a few moments for registry mirrors to synchronize.
 </details>
 
 <details>

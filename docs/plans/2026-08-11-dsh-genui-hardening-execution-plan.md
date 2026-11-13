@@ -1,6 +1,12 @@
 # DSH GenUI 稳定性、性能与发布加固执行计划
 
-> 状态：可执行
+> 状态：历史计划，已被后续决定部分覆盖，不作为当前执行入口
+>
+> 原文及当时风险保留于[固定提交 7875eee](https://github.com/CleverC2200/dsh-genui/blob/7875eee360e834e4529887ecf1117c1dcd54eece/docs/plans/2026-08-11-dsh-genui-hardening-execution-plan.md)。下文“必须”“可复制执行提示”及修改 DSH 主仓的步骤均属于原计划，不授予当前修改 Core 或上游的权限。
+>
+> 当前开发归属见[公司 DSH 适配](../company-dsh.md)。原 password 删除要求已被[后续设计决定](2026-08-12-dsh-genui-design-optimization.md)覆盖；实际类型与不同出口语义以 [spec](../../src/client/spec.ts)、[guard](../../src/client/guard.ts)及[边界测试](../../tests/genui-boundaries.spec.tsx)为准，不按旧计划删除现有能力。
+>
+> 原失败、Billing 阻塞、用户 WIP、独立环境和未完成验收继续按原输入保留。本次只标明历史范围，没有重跑原验收或关闭缺口。
 > 审计基线：插件仓 `1aade42fd73c087b3f3bd7284da5c470285f0c6e`（`0.3.4`）；执行仍须重新 fetch 最新远端
 > 执行者：DSH
 > 计划日期：2026-08-11 至 2026-08-12
@@ -958,6 +964,6 @@ PLUGIN_SHA = 含 0.4.0 版本、changelog、锁文件和确定构建产物的插
 
 不要只说“测试通过”或“功能已修复”；必须分别给出插件 SHA、宿主 SHA 和能复现的证据。
 
-## 12. 可直接交给 DSH 的执行指令
+## 12. 历史执行指令，仅保留原输入，不用于当前执行
 
 > 严格执行 `docs/plans/2026-08-11-dsh-genui-hardening-execution-plan.md`。先从插件和 DSH 主仓最新远端分别建立干净独立 worktree；保留主工作区现有本地提交 `692a2b7` 与未提交 `scripts/e2e.mjs` onboarding WIP，不得 reset、覆盖或自动 cherry-pick。按阶段 0→6 串行推进：先完成带真实 `context.sessionId` 的 DSH settled FenceSource 契约，再改插件事务式、定序且有固定上限的 panel operation 模型；不要使用全局 active session、随机 ID、内容哈希、Infinity、兼容层或到达顺序。每阶段完成全部定向测试、全量测试和规定验收后再进入下一阶段。所有浏览器/E2E 使用独立 DSH_HOME、临时工作区、空闲端口、headless Chrome 和目标宿主 checkout 构建出的绝对 DSH_BIN，禁止触碰活跃 3080 服务、PATH 上的旧 dsh 或 broad pkill。发布证据必须分别记录插件 SHA 与宿主 SHA；未获肠粉明确授权，不合并、不打 tag、不发布。CI Billing、宿主合并或权限阻塞必须如实报告，不能跳过后宣称完成。
