@@ -1,11 +1,6 @@
 {
   "assets": [
     {
-      "path": "tests/fixtures",
-      "kind": "fixture",
-      "source": "tests/"
-    },
-    {
       "path": "site/assets/index-CbA0uR5g.js",
       "kind": "generated",
       "source": "site/index.html"
