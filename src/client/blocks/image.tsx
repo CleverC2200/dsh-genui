@@ -4,7 +4,6 @@ import css from '../GenuiBlock.module.css'
 import { useT } from '../i18n/index.ts'
 import type { GenuiImage } from '../spec.ts'
 
-/** Native image display; source safety is enforced by repairGenuiSpec/safeMediaSrc. */
 export function ImageNode({ node }: { node: GenuiImage }): ReactNode {
   const t = useT()
   const [failed, setFailed] = useState(false)

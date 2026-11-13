@@ -1,9 +1,3 @@
-/**
- * 中文词典 — 与 en.ts 的键集完全一致（类型强制：缺键/多键都是编译错误）。
- *
- * 这些文案原本硬编码在组件里；此处保留原有措辞，仅把它们搬进词典，
- * 因此中文用户看到的界面与 0.11.0 之前逐字相同。
- */
 import type { EN } from './en.ts'
 
 export const ZH: Record<keyof typeof EN, string> = {
@@ -22,7 +16,7 @@ export const ZH: Record<keyof typeof EN, string> = {
   'map.empty': '暂无有效地点。',
   'map.locations': '选择地点',
   'map.routes': '路线坐标',
-  // --------------------------------------------------------- 成果文件
+
   'artifact.export': '导出',
   'artifact.exportHtml': 'HTML',
   'artifact.exportJson': 'GenUI JSON',
@@ -30,7 +24,6 @@ export const ZH: Record<keyof typeof EN, string> = {
   'artifact.unsupportedCustom': '无法导出 HTML：独立运行环境无法显示自定义组件 {types}。可导出 GenUI JSON 保存这些节点。',
   'artifact.externalMediaNotice': '此页面含有外部媒体，离线打开时部分内容可能无法显示。',
 
-  // ---------------------------------------------------------------- panel
   'panel.badge': '面板',
   'panel.title.default': 'GenUI 面板',
   'panel.title.explore': 'GenUI 探索',
@@ -46,7 +39,6 @@ export const ZH: Record<keyof typeof EN, string> = {
   'panel.boundary': '面板',
   'panel.flash.inserted': '指令已插入输入框，发送即可让模型生成',
 
-  // -------------------------------------------------------- panel command
   'panel.cmd.hint': '开启 GenUI 面板；/panel <指令> 让模型定制；/panel clear 清空',
   'panel.cmd.description': '开启 GenUI 面板（/panel clear 清空；/panel <指令> 定制内容）',
   'panel.default.heading': 'GenUI 生成式界面',
@@ -64,7 +56,6 @@ export const ZH: Record<keyof typeof EN, string> = {
   'panel.default.callout.title': '更新方式',
   'panel.default.callout.body': '对话说「更新面板」→ 模型输出 panel:true 围栏；/panel clear 清空面板。',
 
-  // ------------------------------------------------------ template center
   'tpl.category.all': '全部',
   'tpl.category.dashboard': '仪表盘',
   'tpl.category.data': '数据',
@@ -237,7 +228,6 @@ export const ZH: Record<keyof typeof EN, string> = {
   'tpl.breadcrumb.demo.title': '目录结构（示例）',
   'tpl.breadcrumb.demo.workspace': '工作区',
 
-  // ------------------------------------------------------- achievements
   'ach.page.title': 'GenUI 探索成就',
   'ach.stat.unlocked': '已解锁',
   'ach.stat.rendered': '渲染界面',
@@ -275,7 +265,6 @@ export const ZH: Record<keyof typeof EN, string> = {
   'ach.template-1.name': '模板学员',
   'ach.template-1.desc': '从模板中心试用了一个模板。',
 
-  // ------------------------------------------------- primitive chrome
   'label.copyViewText': '查看文本',
   'label.copyHideText': '收起文本',
   'label.copyPreviewTruncated': '预览已截断，复制仍包含组件的完整文本。',
@@ -302,7 +291,6 @@ export const ZH: Record<keyof typeof EN, string> = {
   'label.expandNode': '展开 JSON 节点',
   'label.copyButtonTitle': '{action}；右键查看复制选项',
 
-  // ------------------------------------------------- component chrome
   'block.copyMarkdown': '复制 Markdown',
   'block.copyCsv': '复制 CSV',
   'block.table.expandDetails': '展开 {label} 的明细',
@@ -364,12 +352,10 @@ export const ZH: Record<keyof typeof EN, string> = {
   'block.chart.donutSummary': '环形图，{count} 项，合计 {total}',
   'block.chart.node': '节点',
 
-  // ------------------------------------------------------ action prompt
   'action.inline': '[genui-action] {action}。用户刚刚在界面中触发了动作 "{action}"，请根据组件数据执行相应操作，并用 dsh-ui 输出更新后的界面。{payload}',
   'action.panel': '[genui-action] {action}。用户刚刚在面板中触发了动作 "{action}"，请根据组件数据执行相应操作，只输出一个 panel:true 的 dsh-ui 围栏来更新面板，回复文本至多一行 10 字以内的确认（如"已刷新"），不要解释、不要普通围栏。{payload}',
   'action.payload': ' 组件数据: {json}',
 
-  // ------------------------------------------------------------- 图示
   'dgm.legend': '图例',
   'dgm.legend.focal': '焦点',
   'dgm.legend.backend': '后端',
@@ -401,7 +387,6 @@ export const ZH: Record<keyof typeof EN, string> = {
   'block.datePicker.invalidDate': '日期必须处于可选范围内。',
   'block.segmentedControl': '选择一个选项',
 
-  // -------------------------------------------------------- error text
   'err.boundary.generic': '此界面',
   'err.boundary.fence': '该界面',
   'err.boundary.body': '⚠️ {label}渲染失败（已隔离，不影响其他内容）',

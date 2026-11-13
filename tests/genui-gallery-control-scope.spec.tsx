@@ -5,8 +5,7 @@ import { GenuiBlock } from '../src/client/GenuiBlock.tsx'
 import css from '../src/client/blocks/gallery.module.css'
 
 const source = readFileSync('src/client/blocks/gallery.module.css', 'utf8')
-// jsdom does not evaluate media queries/layout. Parse the real source rules,
-// apply only the tested media branch, and match them against real component markup.
+
 const style = document.createElement('style')
 style.textContent = source
 document.head.append(style)
@@ -22,7 +21,7 @@ function declarations(element: Element, hoverNone = false, reducedMotion = false
         if ((rule.conditionText === '(hover: none)' && hoverNone)
           || (rule.conditionText === '(prefers-reduced-motion: reduce)' && reducedMotion)) visit([...rule.cssRules])
       } else if (rule instanceof CSSStyleRule) {
-        if (rule.selectorText.includes('::')) continue // Pseudo-elements do not style the button itself.
+        if (rule.selectorText.includes('::')) continue
         const selector = rule.selectorText.replace(/\.([a-zA-Z][\w-]*)/g, (_, name: string) => `.${css[name] ?? name}`)
         if (!element.matches(selector)) continue
         for (let index = 0; index < rule.style.length; index++) {

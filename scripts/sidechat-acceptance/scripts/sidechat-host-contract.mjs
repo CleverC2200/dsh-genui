@@ -1,4 +1,3 @@
-/** Dependency-free preflight/lifetime contracts only. No host is launched here. */
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFile, realpath, stat } from 'node:fs/promises'
@@ -76,8 +75,7 @@ export function sidechatSmokeEnvironment(source, ownedRoot) {
   assert.ok(isAbsolute(ownedRoot), 'Fresh owned root must be absolute')
   const allow = new Set(['PATH', 'LANG', 'LANGUAGE', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TERM',
     'NODE_EXTRA_CA_CERTS', 'SSL_CERT_FILE', 'SSL_CERT_DIR'])
-  // No inherited HOME, config, provider key, DSH_* or NODE_OPTIONS. Loopback
-  // calls must not inherit proxies that could send generated auth off-host.
+
   return {
     ...Object.fromEntries(Object.entries(source).filter(([key]) => allow.has(key))),
     HOME: join(ownedRoot, 'tool-home'), DSH_HOME: join(ownedRoot, 'home'),
@@ -112,7 +110,6 @@ export function childActionText(action, payload) {
   return `[genui-action] ${action} ${JSON.stringify(payload)}`
 }
 
-/** Only locally registered owned cleanup callbacks run; never closes browser. */
 export async function withOwnedResources(work) {
   assert.equal(typeof work, 'function', 'Work callback required')
   const closers = []

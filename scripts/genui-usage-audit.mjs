@@ -1,25 +1,5 @@
 #!/usr/bin/env node
-/**
- * GenUI adoption audit — reads the local DSH session logs and reports how
- * often the model actually emits ```dsh-ui fences, which components it uses,
- * and how many fence bodies fail to parse.
- *
- * Why: adoption was measured once by hand (391 sessions, 8586 assistant text
- * blocks, 796 fences). This script makes that repeatable, so a prompt change
- * (or a model change) can be judged on data instead of impressions.
- *
- * Usage:
- *   node scripts/genui-usage-audit.mjs [--dir ~/.dsh/sessions] [--days 14] [--json]
- *
- * Notes:
- * - Session logs are multi-frame zstd JSONL. The `zstd` CLI decodes all
- *   frames; the node:zlib fallback reads only the first frame, so install
- *   zstd for a complete scan (the script says so when it falls back).
- * - "Long answer" = one assistant text block longer than 600 characters —
- *   the population where structured output is expected.
- * - Parse failures are an UPPER BOUND: the plugin's tier-1/tier-2 repair
- *   (src/shared/fence-repair.ts) heals most of them at render time.
- */
+
 import { execFileSync } from 'node:child_process'
 import { readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -66,12 +46,12 @@ const stats = {
   unparseableAfterCommaFix: 0,
   components: {},
   daily: {},
-  /** Layout signatures: distinct component sets per answer. */
+
   signatures: new Map(),
   signatureTotal: 0,
   heroAnswers: 0,
   answersWithMultipleHeroes: 0,
-  /** Per-answer card counts: the "default cardless" rule's measurable proxy. */
+
   echartPresets: {},
   echartRawOption: 0,
   echartUnspecified: 0,
@@ -81,7 +61,6 @@ const stats = {
   undecodable: 0,
 }
 
-/** Count echart node styles: named preset vs raw option. */
 function collectEchart(node) {
   if (node === null || typeof node !== 'object') return
   if (Array.isArray(node)) { for (const item of node) collectEchart(item); return }
@@ -126,9 +105,7 @@ for (const file of files) {
       if (isLong) { stats.longWithFence += 1; daily.longWithFence += 1 }
       stats.fences += matches.length
       daily.fences += matches.length
-      // Layout signature per ANSWER (all its fences): the anti-templating
-      // metric — if a prompt change made every answer the same shape, the
-      // number of distinct signatures drops and the top share climbs.
+
       const answerTypes = new Set()
       const answerBag = {}
       const bagFor = key => answerBag[key] ?? 0
@@ -143,8 +120,7 @@ for (const file of files) {
         if (spec === null) continue
         const bag = {}
         walkTypes(spec, bag)
-        // ECharts preset adoption: preset mode (one line) vs a hand-written
-        // `option` (the 500-byte path the presets exist to replace).
+
         collectEchart(spec)
         for (const [type, count] of Object.entries(bag)) {
           answerTypes.add(type)
@@ -181,8 +157,7 @@ if (AS_JSON) {
   console.log(`长回答（>600 字符）${stats.longBlocks}，其中带围栏 ${stats.longWithFence}`)
   console.log(`原始 JSON 解析失败 ${stats.unparseable}（${pct(stats.unparseable, stats.fences)} 全部围栏）；仅修尾逗号后仍失败 ${stats.unparseableAfterCommaFix}（插件两级修复会再修掉大部分）`)
   if (stats.undecodable > 0) console.log(`⚠ ${stats.undecodable} 个会话文件无法解码（安装 zstd CLI 可完整扫描）`)
-  // Layout diversity: distinct signatures + share of the most common one +
-  // normalised Shannon entropy (1 = every answer a different shape).
+
   const sigs = [...stats.signatures.entries()].sort((a, b) => b[1] - a[1])
   const total = stats.signatureTotal
   if (total > 0) {

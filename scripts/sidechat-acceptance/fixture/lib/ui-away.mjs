@@ -1,7 +1,5 @@
-/** 检查原生界面复用现有空白会话时的会话身份和归属。 */
 import assert from 'node:assert/strict'
 
-/** 检查 UI away 会话绑定是否使用指定会话身份。 */
 export function validateUiAway(binding, awaySessionId) {
   assert.deepEqual(Object.keys(binding ?? {}).sort(), ['sessionId', 'workspaceId'])
   assert.ok(typeof awaySessionId === 'string' && awaySessionId.length > 0)
@@ -10,7 +8,6 @@ export function validateUiAway(binding, awaySessionId) {
   return { sessionId: binding.sessionId, workspaceId: binding.workspaceId }
 }
 
-/** 核对 UI away 绑定到原有空白会话和对应工作区。 */
 export function verifyUiAwayOwnership(binding, header, workspace, ownedCwd, originalIds, awaySessionId) {
   validateUiAway(binding, awaySessionId)
   assert.equal(header.id, binding.sessionId)

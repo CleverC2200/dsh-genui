@@ -3,7 +3,6 @@ import { evaluateComputed, resolveComputedSpec } from '../client/computed.ts'
 import { compileSubmissionRegistry, resolveSubmitState } from '../client/submission-registry.ts'
 import type { NativeState } from './dsh-go-types.ts'
 
-/** One submission snapshot shared by native rendering and dispatch. */
 export function nativeSubmission(spec: GenuiSpec,state: NativeState,groups?: string[]) {
   const registry = compileSubmissionRegistry(resolveComputedSpec(spec,evaluateComputed(spec,state.fields)))
   const answers: Record<string,string> = Object.create(null), fields: Record<string,string> = Object.create(null)

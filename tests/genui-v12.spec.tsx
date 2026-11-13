@@ -1,7 +1,3 @@
-// @vitest-environment jsdom
-// GenUI v1.2/v1.3: chart variants (line/donut/grouped bars), interactive
-// controls (radio/switch/textarea/accordion/copy), and lazy modules
-// (mermaid, scene3d) render from a ```dsh-ui fence without crashing.
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MarkdownText } from './genui-markdown.tsx'
@@ -35,7 +31,7 @@ describe('chart variants', () => {
       ] },
     ] })} />)
     expect(document.body.textContent).toContain('100')
-    // 图例现行格式:`{value} · {pct}%`(charts.tsx 的 donutPct span)。
+
     expect(document.body.textContent).toContain('30 · 30.0%')
   })
 
@@ -89,7 +85,7 @@ describe('interactive controls', () => {
       ] },
     ] })} />)
     expect(screen.getByText('基础信息')).toBeTruthy()
-    expect(screen.getByText('内部内容')).toBeTruthy() // first open by default
+    expect(screen.getByText('内部内容')).toBeTruthy()
     expect(document.body.textContent).not.toContain('高级选项')
     fireEvent.click(screen.getByText('高级'))
     expect(screen.getByText('高级选项')).toBeTruthy()
@@ -108,7 +104,7 @@ describe('lazy advanced components', () => {
     render(<MarkdownText text={fenced({ items: [
       { type: 'mermaid', code: 'graph TD\nA[开始] --> B[结束]' },
     ] })} />)
-    // Either the rendered diagram or the loading fallback appears synchronously.
+
     const hasFallback = document.body.textContent?.includes('渲染中') === true
     expect(document.body.textContent).toContain('graph TD')
     expect(hasFallback || document.querySelector('[data-genui-mermaid]') !== null).toBe(true)
@@ -121,8 +117,7 @@ describe('lazy advanced components', () => {
       ] },
     ] })} />)
     expect(document.querySelector('[data-genui-scene3d]')).not.toBeNull()
-    // jsdom has no WebGL; the loading hint or error state is acceptable, but
-    // the node itself must exist.
+
     expect(document.body.textContent).toContain('立方体')
   })
 })
@@ -167,8 +162,7 @@ describe('v1.4 content structure components', () => {
 })
 
 describe('GenUI v2 event loop', () => {
-  // Actions are trailing-debounced per name (GENUI_ACTION_DEBOUNCE_MS);
-  // assertions advance past the window.
+
   it('fires onGenuiAction when a button with action is clicked', () => {
     vi.useFakeTimers()
     const actions: Array<[string, Record<string, unknown>]> = []
@@ -184,7 +178,7 @@ describe('GenUI v2 event loop', () => {
     fireEvent.click(buttons[0]!)
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(actions).toEqual([['refresh', { type: 'button', label: '刷新' }]])
-    // 无 action 的按钮不触发
+
     fireEvent.click(buttons[1]!)
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(actions).toHaveLength(1)
@@ -214,7 +208,7 @@ describe('GenUI v2 event loop', () => {
       { type: 'button', label: '刷新', action: 'refresh' },
     ] })} />)
     fireEvent.click(container.querySelector('button')!)
-    // No provider: nothing to observe; the click must not throw.
+
     expect(true).toBe(true)
   })
 })
@@ -231,7 +225,7 @@ describe('GenUI v2 interactive plot', () => {
     expect(slider).not.toBeNull()
     expect(slider!.min).toBe('0')
     expect(slider!.max).toBe('5')
-    // Drag the slider → live re-render must not throw and value updates.
+
     fireEvent.change(slider!, { target: { value: '3' } })
     expect((container.querySelector('input[type="range"]') as HTMLInputElement).value).toBe('3')
   })
@@ -244,7 +238,7 @@ describe('GenUI v2 interactive plot', () => {
   })
 
   it('keeps x as the sampling variable even when a param is named x-like', () => {
-    // x is reserved; a param literally named x must not shadow it.
+
     const pts = sampleExpr('x', -2, 2, 5, { x: 99 })
     expect(pts[0]![1]).toBeCloseTo(-2)
     expect(pts[4]![1]).toBeCloseTo(2)

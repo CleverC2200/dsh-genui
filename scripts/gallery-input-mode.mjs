@@ -1,4 +1,3 @@
-/** Read-only input evidence for fixed Playwright contexts. Never changes capability. */
 import assert from 'node:assert/strict'
 const TIMEOUT = 8000
 export async function readGalleryInputCapabilities(page, profile, { phase = 'input', observations = [] } = {}) {
@@ -14,7 +13,7 @@ export async function readGalleryInputCapabilities(page, profile, { phase = 'inp
       coarsePointer: matchMedia('(pointer: coarse)').matches, finePointer: matchMedia('(pointer: fine)').matches })),
     new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('Read fixed input capabilities timed out')), TIMEOUT) })])
   } finally { clearTimeout(timer) }
-  // Save primitive observations before assertion so failures retain the actual media values.
+
   observations.push({ phase, profile, ...actual })
   const touch = profile === 'touch'
   assert.ok(Number.isInteger(actual.points) && (touch ? actual.points > 0 : actual.points === 0)
@@ -24,7 +23,6 @@ export async function readGalleryInputCapabilities(page, profile, { phase = 'inp
   return { profile, ...actual }
 }
 
-/** Keep nested assertion details without emitting the local host's ready-URL token. */
 export function galleryErrorDetails(error) {
   const known = new Set(['gallery-browser-checks.mjs', 'gallery-fixed-contexts.mjs',
     'gallery-input-mode.mjs', 'gallery-touch-checks.mjs'])
@@ -34,7 +32,6 @@ export function galleryErrorDetails(error) {
     ...(Array.isArray(error?.errors) ? { errors: error.errors.map(galleryErrorDetails) } : {}) }
 }
 
-/** Safe to throw into e2e's existing console.error path; do not retain raw cause/stack. */
 export function gallerySafeError(error) {
   const detail = galleryErrorDetails(error)
   const safe = Array.isArray(error?.errors)

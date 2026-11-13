@@ -1,9 +1,7 @@
-/** Bounded geographic data shared by the guard and direct renderer callers. */
 import { GENUI_LIMITS } from './genui-runtime/limits.ts'
 import type { GenuiMap, GenuiMapLocation, GenuiMapRoute } from './spec.ts'
 import { int, num, obj, opt, str } from './genui-runtime/value-utils.ts'
 
-/** GeoJSON order: longitude, latitude. Invalid coordinates are never clamped. */
 export const MAP_MERCATOR_LATITUDE = 85.051129
 export function isMapProjectable(point: readonly [number, number]): boolean { return Math.abs(point[1]) <= MAP_MERCATOR_LATITUDE }
 
@@ -40,7 +38,7 @@ export function repairMap(value: unknown): GenuiMap | null {
     if (id === undefined || label === undefined || routeIds.has(id) || !Array.isArray(route.coordinates)
       || route.coordinates.length < 2 || route.coordinates.length > GENUI_LIMITS.maxMapRoutePoints) continue
     const coordinates = route.coordinates.map(mapCoordinate)
-    // Drop the whole invalid route: removing a waypoint invents a new path.
+
     if (coordinates.some(point => point === undefined)) continue
     routeIds.add(id)
     routes.push({ id, label, coordinates: coordinates as [number, number][] })
@@ -88,7 +86,6 @@ export function validateMap(v: Record<string, unknown>, at: string, errors: stri
   }
 }
 
-/** Smallest longitude interval, including points straddling the antimeridian. */
 export function mapBounds(points: readonly [number, number][]): [[number, number], [number, number]] | undefined {
   if (points.length === 0) return undefined
   const lngs = points.map(([lng]) => (lng + 360) % 360).sort((a, b) => a - b)

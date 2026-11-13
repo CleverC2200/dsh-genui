@@ -12,7 +12,6 @@ interface GalleryEntry {
   src: string | undefined
 }
 
-/** Source identity survives streaming append/reordering; duplicates stay distinct. */
 function entriesOf(items: GenuiImageGroupItem[]): GalleryEntry[] {
   const occurrences = new Map<string, number>()
   return items.slice(0, GENUI_LIMITS.maxImageGroupItems).map(item => {
@@ -73,7 +72,6 @@ function Thumbnail({ entry, position, onOpen }: {
   )
 }
 
-/** Native modal stays in the block subtree, inheriting the host theme tokens. */
 export function ImageGroupNode({ node }: { node: GenuiImageGroup }): ReactNode {
   const t = useT()
   const id = useId()
@@ -125,8 +123,7 @@ export function ImageGroupNode({ node }: { node: GenuiImageGroup }): ReactNode {
     if (event.altKey || event.ctrlKey || event.metaKey) return
     if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return }
     if (event.key === 'Tab') {
-      // Also keeps keyboard focus inside the inline fallback on older hosts
-      // without showModal. Native dialogs perform their own inerting.
+
       const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button, a[href], [tabindex="0"]'))
       const first = controls[0]
       const last = controls[controls.length - 1]

@@ -24,7 +24,6 @@ export interface NativeDocument { spec: GenuiSpec; source: number; generation: s
 const hash = (v: unknown) => createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0,24)
 const object = (v: unknown): Record<string,unknown> | undefined => typeof v === 'object' && v !== null && !Array.isArray(v) ? v as Record<string,unknown>:undefined
 
-/** Ordered replay of committed results and closed fences; never pending tool args. */
 export function nativeDocument(events: readonly SessionEvent[],sessionId: string): NativeDocument | null {
   let spec: GenuiSpec | null = null, panel: GenuiSpec | null = null, source = -1, panelIdentity = '', stateIdentity = ''
   const calls = new Map<string,string>()
@@ -48,7 +47,7 @@ export function nativeDocument(events: readonly SessionEvent[],sessionId: string
       if (block.type !== 'text') continue
       for (const fence of extractDshUiFences(block.text)) {
         if (!fence.closed) continue
-        try { accept(JSON.parse(fence.raw),event.seq) } catch { /* Invalid source remains available in the transcript. */ }
+        try { accept(JSON.parse(fence.raw),event.seq) } catch {                                                           }
       }
     }
   }
@@ -64,7 +63,6 @@ function stateFrom(value: unknown): NativeState | undefined {
   return {fields:Object.assign(Object.create(null),fields),choices:Object.assign(Object.create(null),structuredClone(choices)),tabs:Object.assign(Object.create(null),tabs),feedback:Object.assign(Object.create(null),feedback)}
 }
 
-/** Initialize declared defaults once, before either painting or collecting state. */
 function effectiveState(spec: GenuiSpec,saved: NativeState = emptyNativeState()): NativeState {
   const checkboxDefaults = new Map<string,string[]>()
   walkGenuiNodes(spec,node => {
@@ -82,7 +80,6 @@ function effectiveState(spec: GenuiSpec,saved: NativeState = emptyNativeState())
   return saved
 }
 
-/** Native services are optional, late-bound, and owned by the plugin lifetime. */
 export function installDshGoNative(ctx: Context): void {
   ctx.inject(['dshGo','systemPrompt'],native => {
     native.effect(() => native.systemPrompt.section({
@@ -94,7 +91,7 @@ export function installDshGoNative(ctx: Context): void {
     native.effect(async () => {
       const bridge = native.dshGo
       const unavailable = () => bridge.panel(PANEL,{view:(_scope,caps) => ({type:'callout',tone:'info',text:caps.locale.startsWith('en') ? 'Native panel state could not load. Check the plugin installation; web views and native cards still work.':'原生面板未能载入状态服务，请检查插件安装。网页版和原生卡片仍可使用。'})})
-      // Loaded only on a native host. Ordinary web hosts keep no runtime session dependency.
+
       let api: {
         appendPluginRecord(session: Session,type: typeof RECORD,data: StateRecord): unknown
         pluginRecordOf(event: SessionEvent): {type:string;data:unknown} | undefined

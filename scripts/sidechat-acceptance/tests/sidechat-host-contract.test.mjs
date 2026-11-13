@@ -77,7 +77,6 @@ test('work and cleanup failures are both retained', async () => {
   }), error => error instanceof AggregateError && error.errors[0].message === 'browser' && error.errors[1].message === 'cleanup')
 })
 
-// Navigation orchestration only, not a browser/DOM or token-exchange test.
 const { openAuthenticatedPage } = await import('../scripts/run-sidechat-acceptance.mjs')
 test('auth navigation errors cannot expose the launch token through caller logs', async () => {
   const secret = 'synthetic-token-not-a-credential'

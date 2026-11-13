@@ -1,14 +1,3 @@
-// @vitest-environment jsdom
-/**
- * i18n contract: dictionary completeness, locale resolution, the `t()` lookup
- * chain, and the fact that real UI surfaces actually render in the active
- * language (and re-render when it switches).
- *
- * The rest of the suite runs pinned to `zh` (see tests/setup.ts), which keeps
- * the pre-extraction Chinese wording under test. This file owns English and
- * the switching behaviour, and restores `zh` afterwards so suite order can
- * never leak a locale.
- */
 import { cleanup, act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { EN } from '../src/client/i18n/en.ts'
@@ -30,7 +19,7 @@ import { validateGenuiSpec } from '../src/client/guard.ts'
 
 afterEach(() => {
   cleanup()
-  // Restore the suite-wide pin so test order cannot leak a locale.
+
   setLocale('zh')
 })
 
@@ -94,7 +83,7 @@ describe('locale resolution', () => {
 
   it('falls back to English when the browser names no shipped language', () => {
     expect(FALLBACK_LOCALE).toBe('en')
-    // jsdom's navigator reports en-US.
+
     expect(detectLocale()).toBe('en')
   })
 
@@ -106,8 +95,7 @@ describe('locale resolution', () => {
 })
 
 describe('action prompt', () => {
-  // The relay prompt becomes a visible user message, so it must follow the
-  // interface language instead of always shipping Chinese.
+
   it('is written in the active locale and keeps the wire marker', () => {
     setLocale('en')
     const english = t('action.inline', { action: 'ping', payload: '' })
@@ -154,7 +142,7 @@ describe('content builders follow the active locale', () => {
     setLocale('zh')
     const zh = genuiTemplates()
     expect(zh[0]!.name).toBe('项目仪表盘')
-    // Same ids and categories either way — only the display text changes.
+
     expect(en.map(x => x.id)).toEqual(zh.map(x => x.id))
     expect(en.map(x => x.category)).toEqual(zh.map(x => x.category))
   })

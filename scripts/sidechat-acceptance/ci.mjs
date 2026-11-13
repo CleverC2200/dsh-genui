@@ -1,4 +1,3 @@
-/** Exact dual-plugin gate for the existing source-host smoke job. */
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFile, writeFile, mkdir, mkdtemp, readdir, realpath, rm } from 'node:fs/promises'
@@ -41,7 +40,7 @@ async function sourceHostVersion(dshRoot, dshBin) {
 }
 
 async function execute(command, args, { cwd, env, own }) {
-  // Uses the reviewed owned-command lifecycle; output stays in bounded memory.
+
   const child = spawnOwned(command, args, { cwd, env, label: `${command} ${args[0]}`, rejectBlockedBuilds: true })
   own(() => child.stop())
   await child.finish(600000)
@@ -56,7 +55,7 @@ export async function buildPinnedSidebar(root, { executeCommand = execute, own, 
   await run('git', ['remote', 'add', 'origin', SIDEBAR_REPOSITORY])
   await run('git', ['fetch', '--depth', '1', 'origin', SIDEBAR_COMMIT])
   await run('git', ['checkout', '--detach', '--quiet', 'FETCH_HEAD'])
-  // A detached checkout records the complete object ID, never a mutable branch.
+
   assert.equal((await readFile(join(checkout, '.git/HEAD'), 'utf8')).trim(), SIDEBAR_COMMIT, 'Sidebar checkout must match the reviewed commit')
   const pkg = JSON.parse(await readFile(join(checkout, 'package.json'), 'utf8'))
   assert.equal(pkg.name, 'dsh-better-sidebar')
@@ -76,11 +75,10 @@ export async function buildPinnedSidebar(root, { executeCommand = execute, own, 
   return { sidebarTarball, sidebarTarballSha256 }
 }
 
-/** Test seams replace external work only; the production entry supplies none. */
 export async function runSidechatCI(options, { executeCommand = execute, acceptance = runSidechatAcceptance, remove = rm } = {}) {
   assert.ok(isAbsolute(options.artifactDir), 'Absolute dedicated artifact directory required')
   await mkdir(options.artifactDir, { recursive: true })
-  // Remove only this gate's bounded evidence so an earlier attempt cannot look current.
+
   for (const name of await readdir(options.artifactDir)) {
     if (name === VERDICT || name === 'dsh354-browser-report.json' || /^dsh354-[a-zA-Z0-9-]+\.png$/u.test(name)) {
       await rm(join(options.artifactDir, name), { force: true })

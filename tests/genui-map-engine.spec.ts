@@ -1,4 +1,3 @@
-// Mocked MapLibre contract and resource lifecycle, not real WebGL acceptance.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const fake = vi.hoisted(() => ({ maps: [] as any[], markers: [] as any[], setWorkerUrl: vi.fn(), constructorFailure: false, resetFailure: false, duringConstructor: undefined as (() => void) | undefined }))
 vi.mock('../src/client/maplibre-resources.ts', () => ({ maplibreCss: '.maplibre-test{}', maplibreWorker: 'self.onmessage = () => {}' }))
@@ -127,7 +126,7 @@ it('cleans up a map and worker after post-constructor initialization fails', () 
 })
 
 function workerCsp(change: Partial<SecurityPolicyViolationEvent> = {}) {
-  // jsdom lacks SecurityPolicyViolationEvent; use its browser-defined fields.
+
   document.dispatchEvent(Object.assign(new Event('securitypolicyviolation'), {
     disposition: 'enforce', effectiveDirective: 'worker-src', blockedURI: 'blob', ...change,
   }))

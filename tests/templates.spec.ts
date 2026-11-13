@@ -1,8 +1,3 @@
-/**
- * templates.spec.ts — 模板中心数据契约：
- * 每条模板的 demo 必须通过 validateGenuiSpec（与渲染器同一守卫），
- * 规模在 GENUI_LIMITS 内，instruction 非空且含「dsh-ui」关键词。
- */
 import { describe, expect, it } from 'vitest'
 import { genuiTemplates } from '../src/client/templates.ts'
 import { validateGenuiSpec, countGenuiNodes } from '../src/client/guard.ts'
@@ -42,7 +37,7 @@ describe('模板中心数据契约', () => {
 
   it('覆盖主要类别', () => {
     const categories = new Set<string>(GENUI_TEMPLATES.map(t => t.category))
-    // Stable, locale-independent category ids (display names live in i18n).
+
     for (const expected of ['dashboard', 'data', 'flow', 'chart', 'interactive', 'quiz', 'advanced']) {
       expect(categories.has(expected), `缺类别: ${expected}`).toBe(true)
     }

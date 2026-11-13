@@ -1,17 +1,5 @@
 #!/usr/bin/env node
-/** Actual Chromium layout regression for #382 (`table.wrap`); synthetic data only.
- * Uses the runner's installed Chrome (or BROWSER_BIN), Vite, and the standalone
- * primitive adapter. No DSH instance, model calls, credentials, or new deps.
- * Run: BROWSER_BIN=/usr/bin/google-chrome node scripts/check-table-wrap-browser.mjs
- *
- * The two contracts this pins down:
- *   1. the default data-table voice (#326) is UNCHANGED — nowrap cells, a table
- *      sized to max-content, and horizontal scrolling when it outgrows the
- *      message column;
- *   2. `wrap: true` tracks the container, wraps the cells, and gives every
- *      column a readable floor — i.e. it must not reproduce #326's
- *      column-collapse bug (a short column squeezed to one glyph per line).
- */
+
 import { execFile } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -27,9 +15,7 @@ let profile
 let server
 try {
   await mkdir(out, { recursive: true })
-  // Keep the browser profile OUTSIDE the project: Vite watches the repo root,
-  // and on Windows Chrome holds a lock on its own Cookies file — watching it
-  // aborts the server with EBUSY before the fixture can load.
+
   profile = await mkdtemp(join(tmpdir(), 'genui-table-wrap-chrome-'))
   const candidates = process.env.BROWSER_BIN
     ? [process.env.BROWSER_BIN]
@@ -37,14 +23,14 @@ try {
       'google-chrome',
       'chromium',
       'chromium-browser',
-      // Windows runners/users: the browser is normally Edge.
+
       'msedge',
       'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
       'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
     ]
   let browser
   for (const candidate of candidates) {
-    try { await exec(candidate, ['--version']); browser = candidate; break } catch { /* try another installed browser */ }
+    try { await exec(candidate, ['--version']); browser = candidate; break } catch {                                     }
   }
   if (browser === undefined) throw new Error('Install Chrome/Chromium or set BROWSER_BIN to an installed browser executable')
   server = await createServer({
@@ -76,7 +62,7 @@ try {
   await writeFile(join(out, 'browser.log'), stderr)
   const raw = /<pre id="results">([^<]*)<\/pre>/.exec(stdout)?.[1]
   const browserErrors = /<pre id="browser-errors">([\s\S]*?)<\/pre>/.exec(stdout)?.[1]
-  /** 解码 Chromium dump-dom 输出的 HTML 文本。 */
+
   const decodeBrowserText = value => value
     .replaceAll('&quot;', '"')
     .replaceAll('&#39;', "'")
@@ -95,7 +81,7 @@ try {
   if (results.length !== 9) throw new Error(`Expected 9 browser layout checks, got ${results.length}`)
   const byName = Object.fromEntries(results.map(result => [result.name, result]))
   const failures = []
-  /** 记录一条失败的断言，保留完整测量结果方便对照。 */
+
   const check = (condition, message) => { if (!condition) failures.push(message) }
 
   const dataDefault = byName['issue326 data table, default']
@@ -107,22 +93,19 @@ try {
   }
 
   if (dataDefault && dataWrap && proseDefault && proseWrap) {
-    // 1. Default data table keeps #326's contract exactly.
+
     check(dataDefault.cellWhiteSpace === 'nowrap', `default data table cells must stay nowrap (got ${dataDefault.cellWhiteSpace})`)
     check(dataDefault.tableWidth > dataDefault.wrapWidth, `default data table must size to max-content and exceed the column (table ${dataDefault.tableWidth}px, column ${dataDefault.wrapWidth}px)`)
     check(dataDefault.overflows, 'default data table must scroll horizontally, not clip (#326)')
 
-    // 2. wrap data table tracks the container and stays readable.
     check(dataWrap.cellWhiteSpace === 'normal', `wrap data table cells must wrap (got ${dataWrap.cellWhiteSpace})`)
     check(dataWrap.tableLayout === 'auto', `wrap data table must keep table-layout:auto (got ${dataWrap.tableLayout})`)
     check(!dataWrap.overflows, `wrap data table must fit its column (table ${dataWrap.tableWidth}px, column ${dataWrap.wrapWidth}px)`)
     check(dataWrap.minColWidth >= 80, `wrap data table column floor missing: min column ${dataWrap.minColWidth}px — #326 collapse risk`)
 
-    // 3. Default prose table still overflows (so the wrap case below proves the switch works).
     check(proseDefault.cellWhiteSpace === 'nowrap', `default prose table cells must stay nowrap (got ${proseDefault.cellWhiteSpace})`)
     check(proseDefault.overflows, `default prose table must overflow at this column width (table ${proseDefault.tableWidth}px, column ${proseDefault.wrapWidth}px)`)
 
-    // 4. wrap prose table fits, wraps, and keeps the column floor.
     check(proseWrap.cellWhiteSpace === 'normal', `wrap prose table cells must wrap (got ${proseWrap.cellWhiteSpace})`)
     check(!proseWrap.overflows, `wrap prose table must fit its column (table ${proseWrap.tableWidth}px, column ${proseWrap.wrapWidth}px)`)
     check(proseWrap.minColWidth >= 80, `wrap prose table column floor missing: min column ${proseWrap.minColWidth}px — #326 collapse risk`)

@@ -1,18 +1,9 @@
-// @vitest-environment jsdom
-// GenUI v2.7 durable interaction state:
-// 1) interaction-store: save/load/clear/fingerprint/LRU;
-// 2) GenuiBlock restores answers + lock + field values after remount
-//    (refresh / replay simulation) — seed for re-renders of same content;
-// 3) different content fingerprint → fresh state;
-// 4) Enter / Ctrl+Enter submit the field value immediately;
-// 5) fields with id are collected into the submit fallback payload.
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'
 import { GenuiBlock, GENUI_ACTION_DEBOUNCE_MS } from '../src/client/GenuiBlock.tsx'
 import { fingerprint, loadBlockState, saveBlockState, clearBlockState } from '../src/client/interaction-store.ts'
 
-/** 300ms durable-save debounce (see GenuiBlock). */
 const SAVE_MS = 300
 
 const paper = {
@@ -54,7 +45,7 @@ describe('v2.7: interaction-store', () => {
     saveBlockState('a', { answers: { q: 'x' } })
     saveBlockState('b', { answers: { q: 'y' } })
     expect(loadBlockState('a')).toEqual({ answers: { q: 'x' } })
-    // 205 writes with the 200-block cap: the oldest (a) falls off, the newest survive
+
     for (let i = 0; i < 205; i++) saveBlockState(`bulk:${i}`, { answers: { q: String(i) } })
     expect(loadBlockState('a')).toBeNull()
     expect(loadBlockState('bulk:204')).not.toBeNull()
@@ -66,18 +57,17 @@ describe('v2.7: durable restore (refresh / replay)', () => {
     const KEY = 't:paper:1'
     const first = renderBlock(paper, KEY)
     const groups = first.container.querySelectorAll('[role="radiogroup"]')
-    fireEvent.click(groups[0]!.querySelectorAll('input')[1]!) // q1: 15 ✓
-    fireEvent.click(groups[1]!.querySelectorAll('input')[2]!) // q2: 北京 ✓
-    fireEvent.click(first.container.querySelector('[class*="submitRow"] button')!) // 交卷 → local grade
-    act(() => { vi.advanceTimersByTime(SAVE_MS) }) // durable save settles
+    fireEvent.click(groups[0]!.querySelectorAll('input')[1]!)
+    fireEvent.click(groups[1]!.querySelectorAll('input')[2]!)
+    fireEvent.click(first.container.querySelector('[class*="submitRow"] button')!)
+    act(() => { vi.advanceTimersByTime(SAVE_MS) })
     first.unmount()
 
-    // "refresh": a brand-new mount with the same stateKey restores everything
     const second = renderBlock(paper, KEY)
     const inputs = [...second.container.querySelectorAll('[role="radiogroup"] input')] as HTMLInputElement[]
-    expect(inputs[1]!.checked).toBe(true) // q1: 15 restored
-    expect(inputs[5]!.checked).toBe(true) // q2: 北京 restored
-    expect(inputs.every(i => i.disabled)).toBe(true) // graded → locked
+    expect(inputs[1]!.checked).toBe(true)
+    expect(inputs[5]!.checked).toBe(true)
+    expect(inputs.every(i => i.disabled)).toBe(true)
     expect(second.container.querySelector('[data-genui-grade]')!.textContent).toContain('2 / 2')
   })
 
@@ -103,7 +93,6 @@ describe('v2.7: durable restore (refresh / replay)', () => {
     act(() => { vi.advanceTimersByTime(SAVE_MS) })
     first.unmount()
 
-    // different stateKey (different content) → no restore, submit disabled
     const second = renderBlock(paper, KEY_B)
     const inputs = [...second.container.querySelectorAll('[role="radiogroup"] input')] as HTMLInputElement[]
     expect(inputs.some(i => i.checked)).toBe(false)
@@ -118,7 +107,7 @@ describe('v2.7: durable restore (refresh / replay)', () => {
     fireEvent.click(groups[1]!.querySelectorAll('input')[2]!)
     fireEvent.click(first.container.querySelector('[class*="submitRow"] button')!)
     act(() => { vi.advanceTimersByTime(SAVE_MS) })
-    // 重新作答 → cleared + saved
+
     fireEvent.click(first.container.querySelector('[data-genui-grade] button')!)
     act(() => { vi.advanceTimersByTime(SAVE_MS) })
     first.unmount()
@@ -156,7 +145,7 @@ describe('v2.7: form submit semantics', () => {
     fireEvent.change(ta, { target: { value: '正文' } })
     fireEvent.keyDown(ta, { key: 'Enter' })
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
-    expect(actions).toHaveLength(0) // plain Enter keeps the newline
+    expect(actions).toHaveLength(0)
     fireEvent.keyDown(ta, { key: 'Enter', ctrlKey: true })
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(actions).toEqual([['save-note', { type: 'textarea', value: '正文', submit: true }]])
@@ -177,7 +166,7 @@ describe('v2.7: form submit semantics', () => {
     fireEvent.change(inputs[0]!, { target: { value: '小明' } })
     fireEvent.change(inputs[1]!, { target: { value: 'a@b.c' } })
     const submit = container.querySelector('[class*="submitRow"] button') as HTMLButtonElement
-    expect(submit.disabled).toBe(false) // fields-only form enables on any filled field
+    expect(submit.disabled).toBe(false)
     fireEvent.click(submit)
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(actions).toEqual([['go', { type: 'submit', answers: {}, fields: { name: '小明', email: 'a@b.c' }, total: 2, answered: 2 }]])

@@ -1,16 +1,3 @@
-/**
- * ECharts node: renders a full ECharts chart from a declarative option
- * object. The echarts engine is lazy-loaded (lib/assets/echarts.js) only when
- * an `echart` node appears — the main client bundle never carries the engine.
- *
- * The `option` field accepts a standard ECharts `EChartsCoreOption`. For
- * simple use cases the `preset` + `data` shorthand builds the option
- * automatically: `preset: 'bar' | 'line' | 'pie' | 'scatter' | 'area'` maps
- * to a themed option template that reads the same `data`/`series` shape as
- * the `chart` node, so a model can upgrade a `chart` to ECharts by changing
- * `type` to `echart` and adding `preset`.
- * @module @changfenhuang/dsh-genui/client/EChartNode
- */
 import { renderInline } from './inline.ts'
 import { useEffect, useRef, useState } from 'react'
 import css from './GenuiBlock.module.css'
@@ -19,23 +6,10 @@ import { echartEngineFor } from './echarts-engine.ts'
 import { CHART_COLORS } from './blocks/charts.tsx'
 import type { GenuiEChart } from './spec.ts'
 
-/**
- * Categorical fallback palette. The host defines its `--dsw-static-*` tokens on
- * `body`, not on `:root`, and ECharts renders to CANVAS (so a `var(--x)` string
- * is meaningless to it — every colour must be resolved to a literal first).
- * Reading only `document.documentElement` therefore returned '' for every
- * series colour and collapsed multi-series charts to one accent hue; these
- * fixed hues keep series distinguishable on any host.
- */
 export const SERIES_FALLBACK = [
   '#679efe', '#4ed17e', '#f5b83d', '#f2707a', '#8b7ff0', '#3fc7d4', '#b7c8fe', '#9aa3b2',
 ] as const
 
-/**
- * Read a host theme token, resolved from the ELEMENT first (custom properties
- * inherit, so any node inside `body` sees the host sheet) and falling back to
- * body/root for detached renders.
- */
 function readToken(name: string, fallback: string, el?: HTMLElement | null): string {
   const hosts: Array<Element | null> = [el ?? null, typeof document === 'undefined' ? null : document.body, typeof document === 'undefined' ? null : document.documentElement]
   for (const host of hosts) {
@@ -46,7 +20,6 @@ function readToken(name: string, fallback: string, el?: HTMLElement | null): str
   return fallback
 }
 
-/** 通过实际计算后的 font-size 获取字号，供 ECharts 的数字字号字段使用。 */
 function readFontSize(name: string, fallback: number, el?: HTMLElement | null): number {
   if (el === undefined || el === null) return fallback
   const probe = document.createElement('span')
@@ -57,7 +30,6 @@ function readFontSize(name: string, fallback: number, el?: HTMLElement | null): 
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
-/** Resolve the host accent and label colors for ECharts theming. */
 function themeColors(el?: HTMLElement | null): {
   accent: string
   labelPrimary: string
@@ -76,32 +48,25 @@ function themeColors(el?: HTMLElement | null): {
     labelTertiary: readToken('--dsw-alias-label-tertiary', '#6b6b6b', el),
     border: readToken('--dsw-alias-border-l1', 'rgba(255,255,255,0.12)', el),
     bgLayer1: readToken('--dsw-alias-bg-layer-1', '#1a1a1e', el),
-    // The --dsl-g-* scale is declared on the .block/.panel roots; the chart
-    // container inherits it. Detached renders fall back to these literals.
+
     fontData: readFontSize('--dsl-g-font-data', 12, el),
     fontMeta: readFontSize('--dsl-g-font-meta', 12.5, el),
     fontDisplay: readFontSize('--dsl-g-font-display', 28, el),
   }
 }
 
-/** 根据预设和数据生成完整的 ECharts option，并从图表容器读取宿主主题颜色。 */
 export function presetOption(node: GenuiEChart, el?: HTMLElement | null): Record<string, unknown> {
   const t = themeColors(el)
-  // Each palette slot carries its own fallback hue: if the host lacks the
-  // static tokens, series must still be distinguishable (the old code fell
-  // back to the accent for every slot, so every chart came out one colour).
+
   const colors = node.palette !== undefined && node.palette.length > 0
     ? [...node.palette]
     : CHART_COLORS.map((c, i) =>
       readToken(c.replace('var(', '').replace(')', ''), SERIES_FALLBACK[i % SERIES_FALLBACK.length]!, el))
-  // 坐标轴预设保留空位置；独立图形省略缺失值，同时保留真实零值。
+
   const independentMarks = ['wordCloud', 'pie', 'gauge', 'funnel', 'treemap'].includes(node.preset ?? '')
   const data = (node.data ?? []).filter(d => !independentMarks || typeof d.value === 'number' && Number.isFinite(d.value))
   const series = node.series
 
-  // Shared tooltip base: renderMode 'richText' prevents ECharts from writing
-  // tooltip content via innerHTML — labels/formatters are model output and
-  // must never reach the HTML parser.
   const tt = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
     renderMode: 'richText',
     backgroundColor: t.bgLayer1,
@@ -148,8 +113,7 @@ export function presetOption(node: GenuiEChart, el?: HTMLElement | null): Record
       }
     }
     case 'scatter': {
-      // xAxis is 'category' so string labels (e.g. 「一月」) render correctly;
-      // the previous `type: 'value'` xAxis could not plot non-numeric labels.
+
       return {
         ...base,
         tooltip: tt({ trigger: 'item' }),
@@ -198,13 +162,12 @@ export function presetOption(node: GenuiEChart, el?: HTMLElement | null): Record
       }
     }
     case 'radar': {
-      // Indicators come from the first series' labels; each series is one
-      // polygon. `data` alone is treated as a single unnamed series.
+
       const entries = series ?? [{ label: '', data }]
       const indicators = (entries[0]?.data ?? []).map(d => ({ name: d.label, max: undefined as number | undefined }))
       const completeEntries = entries.flatMap((entry, index) => {
         const values = entry.data.map(d => typeof d.value === 'number' && Number.isFinite(d.value) ? d.value : null)
-        // 雷达图需要完整坐标；缺失数据不能在原点显示为真实零值。
+
         return values.some(value => value === null) ? [] : [{ entry, index, values: values as number[] }]
       })
       const max = Math.max(...completeEntries.flatMap(({ values }) => values), 1)
@@ -232,7 +195,7 @@ export function presetOption(node: GenuiEChart, el?: HTMLElement | null): Record
       }
     }
     case 'gauge': {
-      // One gauge per datum (usually a single KPI).
+
       return {
         ...base,
         tooltip: tt({ trigger: 'item' }),
@@ -318,7 +281,7 @@ export function presetOption(node: GenuiEChart, el?: HTMLElement | null): Record
       const names = data.length > 0
         ? data.map(d => d.label)
         : [...new Set(links.flatMap(l => [l.from, l.to]))]
-      // Node size follows its degree, so hubs read as hubs without extra data.
+
       const degree = new Map<string, number>()
       for (const l of links) {
         degree.set(l.from, (degree.get(l.from) ?? 0) + 1)
@@ -341,8 +304,7 @@ export function presetOption(node: GenuiEChart, el?: HTMLElement | null): Record
       }
     }
     case 'heatmap': {
-      // Rows come from `series` (one row per entry), columns from the first
-      // row's labels — the same shape the other presets use.
+
       const rows = series ?? [{ label: '', data }]
       const cols = (rows[0]?.data ?? []).map(d => d.label)
       const values = rows.flatMap((row, y) => row.data.flatMap((d, x) =>
@@ -359,7 +321,7 @@ export function presetOption(node: GenuiEChart, el?: HTMLElement | null): Record
       }
     }
     case 'bigline': {
-      // Long series: symbols off, area wash, inside + slider zoom.
+
       return {
         ...base,
         tooltip: tt({ trigger: 'axis' }),
@@ -383,7 +345,7 @@ export function presetOption(node: GenuiEChart, el?: HTMLElement | null): Record
       }
     }
     default: {
-      // 'bar' or unspecified
+
       return {
         ...base,
         tooltip: tt({ trigger: 'axis', axisPointer: { type: 'shadow' } }),
@@ -402,13 +364,10 @@ export function presetOption(node: GenuiEChart, el?: HTMLElement | null): Record
   }
 }
 
-/** Per-series itemStyle.color override when the preset series declares one
- * (aligns with the `chart` node which respects `series[].color`). */
 function optItemStyleColor(color: string | undefined, _i: number, _series: unknown): Record<string, unknown> {
   return color !== undefined ? { itemStyle: { color } } : {}
 }
 
-/** Refresh typography without replaying preset data or interactive defaults. */
 function fontSizeOption(option: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {}
   for (const [key, value] of Object.entries(option)) {
@@ -417,8 +376,7 @@ function fontSizeOption(option: Record<string, unknown>): Record<string, unknown
     } else if (Array.isArray(value)) {
       const children = value.map(item => item !== null && typeof item === 'object'
         ? fontSizeOption(item as Record<string, unknown>) : {})
-      // ECharts merges component arrays by index. Keep empty entries so a
-      // slider's text style cannot be applied to the preceding inside zoom.
+
       if (children.some(child => Object.keys(child).length > 0)) result[key] = children
     } else if (value !== null && typeof value === 'object') {
       const child = fontSizeOption(value as Record<string, unknown>)
@@ -438,7 +396,6 @@ export function EChartNode({ node }: { node: GenuiEChart }) {
     const el = ref.current
     if (el === null) return
 
-    // Full `option` wins over preset shorthand.
     const option = node.option ?? presetOption(node, el)
 
     const engine = echartEngineFor(node) === 'echarts-full' ? 'full' : 'core'
@@ -458,10 +415,9 @@ export function EChartNode({ node }: { node: GenuiEChart }) {
       instanceRef.current?.dispose()
       instanceRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [])
 
-  // Resize observer: keep the chart responsive.
   useEffect(() => {
     if (status !== 'ready') return
     const el = ref.current
@@ -473,12 +429,6 @@ export function EChartNode({ node }: { node: GenuiEChart }) {
     return () => { ro.disconnect() }
   }, [status])
 
-  // Update option when the node changes (model re-render). `status` is in
-  // deps so that when the engine finishes loading (status: 'loading' →
-  // 'ready'), this effect re-runs and applies the LATEST option — without
-  // it, a spec update that arrived during engine load would be lost forever
-  // (the mount effect captured the old option, and this effect would have
-  // returned early when status was 'loading' and never re-run).
   useEffect(() => {
     if (status !== 'ready' || instanceRef.current === null) return
     const option = node.option ?? presetOption(node, ref.current)
@@ -493,7 +443,7 @@ export function EChartNode({ node }: { node: GenuiEChart }) {
     })
     observer.observe(document.body, { attributes: true, attributeFilter: ['style'] })
     return () => observer.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [node, status])
 
   if (status === 'error') {

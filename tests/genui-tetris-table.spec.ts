@@ -1,20 +1,8 @@
-// Regression for the "Tetris table" fence body (issue #192).
-//
-// Real session sample (insight 主题调研选型, 2026-09-16): the model closed the
-// `columns` array after the header cells and then wrote the row matrix as a
-// SIBLING array element that still carried the `"rows":` key —
-//
-//   "columns":["链路","用哪枚凭证","依据"],["rows":[[...],[...]]]
-//
-// Both sides of the body are bracket-BALANCED, so neither the closer-appending
-// scan nor the client's partial parse can recover it: the whole fence stayed a
-// raw code block. This test pins the shape rewrite that recovers it.
 import { describe, expect, it } from 'vitest'
 import { completeFenceJson, repairFenceJson } from '../src/shared/fence-repair.ts'
 import { processGenuiSpec, isRenderableProcess, partialRepairGenuiSpec } from '../src/client/guard.ts'
 import { parsePartialGenuiSpec } from '../src/client/parse-partial.ts'
 
-/** The exact body captured from the session log. */
 const TETRIS_TABLE = "{\"gap\":12,\"items\":[{\"type\":\"table\",\"columns\":[\"链路\",\"用哪枚凭证\",\"依据\"],[\"rows\":[[\"话题搜索 search/statuses\",\"既有 1083114296\",\"只有它能调（你确认）\"],[\"show_batch（正文 + 媒体）\",\"2807558683\",\"正文逐字相同 + url_objects，严格超集 → 一次拿全，不必两次请求\"],[\"queryid / count_sp / 话题对象\",\"保持既有\",\"两枚都通，缩小变更面\"],[\"图片 CDN / 视频 CDN\",\"不需要凭证，但需非空 Referer\",\"实测：我们域名作 Referer → 图片 200、视频 206\"]]]}]}"
 
 describe('Tetris-shaped table columns (issue #192)', () => {
@@ -38,8 +26,7 @@ describe('Tetris-shaped table columns (issue #192)', () => {
     expect(table.columns).toEqual(['链路', '用哪枚凭证', '依据'])
     expect(table.rows).toHaveLength(4)
     expect(table.rows?.[0]).toEqual(['话题搜索 search/statuses', '既有 1083114296', '只有它能调（你确认）'])
-    // The rewrite must leave legal JSON for the whole body, so the shared
-    // pipeline can render it instead of degrading to a code block.
+
     expect(partialRepairGenuiSpec(processGenuiSpec(parsePartialGenuiSpec(completed!.text)!))).not.toBeNull()
   })
 

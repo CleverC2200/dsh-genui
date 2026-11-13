@@ -1,7 +1,3 @@
-/** New isolated runner. Source-layout full acceptance and registry-layout backend
- * rehearsal are distinct outcomes. Full mode uses official normal package add;
- * rehearsal installs nothing. Browser launching remains caller-owned.
- */
 import assert from 'node:assert/strict'
 import { projectSnapshotFailure } from '../fixture/lib/snapshot-diagnostics.mjs'
 import { validateUiAway } from '../fixture/lib/ui-away.mjs'
@@ -51,7 +47,7 @@ async function authentication(url) {
   const cookie = exchanged.headers.getSetCookie().map(value => value.split(';')[0]).join('; ')
   assert.ok(cookie, 'Official session cookie is required')
   const rpc = async (method, request) => {
-    // Only these setup methods, never session/prompt or private action APIs.
+
     assert.ok(['workspace/create', 'session/create'].includes(method), 'Only public setup RPC allowed')
     const response = await http(`${origin}/api/${method}`, { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie },
       body: JSON.stringify({ type: 'client-request', rpcId: randomUUID(), method, payload: { args: { request } } }) })
@@ -76,8 +72,7 @@ async function prepareFixture(root, host) {
   return { output, seedPatch: await patch('seed'), resumePatch: await patch('resume') }
 }
 async function installCandidates(options, host, env, cwd, own) {
-  // Full CI uses ordinary official consumer installation and its existing build
-  // policy. Never auto-approve a dependency build or alter compatibility policy.
+
   const packs = await Promise.all([inspectPack(options.genuiTarball, PLUGINS[0]), inspectPack(options.sidebarTarball, PLUGINS[1])])
   for (const tarball of [options.genuiTarball, options.sidebarTarball]) {
     const install = spawnOwned(process.execPath, [host.bin, 'plugin', '--profile', 'web', 'add', tarball], { env, cwd, label: 'Exact candidate official install', rejectBlockedBuilds: true })
@@ -113,7 +108,7 @@ async function lifecycle({ root, host, env, own, snapshotReport }) {
   const seedAuth = await authentication(seedHost.url)
   const { workspace } = await seedAuth.rpc('workspace/create', { path: cwd })
   assert.equal(typeof workspace?.workspaceId, 'string')
-  // Create away first, then parent. Away has zero model, action and turn events.
+
   for (const sessionId of [AWAY_ID, IDS[0]]) {
     const created = await seedAuth.rpc('session/create', { workspaceId: workspace.workspaceId, sessionId })
     assert.equal(created.sessionId, sessionId)
@@ -122,7 +117,7 @@ async function lifecycle({ root, host, env, own, snapshotReport }) {
   const seed = await poll(() => maybeJSON(stateFile), value => value?.status === 'seed-persisted-restart-required', 'Durable seed flush/readback', seedHost.process.alive)
   assert.deepEqual(seed.sessionIds, IDS)
   seedHost.process.alive()
-  const seedExit = await seedHost.stop() // Mandatory before a separate process resumes.
+  const seedExit = await seedHost.stop()
   const resume = await launch('resume', fixture.resumePatch)
   const resumed = await poll(() => maybeJSON(stateFile), value => value?.phase === 'resume' && value.status === 'resumed-from-durable-seed', 'Separate durable resume', resume.process.alive)
   assert.equal(resumed.assistantEventSeq, seed.assistantEventSeq)
@@ -144,7 +139,7 @@ async function lifecycle({ root, host, env, own, snapshotReport }) {
   }
   const readBackendSnapshot = async ({ expected }) => {
     const snapshot = durableSnapshot(await readRaw(), { expected, assistantEventSeq: seed.assistantEventSeq, uiAway })
-    // Prior real receipts cannot be rewritten by a subsequent snapshot.
+
     if (lastSnapshot) for (const id of IDS) assert.deepEqual(snapshot.sessions[id].actions.slice(0, lastSnapshot.sessions[id].actions.length), lastSnapshot.sessions[id].actions)
     lastSnapshot = snapshot; return snapshot
   }
@@ -171,8 +166,7 @@ async function lifecycle({ root, host, env, own, snapshotReport }) {
     bindUiAwaySession, uiAway: () => uiAway }
 }
 export async function setupRoot(own) {
-  // The host canonicalizes workspace paths; compare ownership against the
-  // same path even when TMPDIR uses a symlink (such as /var on macOS).
+
   const root = await realpath(await mkdtemp(join(tmpdir(), 'dsh354-owned-')))
   own(() => rm(root, { recursive: true, force: true }))
   const env = sidechatSmokeEnvironment(process.env, root)
@@ -195,7 +189,7 @@ async function verifyBrowserBoot(page) {
   }
   return seen
 }
-/** Browser is mandatory and caller-owned. Only context/page/processes we create are closed. */
+
 export async function runSidechatAcceptance(options) {
   const host = await verifyHostAndArtifacts(options)
   await mkdir(options.artifactDir, { recursive: true })
@@ -225,7 +219,7 @@ export async function runSidechatAcceptance(options) {
       assert.equal(browserReport?.status, 'passed-real-host-checks', 'Mandatory browser callback must attest all checks')
       assert.ok(run.uiAway(), 'Actual native UI-reused away must be durably bound')
       const final = await run.readBackendSnapshot({ stage: 'host-final', expected: finalExpected() })
-      await delay(1000) // Bounded trailing debounce/duplicate observation window.
+      await delay(1000)
       assert.deepEqual(await run.readBackendSnapshot({ stage: 'host-quiet-reread', expected: finalExpected() }), final)
       assert.equal(pageErrors.length, 0, 'Page errors invalidate acceptance')
       run.process.alive()
@@ -243,7 +237,7 @@ export async function runSidechatAcceptance(options) {
     await atomicJSON(join(options.artifactDir, 'dsh354-host-verdict.json'), report)
   }
 }
-/** Explicitly backend-only: no candidates installed, browser, actions or UI claim. */
+
 export async function runBackendRehearsal(options) {
   assert.ok(isAbsolute(options.artifactDir), 'Absolute artifact directory required')
   const host = await resolveExactHost(options)

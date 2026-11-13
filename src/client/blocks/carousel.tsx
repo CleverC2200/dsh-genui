@@ -6,7 +6,6 @@ import { renderInline } from '../inline.ts'
 import type { GenuiCarousel } from '../spec.ts'
 import css from './gallery.module.css'
 
-/** Local navigation only: children retain their renderer-owned state and actions. */
 export function CarouselNode({ node, children }: { node: GenuiCarousel; children: ReactNode[] }): ReactNode {
   const t = useT()
   const id = useId()
@@ -25,7 +24,7 @@ export function CarouselNode({ node, children }: { node: GenuiCarousel; children
     if (track === null) return
     const maximum = Math.max(0, track.scrollWidth - track.clientWidth)
     const next = { previous: track.scrollLeft > 1, next: track.scrollLeft < maximum - 1 }
-    // Edge controls disappear; preserve keyboard context before React removes the focused one.
+
     const active = document.activeElement
     if (((maximum <= 1 || !next.previous) && active === previousRef.current)
       || ((maximum <= 1 || !next.next) && active === nextRef.current)) track.focus({ preventScroll: true })
@@ -37,7 +36,7 @@ export function CarouselNode({ node, children }: { node: GenuiCarousel; children
     const track = trackRef.current
     if (track === null) return
     measure()
-    // Streaming updates never reset scrollLeft or replace existing slides.
+
     const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(measure)
     observer?.observe(track)
     for (const slide of track.children) observer?.observe(slide)
@@ -67,7 +66,6 @@ export function CarouselNode({ node, children }: { node: GenuiCarousel; children
     scrollTo(track.scrollLeft + direction * step)
   }
 
-  /** 让导航按钮按可视轨道宽度的比例切换内容。 */
   const page = (direction: -1 | 1): void => {
     const track = trackRef.current
     if (track === null) return
@@ -112,7 +110,7 @@ export function CarouselNode({ node, children }: { node: GenuiCarousel; children
             style={{ '--gallery-item-width': `${itemWidth}px`, '--gallery-gap': `${gap}px` } as CSSProperties}
             onScroll={measure}
             onKeyDown={event => {
-              // Nested forms, sliders, and child carousels own their keys.
+
               if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) return
               if (event.key === 'ArrowLeft') move(-1)
               else if (event.key === 'ArrowRight') move(1)
@@ -123,8 +121,7 @@ export function CarouselNode({ node, children }: { node: GenuiCarousel; children
             }}
           >
             {slides.map((child, index) => (
-              // The runtime identifies children by path/index. Do not key by
-              // streamed content: that would remount inputs on every token.
+
               <div className={css.slide} key={index} role="group" aria-label={t('block.carouselPosition', { current: index + 1, total: slides.length })}>
                 {child}
               </div>

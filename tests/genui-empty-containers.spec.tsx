@@ -1,8 +1,3 @@
-// @vitest-environment jsdom
-// Empty containers must paint NOTHING. Before this, a `card` with no children
-// drew its border + title with a blank body, a table drew a header row over no
-// body, and an empty `diagram`/`file-tree` drew a framed rectangle — all of
-// which read as "failed to load" rather than "nothing to show".
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 
@@ -11,7 +6,6 @@ import { processGenuiSpec } from '../src/client/guard.ts'
 
 afterEach(cleanup)
 
-/** Empty shapes a model actually emits when its data came back empty. */
 const EMPTY: Array<[string, unknown]> = [
   ['grid', { type: 'grid', cols: 3, items: [] }],
   ['row', { type: 'row', items: [] }],
@@ -31,8 +25,7 @@ describe('empty containers paint nothing', () => {
       const spec = processGenuiSpec({ items: [node] }).spec
       expect(spec).not.toBeNull()
       const { container } = render(<GenuiBlock spec={spec!} />)
-      // The block root stays (it is the conversation anchor); nothing inside it
-      // may be a shell.
+
       expect(container.textContent?.trim()).toBe('')
       expect(container.querySelector('table')).toBeNull()
       expect(container.querySelector('svg')).toBeNull()
@@ -45,7 +38,7 @@ describe('empty containers paint nothing', () => {
     const spec = processGenuiSpec({ items: [{ type: 'card', title: '性能指标', items: [] }] }).spec
     const { container } = render(<GenuiBlock spec={spec!} />)
     expect(container.textContent).toBe('性能指标')
-    // The shell is the bordered `card` block; a flat title is not one.
+
     expect(container.innerHTML).not.toMatch(/class="[^"]*\b_card_[^"]*"/)
   })
 

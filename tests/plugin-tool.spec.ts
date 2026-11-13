@@ -1,6 +1,3 @@
-// The render_ui tool definition: schema shape, execute behavior (guard-backed
-// repair + caps), and the presentation projections (call/result cards + meta
-// spec for the browser toolview).
 import { describe, expect, it, vi } from 'vitest'
 import { createRenderUiTool, createValidateDshUiTool } from '../src/plugin/tool.ts'
 import { GENUI_LIMITS } from '../src/client/genui-runtime/index.ts'
@@ -19,14 +16,9 @@ describe('render_ui tool definition', () => {
     expect(parameters.required).toContain('spec')
     const spec = parameters.properties?.spec as { type?: string } | undefined
     expect(spec).toBeDefined()
-    // spec must be schema-typed as an object: a serialized JSON string (the
-    // model's observed failure mode) fails argument validation early instead
-    // of reaching the guard, which could not repair it anyway.
+
     expect(spec!.type).toBe('object')
-    // The spec object carries structural hints for the tool-call bridge so it
-    // can serialize the tree directly instead of falling back to an
-    // OpenAI-style { arguments: "<JSON>" } wrapper (observed in the live
-    // harness bridge for bare-object parameters).
+
     const specProps = (spec as { properties?: Record<string, unknown> }).properties
     expect(specProps).toBeDefined()
     for (const key of ['title', 'gap', 'panel', 'items']) {
@@ -73,26 +65,23 @@ describe('render_ui execute', () => {
 
   it('unwraps bridge-wrapped spec shapes (transport compatibility)', async () => {
     const spec = { title: '桥接兼容', items: [text('a')] }
-    // Observed live: the bridge nests the authored `spec` object inside a
-    // wrapper — the serialized text carried by { arguments: "..." } is itself
-    // `{ spec: { title, gap, items } }` — so test both with and without the
-    // inner `spec` key at every wrapper level.
+
     const nested = { spec }
     const expectOk = async (args: unknown) => {
       const value = await tool.execute(args as never)
       expect(String(value)).toContain('桥接兼容')
     }
-    // Authored shape
+
     await expectOk({ spec })
-    // Spec serialized to text
+
     await expectOk({ spec: JSON.stringify(spec) })
     await expectOk({ spec: JSON.stringify(nested) })
-    // {arguments} wrapper with a serialized or object spec
+
     await expectOk({ arguments: JSON.stringify(spec) })
     await expectOk({ arguments: JSON.stringify(nested) })
     await expectOk({ arguments: spec })
     await expectOk({ arguments: nested })
-    // Bare double-encoded strings
+
     await expectOk(JSON.stringify(spec))
     await expectOk(JSON.stringify(nested))
   })
@@ -100,9 +89,7 @@ describe('render_ui execute', () => {
   it('reports broken wrapped JSON as unusable instead of misparsing', async () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      // Corrupted mid-stream JSON (observed with large specs): the bridge
-      // passed the raw broken text through; it must not crash and must not
-      // pretend the spec is valid.
+
       const value = await tool.execute({ arguments: '{"spec": {"items": [' } as never)
       expect(String(value)).toContain('error=invalid_spec')
       expect(spy).toHaveBeenCalledOnce()
@@ -200,7 +187,6 @@ describe('render_ui projections', () => {
     expect(tool.presentResult!({ spec: null }, { isError: false } as never)).toBeUndefined()
   })
 })
-
 
 describe('validate_dsh_ui tool', () => {
   const vtool = createValidateDshUiTool()
@@ -356,24 +342,19 @@ describe('validate_dsh_ui tool', () => {
   })
 
   it('warns when declared components were silently dropped (issue #42)', async () => {
-    // The table has no recognizable rows/columns at all: repair drops it and
-    // the tool must not green-light a half-empty tree.
+
     const dropping = '{"items":[{"type":"table","columns":{},"rows":42},{"type":"text","content":"好"}]}'
     const value = String(await vtool.execute({ spec: dropping }))
     expect(value).toContain('status=invalid')
     expect(value).toContain('declared=2')
     expect(value).toContain('rendered=1')
-    // #163 follow-up: the dropped node is named with its position and type
-    // instead of only the aggregate count.
+
     expect(value).toContain('node=items[0]')
     expect(value).toContain('type=table')
   })
 
   it.each([
-    // Real-session samples (2 sessions, 62 fences): the model names the field
-    // by intent and the alias registry adopts it. Asserting the whole
-    // validate verdict — not just the warning — pins the load-bearing claim:
-    // these bodies now RENDER, so the fence cannot degrade to raw JSON.
+
     [{ type: 'keyvalue', items: [{ key: 'a', value: 'b' }] }, { type: 'keyvalue', pairs: [{ key: 'a', value: 'b' }] }],
     [{ type: 'callout', text: 'hello' }, { type: 'callout', content: 'hello' }],
     [{ type: 'callout', body: 'hello' }, { type: 'callout', content: 'hello' }],
@@ -392,15 +373,14 @@ describe('validate_dsh_ui tool', () => {
     const node = { type: 'quiz', title: '问题', choices: ['甲', '乙'] }
     const value = String(await vtool.execute({ spec: { items: [node] } }))
     expect(value).toContain('status=valid')
-    // quiz repair canonicalizes options into `{label}` records (correctness
-    // lives per option), so the claim under test is the adopted field names.
+
     expect(processGenuiSpec({ items: [node] }).repaired?.items).toEqual([
       { type: 'quiz', question: '问题', options: [{ label: '甲' }, { label: '乙' }] },
     ])
   })
 
   it('drops malformed tables but explains the columns/rows contract', async () => {
-    // Filtering still matters: a non-2D body is not a table we can rescue.
+
     const value = String(await vtool.execute({ spec: '{"items":[{"type":"table","rows":42}]}' }))
     expect(value).toContain('status=invalid')
     expect(value).toContain("items[0]: type 'table' requires rows (array)")
@@ -426,9 +406,7 @@ describe('validate_dsh_ui tool', () => {
   })
 
   it('names each dropped node, its type, what it wrote, and what is missing', async () => {
-    // A healthy sibling must NOT be reported as dropped, and the dropped node
-    // must be named with the field it actually wrote — the aggregate count
-    // alone left the model guessing which component was broken.
+
     const value = String(await vtool.execute({ spec: {
       items: [{ type: 'callout', title: '只有标题' }, { type: 'text', content: '好' }],
     } }))
@@ -444,7 +422,6 @@ describe('validate_dsh_ui tool', () => {
     expect(value).not.toContain('请修正')
     expect(value).not.toContain('node=items[1]')
 
-    // A node nested in a container keeps its full path.
     const nested = String(await vtool.execute({ spec: {
       items: [{ type: 'grid', cols: 2, items: [{ type: 'table', rows: 42 }] }],
     } }))
@@ -472,7 +449,7 @@ describe('validate_dsh_ui tool', () => {
   })
 
   it('rejects line/donut series and empty chart collections before rendering', async () => {
-    // v3: line charts accept series; donut does not.
+
     const line = String(await vtool.execute({
       spec: {
         items: [{
@@ -499,8 +476,7 @@ describe('validate_dsh_ui tool', () => {
         }],
       },
     }))
-    // `data: []` is legal for grouped bars (points live in series), so only
-    // the truly empty series is reported — the chart is still rejected.
+
     expect(empty).toContain('items[0].series[0].data must not be empty')
     expect(empty).not.toContain('items[0].data must not be empty')
 
@@ -555,16 +531,15 @@ describe('validate_dsh_ui tool', () => {
   })
 
   it('reports parse failures with position and bracket counts', async () => {
-    // The real-world failure: rows-array `]` emitted as `}` (stray closer).
+
     const bad = '{"title":"x","items":[{"type":"table","columns":["a"],"rows":[["1"]}]}]}]}'
     const value = String(await vtool.execute({ spec: bad }))
     expect(value).toContain('status=invalid')
     expect(value).toContain('error=invalid_json')
-    // Bracket-count diagnostic points at the stray `}`.
+
     expect(value).toContain('brackets_open=')
     expect(value).toContain('braces_close=')
-    // Repairable: the reply hands the model the fixed JSON instead of
-    // asking it to re-author the fix by hand.
+
     expect(value).toContain('repair=applied')
     const match = /```\n([\s\S]*)\n```/.exec(value)
     expect(match).not.toBeNull()
@@ -602,7 +577,7 @@ describe('validate_dsh_ui tool', () => {
         { label: 'B', items: [text('b1')] },
       ] }],
     }
-    // 1 tabs node + 3 inner nodes = 4 (the old local counter said 1).
+
     const value = String(await tool.execute({ spec }))
     expect(value).toContain('rendered=4')
     const vv = String(await vtool.execute({ spec: JSON.stringify(spec) }))
@@ -610,12 +585,12 @@ describe('validate_dsh_ui tool', () => {
   })
 
   it('returns the AUTO-REPAIRED JSON when the body is repairable', async () => {
-    // trailing comma + missing closing brackets — tier-1/tier-2 heal it.
+
     const bad = '{"items":[{"type":"text","content":"你好"},],'
     const value = String(await vtool.execute({ spec: bad }))
     expect(value).toContain('repair=applied')
     expect(value).toContain('next=emit_repaired_fence')
-    // the repaired body appears verbatim and parses
+
     const match = /```\n([\s\S]*)\n```/.exec(value)
     expect(match).not.toBeNull()
     const repaired = match![1]!
@@ -636,8 +611,7 @@ describe('validate_dsh_ui tool', () => {
 
   it('keeps the diagnostics-only reply when the body cannot be repaired', async () => {
     const value = String(await vtool.execute({ spec: '{"items": [{"type": "tex' }))
-    // repairable in theory, but the result is not a valid spec (missing content) — wait:
-    // this one IS completable but the spec has no valid nodes; assert the no-auto-repair path:
+
     const bad = '{"title": "x", garbage'
     const v2 = String(await vtool.execute({ spec: bad }))
     expect(v2).toContain('repair=failed')

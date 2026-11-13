@@ -5,7 +5,6 @@ import type { GenuiSegmentedControl } from '../spec.ts'
 import type { GenuiBlockProps, AnswersState } from './state.ts'
 import css from './segmented-control.module.css'
 
-/** 渲染可通过选中值更新同级组件的单选控件。 */
 export function SegmentedControlNode({ node, onAction, answers }: {
   node: GenuiSegmentedControl
   onAction?: GenuiBlockProps['onAction']
@@ -27,7 +26,6 @@ export function SegmentedControlNode({ node, onAction, answers }: {
     if (id !== undefined && restored === undefined && initial !== '') answers?.setField(id, initial)
   }, [])
 
-  // 无共享字段时，流式更换选项也必须移除失效的本地选择。
   useEffect(() => {
     if (id !== undefined && answers !== undefined) return
     setLocalValue(previous => previous !== '' && !options.includes(previous) ? validDefault : previous)

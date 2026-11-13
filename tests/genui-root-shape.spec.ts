@@ -1,19 +1,8 @@
-// Issue #172: two legal-JSON, common-model-intent fence bodies were rejected
-// wholesale by the guard (silently, in the DOM channel).
-//
-//   A. `{type:'stat', items:[{label,value},…]}` — a stat group; repair wanted
-//      `label`/`value` on the node itself, dropped the node, and the whole
-//      fence degraded to a raw code block (the legal `callout` sibling was
-//      rejected with it).
-//   B. `{type:'steps', items:[{title,desc},…]}` — the documented bare
-//      single-component root; `isGenuiSpec` read the step records as spec
-//      children because they live under `items`.
 import { describe, expect, it } from 'vitest'
 import { isComponentRoot, isGenuiSpec, parseGenuiSpec, wrapSingleComponentRoot } from '../src/client/spec.ts'
 import { normalizeGenuiSpec } from '../src/client/genui-runtime/normalize.ts'
 import { countDeclaredGenuiNodes, isRenderableProcess, processGenuiSpec, repairGenuiSpec } from '../src/client/guard.ts'
 
-/** Case A from the issue: a stat group plus a legal sibling node. */
 const statGroupFence = {
   gap: 12,
   items: [
@@ -23,7 +12,6 @@ const statGroupFence = {
   title: '进度快照',
 }
 
-/** Case B from the issue: a bare steps root whose data field is `items`. */
 const bareStepsFence = {
   items: [
     { title: '第一层', desc: 'a' }, { title: '第二层', desc: 'b' }, { title: '第三层', desc: 'c' },
@@ -79,8 +67,7 @@ describe('issue #172 case A: stat groups normalize into a row of stats', () => {
   })
 
   it('leaves a single stat with a stray items field to the normal repair path', () => {
-    // `label`/`value` present ⇒ this is a single stat, not a metric list; the
-    // alias must not silently rewrite it.
+
     const processed = processGenuiSpec({ items: [{ type: 'stat', label: 'L', value: '1', items: [{ label: 'x', value: 'y' }] }] })
     expect(processed.normalized).toEqual({ items: [{ type: 'stat', label: 'L', value: '1', items: [{ label: 'x', value: 'y' }] }] })
     expect(isRenderableProcess(processed)).toBe(true)
@@ -98,10 +85,9 @@ describe('issue #172 case B: bare data-component roots', () => {
     const spec = parseGenuiSpec(JSON.stringify(bareStepsFence))
     expect(spec?.items).toHaveLength(1)
     expect(spec?.items[0]).toMatchObject({ type: 'steps' })
-    // parseGenuiSpec returns the raw (un-normalized) node: the `items` → `steps`
-    // alias is applied by the guard pipeline, not by the parser.
+
     expect((spec?.items[0] as { items: unknown[] }).items).toHaveLength(3)
-    // The model's root `title` is a block title, not a steps field.
+
     expect(spec?.title).toBe('修复策略')
     expect((spec?.items[0] as { title?: unknown }).title).toBeUndefined()
   })
@@ -145,7 +131,7 @@ describe('issue #172 case B: bare data-component roots', () => {
     const parsed = parseGenuiSpec(JSON.stringify({ type: 'callout', tone: 'info', title: 't', content: 'c' }))
     const processed = processGenuiSpec(parsed)
     expect(processed.errors).toEqual([])
-    // One root item, and no `col` wrapper around it.
+
     expect(processed.spec?.items).toHaveLength(1)
     expect(processed.spec?.items[0]?.type).toBe('callout')
     expect(processed.spec?.items.some(node => node.type === 'col')).toBe(false)

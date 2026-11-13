@@ -1,4 +1,3 @@
-/** Synthetic real-renderer regression for #249 and #280. No host or model service. */
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { GenuiBlock } from '../../src/client/GenuiBlock.tsx'
@@ -10,15 +9,6 @@ const theme = document.createElement('style')
 theme.textContent = STANDALONE_THEME_CSS
 document.head.appendChild(theme)
 
-/** The desktop shell renders message bodies inside `.markdown`. Two of that
- *  sheet's rules land on `dsh-ui` output, because the components render inside
- *  the same subtree:
- *    - `.markdown { overflow-wrap: anywhere }` is inherited by every cell, and
- *    - `.markdown :not(pre) > code` turns each inline chip into an atomic
- *      `inline-flex` box.
- *  A fixture that renders the table outside that cascade cannot reproduce the
- *  cross-column bleed at all, so the host context is part of the layout
- *  contract being tested here. */
 const hostCascade = document.createElement('style')
 hostCascade.textContent = `
 .host-markdown { overflow-wrap: anywhere; min-width: 0; }
@@ -111,10 +101,7 @@ cases.push({
   },
   selector: '', expected: '', whiteSpace: '', detailWhitespace: true,
 })
-/** #280 in the real host cascade. The chip is an atomic `inline-flex` box
- *  whose automatic minimum size collapses while its own line is still painted
- *  unbroken — so the column can be sized below its content and the text bleeds
- *  over the next column. Cells whose ink leaves the column are the failure. */
+
 cases.push({
   name: 'host markdown cascade keeps single-line table inside its columns',
   node: {
@@ -220,7 +207,7 @@ setTimeout(() => {
   }
   setTimeout(() => {
     const results: Array<Record<string, unknown>> = [...measure('initial'), ...measureTableControlLayout('initial')]
-    // Repeated local controls/rerenders must leave label formatting intact.
+
     for (const checkbox of document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) {
       checkbox.click()
       checkbox.click()
@@ -241,8 +228,6 @@ setTimeout(() => {
   }, 100)
 }, 600)
 
-/** Painted ink extent of a cell, measured per character so chips and rich text
- *  are judged by what is actually drawn rather than by their box. */
 function textRightOf(cell: Element): number {
   let max = Number.NEGATIVE_INFINITY
   const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT)
@@ -259,7 +244,6 @@ function textRightOf(cell: Element): number {
   return max
 }
 
-/** Character ranges measure actual painted line boxes, including rich text. */
 function measure(phase: string) {
   return cases.flatMap((item, index) => {
     if (item.hostTableGeometry) {
@@ -326,10 +310,7 @@ function measure(phase: string) {
       const productWidth = productCell.getBoundingClientRect().width
       const rowHeight = row.getBoundingClientRect().height
       const lineHeight = parseFloat(getComputedStyle(identifierCell).lineHeight)
-      // CJK fallback fonts differ across platforms: this table may legitimately
-      // fit without scrolling. Assert the #326 regression (column collapse)
-      // here; the wide Latin inline-code fixture above independently requires
-      // horizontal scrolling, without depending on installed CJK glyphs.
+
       return [
         {
           name: `${item.name}: identifier column keeps usable width`, phase,
@@ -454,7 +435,7 @@ function measure(phase: string) {
         character.setStart(text, position)
         character.setEnd(text, position + 1)
         const rect = character.getBoundingClientRect()
-        // Font-weight can change glyph bounds slightly on the same line.
+
         if (rect.width > 0 && !lineTops.some(top => Math.abs(top - rect.top) < fontSize / 2)) {
           lineTops.push(rect.top)
         }
@@ -478,7 +459,6 @@ function measure(phase: string) {
   })
 }
 
-/** Check that table controls follow their cell padding and align with labels. */
 function measureTableControlLayout(phase: string) {
   const groupCell = document.querySelector<HTMLElement>(`#table-layout .${css.groupRow} td`)
   const groupToggle = groupCell?.querySelector<HTMLElement>(`.${css.groupToggle}`)

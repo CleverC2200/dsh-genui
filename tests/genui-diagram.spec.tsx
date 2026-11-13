@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// Editorial diagram rendering: the `diagram` node renders inline SVG with the
-// editorial constraints (orthogonal paths, semantic tokens, a11y shell).
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { t } from '../src/client/i18n/index.ts'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -141,7 +138,7 @@ describe('DiagramNode', () => {
     const path = container.querySelector('path')
     expect(path).not.toBeNull()
     expect(path?.getAttribute('d')).toContain('M ')
-    // Orthogonal paths contain only H/V/Q commands, never L between off-axis points.
+
     const d = path?.getAttribute('d') ?? ''
     expect(d).toMatch(/^M [0-9.]+ [0-9.]+ (H|V|Q)/)
   })
@@ -149,7 +146,7 @@ describe('DiagramNode', () => {
   it('applies semantic treatment: focal node uses the accent stroke', () => {
     const { container } = render(<DiagramNode node={base} />)
     const rects = Array.from(container.querySelectorAll('rect'))
-    // The focal node's stroke rect should exist; find any rect with accent-ish stroke.
+
     const strokes = rects.map(r => r.getAttribute('stroke')).filter(Boolean)
     expect(strokes.length).toBeGreaterThan(0)
   })
@@ -158,7 +155,7 @@ describe('DiagramNode', () => {
     const dark: GenuiDiagram = { ...base, variant: 'dark' }
     const { container } = render(<DiagramNode node={dark} />)
     const svg = container.querySelector('svg') as SVGSVGElement
-    expect(svg.style.background).toContain('45, 49, 66') // jet-black dark paper
+    expect(svg.style.background).toContain('45, 49, 66')
   })
 
   it('renders every rule kind without throwing', () => {
@@ -222,11 +219,10 @@ describe('DiagramNode', () => {
     expect(texts).toContain('FRONTEND')
     expect(texts).toContain('DATA')
     expect(texts).toContain(t('dgm.legend'))
-    // The legend lists only the node types this diagram actually uses: two
-    // untyped nodes are `backend`, so `Backend` shows and unused roles do not.
+
     expect(texts).toContain(t('dgm.legend.backend'))
     expect(texts).not.toContain(t('dgm.legend.security'))
-    // Zone hairline rects exist (dashed border + label mask + node boxes).
+
     expect(container.querySelectorAll('rect').length).toBeGreaterThanOrEqual(8)
   })
 

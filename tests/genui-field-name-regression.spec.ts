@@ -1,19 +1,7 @@
-// Regression corpus for the fence-killing field-name defects observed in two
-// real sessions (2026-09-15, dsh-genui 0.10.0 / upstream main 0.11.1-preview.1):
-// 62 emitted ```dsh-ui fences, 17 of which never rendered. Every one of the 17
-// was a single component dropped by repair — `callout.text`, `table` without
-// `columns`, `keyvalue.items` — which fails `isRenderableProcess` and sends the
-// WHOLE fence back to a raw code block (fence-render.tsx → resolveGenuiSpec
-// null → FenceFallback / DOM-channel "keep the stock block").
-//
-// The bodies below are reduced but shape-faithful samples of those fences
-// (values trimmed, field names verbatim). Each must render; a regression here
-// means a user sees raw JSON instead of the UI the model intended.
 import { describe, expect, it } from 'vitest'
 import { processGenuiSpec, isRenderableProcess } from '../src/client/guard.ts'
 import { parsePartialGenuiSpec } from '../src/client/parse-partial.ts'
 
-/** The render decision the fence channels actually make, minus React. */
 function renders(raw: string): boolean {
   const parsed = parsePartialGenuiSpec(raw)
   if (parsed === null) return false
@@ -37,9 +25,6 @@ describe('field-name regression corpus (real-session fences)', () => {
     expect(renders(raw)).toBe(true)
   })
 
-  // Issue #186 corpus: high-frequency miswrites observed across ten degraded
-  // real-session fences (0.11.0 / DSH 0.1.5-rc.2). Each must now render
-  // outright — the aliases/normalization fix them before validation.
   it.each([
     ['table 用 items 装二维数组且缺 columns', '{"items":[{"type":"table","items":[["检查项","结果"],["/health","200 OK"],["首页未登录","302 → CAS"]]}]}'],
     ['keyvalue 记录写成 {label,value}', '{"items":[{"type":"keyvalue","items":[{"label":"任务卡","value":"7/7"},{"label":"pytest","value":"327 passed"}]}]}'],
@@ -52,7 +37,7 @@ describe('field-name regression corpus (real-session fences)', () => {
 
   it('unwraps a double-encoded fence body (issue #186 case 8)', () => {
     const inner = JSON.stringify({ items: [{ type: 'stat', label: '通过', value: '327' }] })
-    // The whole spec arrived as a JSON string (literal \" in the fence body).
+
     expect(renders(JSON.stringify(inner))).toBe(true)
     const parsed = parsePartialGenuiSpec(JSON.stringify(inner))
     expect(parsed).not.toBeNull()
@@ -61,8 +46,7 @@ describe('field-name regression corpus (real-session fences)', () => {
 
   it('repairs the issue #186 shapes into canonical trees', () => {
     const processed = processGenuiSpec(JSON.parse('{"items":[{"type":"file-tree","nodes":[{"label":"src","children":[{"label":"main.py"}]}]}]}'))
-    // label→name at every depth, `type:dir` defaulted for parents, stray
-    // record fields (desc) dropped silently by repair.
+
     expect(processed.repaired?.items[0]).toEqual({
       type: 'file-tree',
       items: [{ name: 'src', type: 'dir', children: [{ name: 'main.py' }] }],
@@ -73,8 +57,8 @@ describe('field-name regression corpus (real-session fences)', () => {
     expect(table.repaired?.items[0]).toEqual({ type: 'table', columns: ['检查项', '结果'], rows: [['/health', '200']] })
   })
 
-  it('renders the two real large fences end to end', () => {    // The MR17072 risk-inventory fence (api.shop.sc.weibo.com session): a
-    // callout + 8-row table + list, previously degraded to one code block.
+  it('renders the two real large fences end to end', () => {
+
     const riskInventory = JSON.stringify({
       title: 'MR !7072 代码评审 · 潜在风险清单',
       gap: 14,
@@ -101,8 +85,6 @@ describe('field-name regression corpus (real-session fences)', () => {
     })
     expect(renders(riskInventory)).toBe(true)
 
-    // The result-export design fence (clickhouse session): a nested-array
-    // list plus keyvalue, previously degraded to one code block.
     const designSummary = JSON.stringify({
       title: '结果导出 CSV · 设计定稿',
       gap: 12,
@@ -122,10 +104,7 @@ describe('field-name regression corpus (real-session fences)', () => {
   })
 
   it('documents the still-open object-array table case', () => {
-    // `{type:'table', data:[{col:…}, …]}` with NO columns is still dropped:
-    // object rows carry their own header keys, and deriving columns from them
-    // without a declared column set is a separate design decision (it would
-    // silently invent column order). It stays a known gap, not a silent fix.
+
     expect(renders('{"items":[{"type":"table","data":[{"tool":"a","result":"✅"}]}]}')).toBe(false)
   })
 
@@ -141,9 +120,7 @@ describe('field-name regression corpus (real-session fences)', () => {
     const processed = processGenuiSpec(parsed as unknown)
     expect(processed.errors).toEqual([])
     expect(isRenderableProcess(processed)).toBe(true)
-    // Without these the list renders EMPTY and the keyvalue loses every pair —
-    // both are "renders but shows nothing" variants of the same field-name
-    // class of defect.
+
     expect(processed.repaired?.items).toEqual([
       { type: 'list', items: ['数据源：a', '格式：b'] },
       { type: 'list', items: [{ title: '先定 R1 口径', desc: '恢复 fetch_one' }] },

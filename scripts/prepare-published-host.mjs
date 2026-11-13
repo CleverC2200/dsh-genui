@@ -1,4 +1,3 @@
-/** Install a fresh exact npm host for packed browser acceptance; never use an active profile. */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { appendFile, mkdtemp, readFile, writeFile } from 'node:fs/promises'
@@ -15,9 +14,7 @@ assert.match(version ?? '', /^\d+\.\d+\.\d+(?:-(?:alpha|beta|rc)\.\d+)?$/, 'Exac
 const manifest = JSON.parse(execFileSync('pnpm', ['view', `@deepseek-ai/dsh@${version}`, '--json'], { encoding: 'utf8' }))
 assert.equal(manifest.version, version)
 assert.ok(satisfies(process.versions.node, manifest.engines?.node ?? '*'), 'Node must satisfy the selected host runtime')
-// Published workspace ranges can resolve different Cordis copies over time.
-// Use the versions recorded when this exact host was published, matching its
-// official workspace graph rather than mixing a newer loader/runtime into it.
+
 const overrides = Object.fromEntries(Object.entries(manifest.dependencies)
   .filter(([name]) => name.startsWith('@deepseek-ai/cordis'))
   .map(([name, range]) => {

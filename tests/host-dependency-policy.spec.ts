@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-// @ts-expect-error Dependency-free Node script shared by acceptance setup.
+
 import { mergeExactVersionExceptions } from '../scripts/host-dependency-policy.mjs'
 
 describe('exact host dependency age exceptions', () => {

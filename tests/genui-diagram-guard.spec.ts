@@ -1,5 +1,3 @@
-// Editorial diagram guard: repair + validation of the `diagram` node.
-// Pure node tests — no DOM. Mirrors genui-guard.spec.ts style.
 import { describe, expect, it } from 'vitest'
 import { repairGenuiSpec, validateGenuiSpec } from '../src/client/guard.ts'
 import { GENUI_LIMITS } from '../src/client/genui-runtime/index.ts'
@@ -19,7 +17,7 @@ describe('repairGenuiSpec: diagram', () => {
     })] })
     const d = spec?.items[0] as { type: 'diagram'; id: string; nodes: Array<{ x: number; y: number; w: number; h: number; description?: string }> }
     expect(d.type).toBe('diagram')
-    // 41 → 40, 130 → 132 (round to 4)
+
     expect(d.nodes[0].x).toBe(40)
     expect(d.nodes[0].w).toBe(132)
     expect(d.nodes[0].tag).toBe('API')
@@ -32,7 +30,7 @@ describe('repairGenuiSpec: diagram', () => {
       diagram({ kind: 'not-a-kind' as string }),
       { type: 'diagram', kind: 'tree', nodes: [{ id: 'a' }, { label: 'no-id' }] },
     ] })
-    // Unknown kind → dropped; valid kind with incomplete nodes → dropped nodes.
+
     expect(spec?.items).toHaveLength(1)
     const d = spec?.items[0] as { nodes: unknown[] }
     expect(d.nodes).toHaveLength(0)

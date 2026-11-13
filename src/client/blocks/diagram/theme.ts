@@ -1,14 +1,3 @@
-/**
- * Editorial diagram theme: the diagram-design semantic-token system ported
- * into the dsh-genui renderer. Every diagram draws from these roles — never
- * from inline hex in the layout code — and a spec-level `theme` override
- * merges over the defaults, mirroring diagram-design's style-guide.md.
- *
- * Two skins ship: light and dark (the dark palette is the jet-black
- * inversion, same roles). The `editorial` variant is the full skin and
- * defaults to light unless the host theme is dark.
- * @module @changfenhuang/dsh-genui/client/blocks/diagram/theme
- */
 import type { GenuiDiagramTheme, GenuiDiagramVariant } from '../../spec.ts'
 
 export interface DiagramPalette {
@@ -23,7 +12,6 @@ export interface DiagramPalette {
   link: string
 }
 
-/** diagram-design default skin (style-guide.md § Tokens). */
 const LIGHT: DiagramPalette = {
   paper: '#f5f5f5',
   paper2: '#ececec',
@@ -36,7 +24,6 @@ const LIGHT: DiagramPalette = {
   link: '#2e5aa8',
 }
 
-/** Dark inversion: jet-black paper, white-smoke ink, silver muted. */
 const DARK: DiagramPalette = {
   paper: '#2d3142',
   paper2: '#393e53',
@@ -49,12 +36,10 @@ const DARK: DiagramPalette = {
   link: '#6a95d8',
 }
 
-/** Native SVG paint values keep inherited host tokens live across theme changes. */
 export function hostPalette(): DiagramPalette {
   const accent = 'var(--dsw-alias-state-business-primary, #4f8ef7)'
   return {
-    // The card surface token, not the raw layer: the diagram ground sat one
-    // step lighter than the cards above it.
+
     paper: 'var(--dsl-g-surface, var(--dsw-alias-bg-layer-2, #ffffff))',
     paper2: 'var(--dsw-alias-bg-layer-3, #f5f5f5)',
     ink: 'var(--dsw-alias-label-primary, #2d3142)',
@@ -67,10 +52,8 @@ export function hostPalette(): DiagramPalette {
   }
 }
 
-/** Resolve the active palette from variant + optional theme overrides. */
 export function resolvePalette(variant: GenuiDiagramVariant | undefined, theme: GenuiDiagramTheme | undefined): DiagramPalette {
-  // No explicit variant -> follow the host theme; an explicit variant keeps the
-  // editorial skin (that is what the field is for).
+
   const base = variant === undefined ? hostPalette() : variant === 'dark' ? DARK : LIGHT
   if (theme === undefined) return base
   return {
@@ -86,7 +69,6 @@ export function resolvePalette(variant: GenuiDiagramVariant | undefined, theme: 
   }
 }
 
-/** Node treatment → { fill, stroke, dashed } per diagram-design §5. */
 export function nodeTreatment(type: string | undefined, p: DiagramPalette): { fill: string; stroke: string; dashed?: boolean } {
   switch (type) {
     case 'focal': return { fill: p.accentTint, stroke: p.accent }
@@ -99,7 +81,6 @@ export function nodeTreatment(type: string | undefined, p: DiagramPalette): { fi
   }
 }
 
-/** Edge stroke color per semantic kind. */
 export function edgeStroke(kind: string | undefined, p: DiagramPalette): string {
   switch (kind) {
     case 'accent': return p.accent
@@ -108,7 +89,6 @@ export function edgeStroke(kind: string | undefined, p: DiagramPalette): string 
   }
 }
 
-/** Apply opacity while retaining live host-token references. */
 export function inkAt(color: string, opacity: number): string {
   if (color.startsWith('var(')) return `color-mix(in srgb, ${color} ${opacity * 100}%, transparent)`
   if (color.startsWith('#')) {
@@ -119,7 +99,7 @@ export function inkAt(color: string, opacity: number): string {
     const b = parseInt(full.slice(4, 6), 16)
     return `rgba(${r},${g},${b},${opacity})`
   }
-  // rgba(...) input: replace the alpha component.
+
   return color.replace(/rgba?\(([^)]*)\)/, (_, inner: string) => {
     const parts = inner.split(',').map(s => s.trim())
     if (parts.length === 3) return `rgba(${parts.join(',')},${opacity})`

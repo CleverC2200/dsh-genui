@@ -1,4 +1,3 @@
-/** Heavy engine: imported ONLY by the maplibre asset entry. */
 import * as maplibre from 'maplibre-gl'
 import type { GeoJSONSource, StyleSpecification } from 'maplibre-gl'
 import type { GenuiMap } from './spec.ts'
@@ -10,10 +9,9 @@ import { setOwnedMapWorkerUrl } from './map-worker-ownership.ts'
 const ROUTES = '__genui_routes'
 let workerUrl: string | undefined
 let users = 0
-// Preserve an observed document-policy block for this engine instance.
-// A new page/engine starts with independent policy evidence.
+
 let workerPolicyBlocked = false
-/** Own the worker URL; MapLibre releases its pool after the final Map.remove(). */
+
 function acquireWorker(): () => void {
   if (workerUrl === undefined) {
     workerUrl = URL.createObjectURL(new Blob([maplibreWorker], { type: 'text/javascript' }))
@@ -42,7 +40,7 @@ function injectCss(): void {
 export function offlineMapStyle(): StyleSpecification {
   return { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#eef2f6' } }] }
 }
-/** Follow the shortest segment at the dateline without changing stored WGS84 data. */
+
 export function unwrapRoute(points: readonly [number, number][]): [number, number][] {
   const result: [number, number][] = []
   for (const [lng, lat] of points) {
@@ -71,17 +69,13 @@ export function mountMap(container: HTMLElement, initial: GenuiMap, initialSelec
   }
   function workerPolicyViolation(event: SecurityPolicyViolationEvent): void {
     if (!starting || event.disposition !== 'enforce' || event.effectiveDirective !== 'worker-src') return
-    // CSP3 strips non-HTTP URLs to their scheme. A document-level Blob worker
-    // denial therefore conservatively fails only this pending initialization;
-    // its UUID cannot be attributed. Never affect an already-ready Map, report-
-    // only policy, another directive, another full URL, or another document.
+
     if (event.blockedURI === startupWorkerUrl || event.blockedURI === 'blob' || event.blockedURI === 'blob:') {
       workerPolicyBlocked = true
       error()
     }
   }
-  // Observe enforced CSP before construction without changing the host policy;
-  // browser worker startup failures need not emit a Map error.
+
   document.addEventListener('securitypolicyviolation', workerPolicyViolation)
   let map: maplibre.Map
   try {

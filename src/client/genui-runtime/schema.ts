@@ -1,5 +1,3 @@
-/** Runtime metadata shared by GenUI normalization and diagnostics. */
-
 export type ComponentFieldKind =
   | 'string'
   | 'string-or-null'
@@ -10,7 +8,6 @@ export type ComponentFieldKind =
   | 'object'
   | 'unknown'
 
-/** A conditional rule for fields whose presence depends on another field. */
 export interface ComponentConditionalRule {
   readonly kind: 'required-if'
   readonly when: { readonly field: string; readonly equals: unknown }
@@ -18,26 +15,23 @@ export interface ComponentConditionalRule {
   readonly message?: string
 }
 
-/** A field rule that requires at least one member of a field group. */
 export interface ComponentOneOfRule {
   readonly kind: 'one-of-required'
   readonly fields: readonly string[]
   readonly message?: string
 }
 
-/** Runtime metadata naming a component-specific semantic validator. */
 export interface ComponentValidatorMetadata {
   readonly name: string
   readonly [key: string]: unknown
 }
 
-/** Runtime schema for an object nested inside a native component field. */
 export interface ComponentRecordSchema {
   readonly required: readonly string[]
   readonly fields: Readonly<Record<string, ComponentFieldKind>>
   readonly enums: Readonly<Record<string, readonly string[]>>
   readonly nested: Readonly<Record<string, ComponentRecordSchema>>
-  /** Field-name aliases applied to each record before validation/repair. */
+
   readonly aliases: Readonly<Record<string, string>>
 }
 
@@ -45,10 +39,10 @@ export interface ComponentSchema {
   readonly required: readonly string[]
   readonly fields: Readonly<Record<string, ComponentFieldKind>>
   readonly enums: Readonly<Record<string, readonly string[]>>
-  /** Explicit optional field kinds; `fields` remains the complete field map. */
+
   readonly optional: Readonly<Record<string, ComponentFieldKind>>
   readonly aliases: Readonly<Record<string, string>>
-  /** Written enum values deterministically mapped to canonical ones (field → value → canonical). */
+
   readonly valueAliases: Readonly<Record<string, Readonly<Record<string, string>>>>
   readonly oneOfRequired: readonly (readonly string[])[]
   readonly conditionalRequired: readonly ComponentConditionalRule[]
@@ -57,10 +51,6 @@ export interface ComponentSchema {
   readonly validator?: ComponentValidatorMetadata
 }
 
-
-/** Canonical enum domains shared by schema validation and repair. */
-/** Comparison operators a `when` condition can use (kept with the other
- * runtime enums: `spec.ts` imports this module, so the list lives here). */
 export const WHEN_OPS = ['eq', 'neq', 'in', 'not-in', 'gt', 'gte', 'lt', 'lte', 'empty', 'not-empty', 'checked'] as const
 
 export const TEXT_SIZES = ['display', 'h1', 'h2', 'h3', 'body', 'muted', 'caption'] as const
@@ -93,27 +83,27 @@ export const ECHART_PRESETS = [
   'bar', 'line', 'area', 'pie', 'scatter',
   'radar', 'gauge', 'funnel', 'treemap', 'sankey', 'graph', 'heatmap', 'bigline', 'wordCloud',
 ] as const
-/** Oversized single-number stat (one per fence as the visual anchor). */
+
 export const STAT_SIZES = ['hero'] as const
-/** Progress shapes: a track (default) or a circular gauge. */
+
 export const PROGRESS_VARIANTS = ['bar', 'ring'] as const
-/** Semantic card surfaces. */
+
 export const CARD_TONES = ['info', 'success', 'warning', 'danger'] as const
-/** Text run tones (semantic colour without a badge). */
+
 export const TEXT_TONES = ['danger', 'success', 'warning', 'info', 'muted'] as const
-/** Arrow directions. */
+
 export const ARROW_DIRS = ['down', 'right'] as const
-/** Row main-axis alignment values. */
+
 export const ROW_JUSTIFY = ['start', 'center', 'end', 'between'] as const
-/** Block-row paint modes: filled cells, or outlined cells for bit grids. */
+
 export const BLOCKS_VARIANTS = ['fill', 'outline', 'plain'] as const
-/** 单格强调的语义档位。 */
+
 export const BLOCK_CELL_TONES = ['accent', 'success', 'warning', 'danger', 'muted'] as const
-/** Icon tones: the four semantic roles plus neutral/muted text colours. */
+
 export const ICON_TONES = ['default', 'muted', 'info', 'success', 'warning', 'danger'] as const
-/** Hero cover tones. */
+
 export const HERO_TONES = ['accent', 'success', 'warning', 'danger'] as const
-/** Table cell renderers (`table.types`, one entry per column). */
+
 export const TABLE_CELL_TYPES = ['text', 'num', 'delta', 'bar', 'badge', 'spark', 'ring', 'index', 'group'] as const
 
 const schema = (
@@ -165,7 +155,6 @@ const nodeFields = {
   type: 'string', span: 'number', when: 'object', enableWhen: 'object', disabledReason: 'string',
 } as const
 
-/** Conditional visibility carried by any node: `{ field, op, value? }`. */
 const whenSchema = recordSchema(['field', 'op'], {
   field: 'string', op: 'string', value: 'unknown',
 }, {}, { op: WHEN_OPS })
@@ -197,15 +186,10 @@ const chartSeriesSchema = recordSchema(['label', 'data'], {
 }, { data: chartDatumSchema })
 
 const stepsRecordSchema = recordSchema(['title'], { title: 'string', desc: 'string' })
-// `label` is what models write for the left-hand column (issue #186); the
-// record otherwise fails "requires key" and the whole keyvalue drops.
+
 const keyValueRecordSchema = recordSchema(['key', 'value'], { key: 'string', value: 'string' }, {}, {}, { label: 'key' })
 const timelineRecordSchema = recordSchema(['title'], { title: 'string', desc: 'string', time: 'string' })
-// One `blocks` row. `cells` entries are text-or-null; `null` means "gap".
-// `cells` is a UNION (string | null | record), so it cannot hang off
-// `nested` — that path assumes every array entry is a record and would demand
-// objects for the plain-string cells. The object arm is validated by
-// validateNode's `blocks` case instead; the row schema only declares kinds.
+
 const blocksRowSchema = recordSchema(['cells'], { label: 'string', cells: 'array', color: 'string', variant: 'string' }, {}, { variant: BLOCKS_VARIANTS }, { title: 'label' })
 const diffRecordSchema = recordSchema(['path', 'newText'], { path: 'string', oldText: 'string-or-null', newText: 'string' })
 const plotParamSchema = recordSchema(['name', 'value'], {
@@ -224,8 +208,7 @@ function fileTreeRecordSchema(depth: number): ComponentRecordSchema {
     { name: 'string', type: 'string', children: 'array' },
     depth > 0 ? { children: fileTreeRecordSchema(depth - 1) } : {},
     { type: FILE_TYPES },
-    // Tree records read like outline items to models: they reach for `label`
-    // (and `desc`) instead of `name` (issue #186).
+
     { label: 'name' },
   )
 }
@@ -239,8 +222,6 @@ const imageGroupItemSchema = recordSchema(['src'], {
 const entityMetadataSchema = recordSchema(['label', 'value'], { label: 'string', value: 'string' })
 const entityActionSchema = recordSchema(['label', 'action'], { label: 'string', action: 'string', tone: 'string' }, {}, { tone: BUTTON_TONES })
 
-/** One side of a `compare` pair: the same media policy, plus a visible chip. */
-/** One option row: label + cost + optional evidence and state. */
 const choiceItemSchema = recordSchema(['label'], {
   label: 'string', hint: 'string', meta: 'string',
   recommended: 'boolean', disabled: 'boolean', reason: 'string',
@@ -302,7 +283,6 @@ const diagramThemeSchema = recordSchema([], {
   link: 'string',
 })
 
-/** Root GenUI specification metadata used by diagnostics. */
 export const GENUI_SPEC_SCHEMA = schema(['items'], {
   title: 'string',
   gap: 'number',
@@ -312,18 +292,10 @@ export const GENUI_SPEC_SCHEMA = schema(['items'], {
   items: 'nodes',
 }, {}, { nested: { computed: computedFieldSchema } })
 
-/** Backwards-friendly short alias for the root specification schema. */
 export const SPEC_SCHEMA = GENUI_SPEC_SCHEMA
 
-/**
- * Native component field metadata.
- *
- * This is intentionally explicit rather than inferred from TypeScript
- * interfaces: the registry is also consumed at runtime by normalization and
- * diagnostics, where erased interfaces are unavailable.
- */
 const RAW_COMPONENT_SCHEMAS: Readonly<Record<string, ComponentSchema>> = {
-  // Thin connector for figures; the `↓` text glyph was the only option before.
+
   arrow: schema([], { ...nodeFields, dir: 'string', length: 'number', label: 'string' }, { direction: 'dir' }, { enums: { dir: ARROW_DIRS } }),
   accordion: schema(['items'], { ...nodeFields, items: 'array' }, {}, { nested: { items: accordionHolderSchema } }),
   audio: schema(['src'], { ...nodeFields, src: 'string', alt: 'string', loop: 'boolean' }, { url: 'src', link: 'src' }),
@@ -331,15 +303,9 @@ const RAW_COMPONENT_SCHEMAS: Readonly<Record<string, ComponentSchema>> = {
   badge: schema(['label'], { ...nodeFields, label: 'string', tone: 'string', icon: 'string' }, { text: 'label', value: 'label' }, { enums: { tone: BADGE_TONES } }),
   breadcrumb: schema(['items'], { ...nodeFields, items: 'array' }),
   button: schema(['label'], { ...nodeFields, label: 'string', tone: 'string', full: 'boolean', small: 'boolean', icon: 'string', action: 'string' }, {}, { enums: { tone: BUTTON_TONES } }),
-  // `text`/`body`/`desc` are the model's default names for "the callout's
-  // prose": a callout missing `content` is dropped by repair, which takes the
-  // WHOLE fence down with it (issue: dsh-ui 围栏字段名). Adopt them as aliases.
-  // `tone` value aliases: card/hero/badge/button all accept `danger` (and
-  // badge uses `warn`), so models cross-write them onto callout — map them
-  // onto the closest canonical tone instead of failing the enum (issue #186).
+
   callout: schema(['content'], { ...nodeFields, title: 'string', content: 'string', tone: 'string' }, { kind: 'tone', text: 'content', body: 'content', desc: 'content' }, { enums: { tone: CALLOUT_TONES }, valueAliases: { tone: { danger: 'error', warn: 'warning' } } }),
-  // `flat` drops the elevation/shadow: figure panels must read as printed
-  // blocks, not as floating cards (the reference diagrams are drawn flat).
+
   card: schema(['items'], { ...nodeFields, title: 'string', eyebrow: 'string', items: 'nodes', tone: 'string', accent: 'string', flat: 'boolean' }, { label: 'title', content: 'items', body: 'items' }, { enums: { tone: CARD_TONES } }),
   carousel: schema(['items'], { ...nodeFields, items: 'nodes', title: 'string', itemWidth: 'number', gap: 'number' }, { children: 'items' }),
   'image-group': schema(['items'], { ...nodeFields, items: 'array', title: 'string' }, {}, { nested: { items: imageGroupItemSchema } }),
@@ -350,10 +316,7 @@ const RAW_COMPONENT_SCHEMAS: Readonly<Record<string, ComponentSchema>> = {
   popover: schema(['label', 'content'], {
     ...nodeFields, label: 'string', content: 'string', trigger: 'string', placement: 'string',
   }, {}, { enums: { trigger: POPOVER_TRIGGERS, placement: POPOVER_PLACEMENTS } }),
-  // Both sides are required: a "compare" with one side is a single image, and
-  // dropping the pair silently would leave a half-labelled figure.
-  // A decision list: options carry a cost, so the reader can choose instead of
-  // re-reading a paragraph. `radio` keeps the one-line quiz case.
+
   choices: schema(['items'], {
     ...nodeFields,
     title: 'string',
@@ -389,8 +352,7 @@ const RAW_COMPONENT_SCHEMAS: Readonly<Record<string, ComponentSchema>> = {
     palette: 'array',
   }, {}, {
     oneOfRequired: [['data', 'series']],
-    // `line` may carry its points in `series` (multi-series line); only the
-    // donut is a single-series shape that always needs `data`.
+
     conditionalRequired: [
       { kind: 'required-if', when: { field: 'kind', equals: 'donut' }, required: ['data'] },
     ],
@@ -406,24 +368,18 @@ const RAW_COMPONENT_SCHEMAS: Readonly<Record<string, ComponentSchema>> = {
     nested: { nodes: diagramNodeSchema, edges: diagramEdgeSchema, zones: diagramZoneSchema, theme: diagramThemeSchema },
     enums: { kind: DIAGRAM_KINDS, variant: DIAGRAM_VARIANTS },
   }),
-  // `items` is the container field name every other component uses, so models
-  // reach for it here too; without the alias the whole node (and fence) drops.
+
   diff: schema(['diffs'], { ...nodeFields, diffs: 'array' }, { items: 'diffs', files: 'diffs' }, { nested: { diffs: diffRecordSchema } }),
-  // `title`/`text` are what models reach for on a labeled separator; adopt
-  // them as aliases so the whole node (and fence) never drops for it.
+
   divider: schema([], { ...nodeFields, label: 'string' }, { title: 'label', text: 'label' }),
   echart: schema([], { ...nodeFields, title: 'string', height: 'number', preset: 'string', data: 'array', series: 'array', links: 'array', palette: 'array', option: 'object' }, {}, {
-    // `links` alone is valid: the sankey/graph presets are edge-driven.
+
     oneOfRequired: [['option', 'data', 'series', 'links']],
     enums: { preset: ECHART_PRESETS },
   }),
   'file-tree': schema(['items'], { ...nodeFields, items: 'array' }, { nodes: 'items' }, { nested: { items: fileTreeNodeSchema } }),
   grid: schema(['items'], { ...nodeFields, cols: 'number', items: 'nodes' }, { columns: 'cols' }),
-  // Figure primitives (v12). `blocks` exists so models stop hand-writing SVG
-  // coordinates for block diagrams; `icon` gives them the bundled glyph set
-  // instead of reaching for emoji. Both accept the field names models guess
-  // (`items`/`data` for rows, `icon` for name) so a near-miss never takes the
-  // whole fence down.
+
   blocks: schema(['rows'], { ...nodeFields, rows: 'array', columns: 'number', caption: 'string', title: 'string' }, { items: 'rows', data: 'rows' }, { nested: { rows: blocksRowSchema } }),
   icon: schema(['name'], { ...nodeFields, name: 'string', label: 'string', tone: 'string', size: 'number', tile: 'boolean' }, { icon: 'name' }, { enums: { tone: ICON_TONES } }),
   image: schema(['src'], { ...nodeFields, src: 'string', alt: 'string', caption: 'string' }, { url: 'src', link: 'src' }),
@@ -438,9 +394,7 @@ const RAW_COMPONENT_SCHEMAS: Readonly<Record<string, ComponentSchema>> = {
   svg: schema(['code'], { ...nodeFields, code: 'string', title: 'string', height: 'number' }),
   plot: schema(['series'], { ...nodeFields, series: 'array', xMin: 'number', xMax: 'number', yMin: 'number', yMax: 'number', title: 'string' }, {}, { nested: { series: plotSeriesSchema } }),
   progress: schema(['value'], { ...nodeFields, value: 'number', label: 'string', valueLabel: 'string', variant: 'string', target: 'number' }, {}, { enums: { variant: PROGRESS_VARIANTS } }),
-  // `items` joins the §175 aliases: it is the field name models reach for when
-  // they enumerate a component's choices, and without it the node (and with it
-  // the whole fence) is dropped.
+
   quiz: schema(['question', 'options'], { ...nodeFields, question: 'string', options: 'array', explanation: 'string', id: 'string', action: 'string' }, { title: 'question', text: 'question', choices: 'options', items: 'options' }),
   radio: schema(['options'], { ...nodeFields, label: 'string', options: 'array', selected: 'number', action: 'string', group: 'string', answer: 'unknown', explanation: 'string' }, { items: 'options' }),
   row: schema(['items'], { ...nodeFields, items: 'nodes', wrap: 'boolean', spacer: 'boolean', justify: 'string' }, {}, { enums: { justify: ROW_JUSTIFY } }),
@@ -471,10 +425,6 @@ const RAW_COMPONENT_SCHEMAS: Readonly<Record<string, ComponentSchema>> = {
   video: schema(['src'], { ...nodeFields, src: 'string', alt: 'string', poster: 'string', loop: 'boolean', muted: 'boolean', aspectRatio: 'string' }, { url: 'src', link: 'src' }, { enums: { aspectRatio: MEDIA_ASPECT_RATIOS } }),
 } as const
 
-/**
- * Every node can carry a `when` condition, so the record schema is attached to
- * each component once here instead of being repeated in forty literal entries.
- */
 export const COMPONENT_SCHEMAS: Readonly<Record<string, ComponentSchema>> = Object.fromEntries(
   Object.entries(RAW_COMPONENT_SCHEMAS).map(([type, base]) => [type, {
     ...base,
@@ -484,7 +434,6 @@ export const COMPONENT_SCHEMAS: Readonly<Record<string, ComponentSchema>> = Obje
 
 export const GENUI_NATIVE_TYPES: ReadonlySet<string> = new Set(Object.keys(COMPONENT_SCHEMAS))
 
-/** Look up only registered components, never Object.prototype properties. */
 export function getComponentSchema(type: string): ComponentSchema | undefined {
   return Object.hasOwn(COMPONENT_SCHEMAS, type) ? COMPONENT_SCHEMAS[type] : undefined
 }

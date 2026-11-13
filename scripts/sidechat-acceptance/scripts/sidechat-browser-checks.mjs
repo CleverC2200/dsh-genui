@@ -1,8 +1,3 @@
-/** Future real-host Playwright acceptance. NOT executed by the pure contracts.
- * Caller owns authenticated loopback page, exact candidates, public synthetic
- * seed/flush/restart and backend oracles. No installs, private context access,
- * DOM construction, request interception, browser launch or API action sending.
- */
 import assert from 'node:assert/strict'
 import { observeUiAwayCreate, verifyUiAwaySelection } from './sidechat-away-navigation.mjs'
 import { nativeThreadTab } from './sidechat-browser-locators.mjs'
@@ -20,7 +15,7 @@ const TOTAL_MS = 240000
 const STEP_MS = 15000
 
 export async function checkSidechatBrowser(options) {
-  const ids = validateInputs(options) // All required callbacks validated before touching UI.
+  const ids = validateInputs(options)
   const { page, artifactsDir, parentId, childIds, awaySessionId, workspaceId, bindUiAwaySession, seed,
     readBackendSnapshot, waitForBackendAction, report = {} } = options
   assert.ok(page && typeof page.locator === 'function', 'An actual Playwright page is required')
@@ -130,7 +125,7 @@ export async function checkSidechatBrowser(options) {
   }
   const chooseThread = async index => {
     await click(body().getByRole('button', { name: THREAD_MENU }))
-    // Menu portals live outside the sidebar, but exact fixture names are unique.
+
     await click(page.getByRole('menuitem', { name: `DSH354 thread-${index === 0 ? 'A' : 'B'}`, exact: true }))
     const activeTab = nativeThreadTab(parentOwner, page, index)
     await count(activeTab, 1, 'One native tab with the exact production title required')
@@ -141,7 +136,7 @@ export async function checkSidechatBrowser(options) {
     for (let index = 0; index < 4; index++) {
       await input(forms().nth(index)).fill(values[index], { timeout: remaining() })
       observed[index] = values[index]
-      await verify(observed) // Catch same-thread identical-fence state collisions immediately.
+      await verify(observed)
     }
   }
   const screenshot = async (locator, file) => {
@@ -158,7 +153,7 @@ export async function checkSidechatBrowser(options) {
   }
   const pageErrors = []
   const onPageError = () => pageErrors.push(true)
-  // Observe requests only. Never intercept, replay, fabricate or route them.
+
   const requests = []
   const requestHandles = []
   let observedActionRequests = 0
@@ -166,7 +161,7 @@ export async function checkSidechatBrowser(options) {
   const onRequest = request => {
     if (!isSidechatActionRequest(request, location.origin)) return
     observedActionRequests++
-    if (observedActionRequests > 4) return // Count excess traffic without retaining unbounded handles/bodies.
+    if (observedActionRequests > 4) return
     requestHandles.push(request)
     try { requests.push(request.postDataJSON()) } catch { requests.push(null) }
   }
@@ -206,7 +201,6 @@ export async function checkSidechatBrowser(options) {
     await screenshot(sideForms().nth(1), 'dsh354-thread-B-block0-fence1.png')
     report.scenarios.push('12 independent values across main/A/B, original text blocks 0/2 and fence indexes 0/1')
 
-    // A different real native tab hides/disposes the explicit row surface.
     await openGuide('files')
     await count(body(), 0, 'Files tab must actually hide the sidechat view')
     const bTab = nativeThreadTab(parentOwner, page, 1)
@@ -215,10 +209,9 @@ export async function checkSidechatBrowser(options) {
     await assertSide(fixtureValues('B'))
     report.scenarios.push('Real Files ↔ Sidechat native tab round trip retains all four B values')
 
-    // 官方 rc.3 复用工作区现有空白会话；核对原生请求与响应，再绑定界面选中的会话。
     const workspaceRow = page.locator(`[data-row-key="workspace:${workspaceId}"]`)
     await count(workspaceRow, 1, 'Exact owned workspace must be unique')
-    await workspaceRow.hover({ timeout: remaining() }) // Native row actions are visible on hover.
+    await workspaceRow.hover({ timeout: remaining() })
     const newSession = workspaceRow.getByRole('button', { name: /^(New session in workspace|在“workspace”中新建会话)$/u })
     const newSessionControl = await uniqueOnScreen(newSession)
     uiAwayCreate.arm()
@@ -241,8 +234,6 @@ export async function checkSidechatBrowser(options) {
     assert.equal(observedActionRequests, 0, 'Editing and switching must not send a sidechat prompt')
     report.scenarios.push('Real top-level conversation away/return retains main, B and A values')
 
-    // First contact can rename the current A tab. Do all A named selection
-    // before its actions, then select still-unchanged B exactly once.
     for (const [index, step] of actionPlan(childIds).entries()) {
       if (index === 2) {
         await chooseThread(1)
@@ -282,7 +273,7 @@ export async function checkSidechatBrowser(options) {
     return report
   } catch (error) {
     report.status = 'failed-real-host-checks'
-    // No raw browser error/URL/body dump: prevent accidental credential logging.
+
     report.failure = 'A required UI, state-isolation or backend ownership assertion failed; inspect the thrown assertion locally.'
     throw error
   } finally {

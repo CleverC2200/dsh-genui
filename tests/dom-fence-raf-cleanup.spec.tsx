@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import type { Context } from '@deepseek-ai/cordis'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -45,7 +44,6 @@ describe('DOM fence RAF teardown', () => {
     block.innerHTML = '<div>dsh-ui</div><pre>{"items":[{"type":"text","content":"hello"}]}</pre>'
     document.body.append(block)
 
-    // Let MutationObserver enqueue the coalesced RAF without running it.
     await Promise.resolve()
     await Promise.resolve()
 
@@ -57,8 +55,6 @@ describe('DOM fence RAF teardown', () => {
 
     expect(cancel).toHaveBeenCalledWith(rafId)
 
-    // Even if an environment invokes the stale callback after cancellation,
-    // the disposed guard must make it a no-op.
     callback(16)
 
     expect(rootFactory).not.toHaveBeenCalled()

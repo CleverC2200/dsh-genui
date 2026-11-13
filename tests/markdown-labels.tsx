@@ -6,7 +6,6 @@ const MARKDOWN_LABELS = {
   footnotes: '脚注',
 } satisfies NonNullable<ComponentProps<typeof PrimitiveMarkdownText>['labels']>
 
-/** Render MarkdownText with the rc.1 labels required by the host primitive. */
 export function MarkdownText(props: Omit<ComponentProps<typeof PrimitiveMarkdownText>, 'labels'>): ReturnType<typeof PrimitiveMarkdownText> {
   return <PrimitiveMarkdownText {...props} labels={MARKDOWN_LABELS} />
 }

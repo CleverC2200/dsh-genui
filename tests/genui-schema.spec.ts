@@ -121,8 +121,7 @@ describe('GenUI runtime schema normalization', () => {
     expect(COMPONENT_SCHEMAS.card.optional.title).toBe('string')
     expect(COMPONENT_SCHEMAS.chart.required).toEqual([])
     expect(COMPONENT_SCHEMAS.chart.oneOfRequired).toEqual([['data', 'series']])
-    // v3: `line` may carry its points in `series`, so only the donut keeps a
-    // conditional `data` requirement.
+
     expect(COMPONENT_SCHEMAS.chart.conditionalRequired).toHaveLength(1)
     expect(COMPONENT_SCHEMAS.chart.conditionalRequired[0]!.when).toEqual({ field: 'kind', equals: 'donut' })
     expect(COMPONENT_SCHEMAS.chart.fields.horizontal).toBe('boolean')
@@ -165,9 +164,7 @@ describe('GenUI runtime schema normalization', () => {
   })
 
   it('validates enum domains from the runtime registry', () => {
-    // 'purple' stays outside every tone vocabulary; 'warn'/'danger' on a
-    // callout are now value-aliases (warn→warning, danger→error, issue #186),
-    // so they normalize instead of failing the enum.
+
     expect(validateGenuiSpec({ items: [{ type: 'callout', content: 'x', tone: 'purple' }] }).errors)
       .toContain('items[0].tone must be one of info, success, warning, error')
     expect(validateGenuiSpec({ items: [{ type: 'callout', content: 'x', tone: 'warn' }] }).errors).toEqual([])
@@ -206,21 +203,21 @@ describe('GenUI runtime schema normalization', () => {
     expect(validateGenuiSpec({ items: [{ type: 'divider', label: '数据' }] }).ok).toBe(true)
     expect(repairGenuiSpec({ items: [{ type: 'divider', label: '数据' }] })?.items[0])
       .toEqual({ type: 'divider', label: '数据' })
-    // `title`/`text` normalize onto `label` with the stable alias warning.
+
     const normalized = normalizeGenuiSpec({ items: [{ type: 'divider', title: '数据' }] })
     expect(normalized.value).toEqual({ items: [{ type: 'divider', label: '数据' }] })
     expect(normalized.warnings.map(warning => [warning.path, warning.field, warning.canonical]))
       .toEqual([['items[0].title', 'title', 'label']])
-    // Overlong labels truncate in repair instead of dropping the node.
+
     expect((repairGenuiSpec({ items: [{ type: 'divider', label: '标'.repeat(80) }] })?.items[0] as { label?: string }).label)
       .toHaveLength(64)
-    // Undeclared fields on divider still surface as unknown-field diagnostics.
+
     expect(diagnoseUnknownGenuiFields({ items: [{ type: 'divider', typo: 1 }] }))
       .toMatchObject([{ path: 'items[0].typo', field: 'typo', type: 'divider' }])
   })
 
   it('carries the B1/B3/B4 anthology fields through validation and repair', () => {
-    // B1: display tier + align (legacy `center` stays valid alongside).
+
     expect(validateGenuiSpec({ items: [
       { type: 'text', size: 'display', content: '开篇', align: 'center' },
       { type: 'text', content: '正文', center: true },
@@ -231,13 +228,13 @@ describe('GenUI runtime schema normalization', () => {
       .toContain('items[0].size must be one of display, h1, h2, h3, body, muted, caption')
     const text = repairGenuiSpec({ items: [{ type: 'text', content: '开篇', size: 'display', align: 'right' }] })?.items[0]
     expect(text).toEqual({ type: 'text', content: '开篇', size: 'display', align: 'right' })
-    // B3: card eyebrow survives repair and truncates like short labels.
+
     expect(repairGenuiSpec({ items: [{ type: 'card', eyebrow: '第'.repeat(80), title: 'T', items: [] }] })?.items[0])
       .toMatchObject({ eyebrow: '第'.repeat(64), title: 'T' })
-    // B4: image caption rides the same pipeline as alt.
+
     expect(repairGenuiSpec({ items: [{ type: 'image', src: 'https://example.com/a.png', alt: 'A', caption: '来源：X' }] })?.items[0])
       .toEqual({ type: 'image', src: 'https://example.com/a.png', alt: 'A', caption: '来源：X' })
-    // Undeclared fields on these components still surface as unknown-field warnings.
+
     expect(diagnoseUnknownGenuiFields({ items: [
       { type: 'card', items: [], caption: 'x' },
       { type: 'image', src: 'https://example.com/a.png', eyebrow: 'x' },
@@ -320,9 +317,7 @@ describe('GenUI runtime schema normalization', () => {
   })
 
   it('derives table columns from a headerless 2D rows/data body', () => {
-    // Real-session sample: the model ships `{type:'table', data:[[…],[…]]}`
-    // with no `columns`. Before this, repair dropped the node and the whole
-    // fence degraded to a code block; now the leading row becomes the header.
+
     const headed = processGenuiSpec({ items: [
       { type: 'table', data: [['#', '任务'], ['t1', '后端'], ['t2', '前端']] },
     ] })
@@ -331,8 +326,6 @@ describe('GenUI runtime schema normalization', () => {
       { type: 'table', columns: ['#', '任务'], rows: [['t1', '后端'], ['t2', '前端']] },
     ])
 
-    // Ragged body: the leading row is data, so the columns are neutral names
-    // rather than a fabricated header taken from that row's text.
     const ragged = processGenuiSpec({ items: [
       { type: 'table', rows: [['a', 'b', 'c'], ['1']] },
     ] })
@@ -341,11 +334,9 @@ describe('GenUI runtime schema normalization', () => {
       { type: 'table', columns: ['列1', '列2', '列3'], rows: [['a', 'b', 'c'], ['1']] },
     ])
 
-    // Header-only capture stays a (header) table with an empty body.
     expect(processGenuiSpec({ items: [{ type: 'table', rows: [['名称', '结果']] }] }).repaired?.items)
       .toEqual([{ type: 'table', columns: ['名称', '结果'], rows: [] }])
 
-    // A non-2D body is still a contract error, not something to invent from.
     expect(processGenuiSpec({ items: [{ type: 'table', rows: 42 }] }).errors)
       .toContain("items[0]: type 'table' requires rows (array)")
     expect(processGenuiSpec({ items: [{ type: 'table', rows: [] }] }).errors)
@@ -450,8 +441,7 @@ describe('GenUI runtime schema normalization', () => {
   })
 
   it('shares complete chart renderability errors between process and chart-contract', () => {
-    // A line chart may carry its points in `series` (v3), so the remaining
-    // renderability error is the empty series itself.
+
     const raw = { items: [{
       type: 'chart',
       kind: 'line',
@@ -464,7 +454,6 @@ describe('GenUI runtime schema normalization', () => {
     ]))
     expect(processed.errors).toEqual(expect.arrayContaining(shared))
 
-    // The donut stays single-series and still needs `data`.
     const donut = { items: [{ type: 'chart', kind: 'donut', series: [{ label: 'A', data: [{ label: 'X', value: 1 }] }] }] }
     const donutShared = validateRenderableChartSemantics(processGenuiSpec(donut).normalized)
     expect(donutShared).toEqual(expect.arrayContaining([

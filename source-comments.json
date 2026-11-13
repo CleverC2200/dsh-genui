@@ -1,0 +1,39 @@
+{
+  "assets": [
+    {
+      "path": "tests/fixtures",
+      "kind": "fixture",
+      "source": "tests/"
+    },
+    {
+      "path": "site/assets/index-CbA0uR5g.js",
+      "kind": "generated",
+      "source": "site/index.html"
+    },
+    {
+      "path": "site/assets/index-BtlSWbij.css",
+      "kind": "generated",
+      "source": "site/index.html"
+    },
+    {
+      "path": "src/client/icons/icon-data-full.ts",
+      "kind": "generated-third-party",
+      "source": "scripts/generate-icon-data.mjs; THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "src/client/icons/icon-data.ts",
+      "kind": "generated-third-party",
+      "source": "scripts/generate-icon-data.mjs; THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "src/client/icons/icon-names-full.ts",
+      "kind": "generated-third-party",
+      "source": "scripts/generate-icon-data.mjs; THIRD_PARTY_NOTICES.md"
+    },
+    {
+      "path": "site/index.html",
+      "kind": "received-built-site-with-third-party",
+      "source": "https://github.com/CleverC2200/dsh-genui/blob/d321a1cb268563288eefbc057f6aa0766eac7559/site/index.html"
+    }
+  ]
+}

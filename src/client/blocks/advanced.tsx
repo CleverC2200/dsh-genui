@@ -1,9 +1,3 @@
-/**
- * Advanced family: callout/steps/keyvalue, plot/diff/json/code, tabs and
- * accordion containers (recursing through renderNode), copy, mermaid,
- * scene3d, timeline, file-tree, quiz, breadcrumb.
- * @module @changfenhuang/dsh-genui/client/blocks/advanced
- */
 import { memo, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { CodeBlock, DiffBlock, JsonTree, writeClipboard } from '../primitive-adapter.ts'
 import { renderInline } from '../inline.ts'
@@ -25,7 +19,6 @@ const CALLOUT_TONES: Record<string, string> = {
   info: css.calloutInfo!, success: css.calloutSuccess!, warning: css.calloutWarning!, error: css.calloutError!,
 }
 
-/** Callout: a tinted notice box with an optional heading. */
 export const CalloutNode = memo(function CalloutNode({ node }: { node: GenuiCallout }) {
   const tone = node.tone ?? 'info'
   const toneClass = CALLOUT_TONES[tone] ?? css.calloutInfo
@@ -37,7 +30,6 @@ export const CalloutNode = memo(function CalloutNode({ node }: { node: GenuiCall
   )
 })
 
-/** Steps: a vertical progress checklist with an optional current index. */
 export const StepsNode = memo(function StepsNode({ steps }: { steps: GenuiSteps }) {
   const list = steps.steps.slice(0, GENUI_LIMITS.maxSteps)
   const current = steps.current ?? list.length
@@ -60,7 +52,6 @@ export const StepsNode = memo(function StepsNode({ steps }: { steps: GenuiSteps 
   )
 })
 
-/** KeyValue: a definition list for configs and metadata. */
 export const KeyValueNode = memo(function KeyValueNode({ node }: { node: GenuiKeyValue }) {
   const pairs = node.pairs.slice(0, GENUI_LIMITS.maxKeyValuePairs)
   return (
@@ -75,9 +66,6 @@ export const KeyValueNode = memo(function KeyValueNode({ node }: { node: GenuiKe
   )
 })
 
-/** Plot: SVG function plot over the SafeMath evaluator. The series mapping
- * is memoized on the stable spec node so the memo boundary actually skips
- * sibling-state re-renders (a fresh mapped array would defeat it). */
 export const PlotNode = memo(function PlotNode({ plot }: { plot: GenuiPlot }) {
   const series = useMemo(
     () => plot.series.slice(0, GENUI_LIMITS.maxPlotSeries)
@@ -92,13 +80,11 @@ export const PlotNode = memo(function PlotNode({ plot }: { plot: GenuiPlot }) {
   )
 })
 
-/** Diff: 收编 dsh DiffBlock (same path/oldText/newText shape as DiffHunk). */
 export const DiffNode = memo(function DiffNode({ node }: { node: GenuiDiff }) {
   useT()
   return <DiffBlock diffs={node.diffs} labels={diffBlockLabels()} />
 })
 
-/** Json: 收编 dsh JsonTree. */
 export const JsonNode = memo(function JsonNode({ node }: { node: GenuiJson }) {
   useT()
   const data = node.value
@@ -108,18 +94,11 @@ export const JsonNode = memo(function JsonNode({ node }: { node: GenuiJson }) {
   return <JsonTree data={data as object | unknown[]} label="JSON" labels={jsonTreeLabels()} copyable />
 })
 
-/** Code: 收编 dsh CodeBlock with explicit language. */
 export const CodeNode = memo(function CodeNode({ node }: { node: GenuiCode }) {
   useT()
   return <CodeBlock {...codeBlockLabels()} code={node.code.slice(0, GENUI_LIMITS.maxCode)} lang={node.lang} />
 })
 
-/**
- * Table: LOCAL sorting (v2.9) — click a header to sort ascending, click
- * again for descending, a third click restores the spec order. Zero model
- * round trip. Numeric cells (numbers or numeric strings) compare numerically;
- * everything else compares as text.
- */
 export function TabsNode({ tabs, onAction, depth = 0, answers, path = '' }: {
   tabs: GenuiTabs
   onAction?: GenuiBlockProps['onAction']
@@ -179,15 +158,6 @@ export function TabsNode({ tabs, onAction, depth = 0, answers, path = '' }: {
   )
 }
 
-/** Radio: one option from a group; local selection state. The group name is
- * useId-based so sibling groups never collide (deterministic per mount).
- *
- * v2.5 aggregation: when `group` is set, the selection is recorded into the
- * block-wide answers registry instead of firing a per-click action — a
- * sibling `submit` node then grades the paper IN PLACE (v2.6, questions
- * carry `answer` data) or collects all groups in ONE action. Without
- * `group`, the legacy per-click action fires. After a local grading the
- * group locks until 重新作答 resets it. */
 export function AccordionNode({ node, onAction, depth = 0, answers, path = '' }: {
   node: GenuiAccordion
   onAction?: GenuiBlockProps['onAction']
@@ -225,13 +195,11 @@ export function AccordionNode({ node, onAction, depth = 0, answers, path = '' }:
 }
 
 async function writeCopyText(text: string): Promise<boolean> {
-  /* oxlint-disable-next-line typescript/no-unnecessary-condition */
+
   const hasAsyncClipboard = typeof navigator.clipboard?.writeText === 'function'
   const accepted = await writeClipboard(text)
   if (accepted || !hasAsyncClipboard) return accepted
 
-  // ponytail: remove this retry once the host helper falls back after Clipboard API rejection.
-  /* oxlint-disable typescript/no-deprecated */
   const exec = typeof document.execCommand === 'function'
     ? document.execCommand.bind(document)
     : undefined
@@ -250,10 +218,9 @@ async function writeCopyText(text: string): Promise<boolean> {
   } finally {
     el.remove()
   }
-  /* oxlint-enable typescript/no-deprecated */
+
 }
 
-/** Keep the first N logical preview lines without normalizing line endings. */
 function firstCopyLines(text: string, lines: number): string {
   let remaining = lines
   for (const match of text.matchAll(/\r\n|\r|\n/g)) {
@@ -262,9 +229,6 @@ function firstCopyLines(text: string, lines: number): string {
   return text
 }
 
-/** Copy: a one-click copy chip, with an opt-in plain-text preview. The live region is a visually-hidden SIBLING
- * (not inside the button) — button content is atomic to screen readers, so a
- * live region inside it would never announce. */
 export const CopyNode = memo(function CopyNode({ node, path }: { node: GenuiCopy; path?: string }) {
   const t = useT()
   const [copied, setCopied] = useState(false)
@@ -291,7 +255,7 @@ export const CopyNode = memo(function CopyNode({ node, path }: { node: GenuiCopy
       <span className={css.visuallyHidden} role="status">{copied ? t('label.copiedToClipboard') : ''}</span>
     </>
   )
-  // Keep legacy markup and clipboard behavior identical unless explicitly enabled.
+
   if (node.expandable !== true) return chip
   const lines = Math.max(0, Math.min(GENUI_LIMITS.maxCopyPreviewLines, Math.trunc(node.previewLines ?? 0)))
   const bounded = Array.from(node.text).slice(0, GENUI_LIMITS.maxCopyPreview).join('')
@@ -327,7 +291,6 @@ type MermaidRenderState =
   | { status: 'ready'; html: string }
   | { status: 'error' }
 
-/** Mermaid: lazily loaded diagram renderer. */
 export const MermaidNode = memo(function MermaidNode({ node }: { node: GenuiMermaid }) {
   const t = useT()
   const [state, setState] = useState<MermaidRenderState>({ status: 'loading' })
@@ -359,8 +322,7 @@ export const MermaidNode = memo(function MermaidNode({ node }: { node: GenuiMerm
         }
       })()
     }
-    // One viewport of lookahead also works inside clipped/nested scroll
-    // containers. Keep observing until completion so queued work can leave.
+
     const observer = typeof IntersectionObserver === 'undefined' ? undefined : new IntersectionObserver(entries => {
       for (const entry of entries) {
         visible = entry.isIntersecting
@@ -369,8 +331,7 @@ export const MermaidNode = memo(function MermaidNode({ node }: { node: GenuiMerm
       }
     }, { rootMargin: `${window.innerHeight}px 0px` })
     if (ref.current !== null) observer?.observe(ref.current)
-    // Host themes may live on either root. No SVG cache: a theme change
-    // invalidates the mounted diagram and re-reads tokens at render time.
+
     const themeKey = (): string => {
       const style = getComputedStyle(ref.current ?? document.body)
       const bodyStyle = getComputedStyle(document.body)
@@ -392,8 +353,7 @@ export const MermaidNode = memo(function MermaidNode({ node }: { node: GenuiMerm
       controller?.abort()
       controller = undefined
       finished = false
-      // Preserve ready geometry while recoloring, especially for offscreen
-      // history. A new source still clears the old SVG at effect setup.
+
       setState(previous => previous.status === 'ready' ? previous : { status: 'loading' })
       start()
     }
@@ -403,9 +363,7 @@ export const MermaidNode = memo(function MermaidNode({ node }: { node: GenuiMerm
         attributes: true, attributeFilter: ['class', 'style', 'data-theme', 'data-ds-dark-theme'],
       })
     }
-    // Appearance plugins can replace a stylesheet without touching the card
-    // or body attributes. Recheck the palette only when those styles change;
-    // unrelated changes still stop at the themeKey equality gate.
+
     theme.observe(document.head, {
       childList: true, characterData: true, subtree: true,
       attributes: true, attributeFilter: ['href', 'rel', 'media', 'disabled'],
@@ -438,13 +396,11 @@ export const MermaidNode = memo(function MermaidNode({ node }: { node: GenuiMerm
   )
 })
 
-/** Scene3D: three.js WebGL canvas, lazily imported. */
 export const Scene3DNode = memo(function Scene3DNode({ node }: { node: GenuiScene3D }) {
   const t = useT()
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const ref = useRef<HTMLDivElement | null>(null)
-  // Mesh cap mirrored from the guard: a pathological scene never reaches
-  // three.js (per-frame cost scales with mesh count).
+
   const scene = node.meshes.length > GENUI_LIMITS.maxMeshes ? { ...node, meshes: node.meshes.slice(0, GENUI_LIMITS.maxMeshes) } : node
   useEffect(() => {
     let alive = true
@@ -470,7 +426,6 @@ export const Scene3DNode = memo(function Scene3DNode({ node }: { node: GenuiScen
   )
 })
 
-/** Timeline: vertical event list with time markers. */
 export const TimelineNode = memo(function TimelineNode({ node }: { node: GenuiTimeline }) {
   const items = node.items.slice(0, GENUI_LIMITS.maxTimelineItems)
   return (
@@ -494,10 +449,6 @@ export const TimelineNode = memo(function TimelineNode({ node }: { node: GenuiTi
   )
 })
 
-/** FileTree: indented tree of files and folders. Directory rows are LOCAL
- * collapsible (spec.ts promised "collapsible children"; this makes it true)
- * — click a dir to fold/unfold, default fully open. Zero model round trip. */
-/** 14px folder / file glyphs: an emoji-free way to tell rows apart at a glance. */
 function FolderGlyph() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -525,9 +476,7 @@ export const FileTreeNode = memo(function FileTreeNode({ node }: { node: GenuiFi
       return next
     })
   }
-  // Children live in their OWN container under the row. They used to be
-  // appended inside `.ftRow` (display: flex), so a nested tree rendered
-  // side-by-side on one line instead of stacking.
+
   const renderNode = (n: GenuiFileTreeNode, depth: number, path: string): ReactNode => {
     if (depth > GENUI_LIMITS.maxTreeDepth) return null
     const isDir = n.type === 'dir' || (n.children !== undefined && n.children.length > 0)
@@ -568,20 +517,13 @@ export const FileTreeNode = memo(function FileTreeNode({ node }: { node: GenuiFi
   return <div className={css.fileTree}>{node.items.slice(0, GENUI_LIMITS.maxListItems).map((n, i) => renderNode(n, 0, String(i)))}</div>
 })
 
-/** Quiz: a self-contained teaching question. Selecting an option marks it
- * correct/incorrect in place and reveals feedback + explanation. With
- * `action`, the chosen answer is ALSO sent back to the model
- * (`{type:'quiz', question, answer, correct}`) so the model can collect or
- * grade it — the in-place judging stays local (no round trip needed). */
 export const QuizNode = memo(function QuizNode({ node, onAction }: {
   node: GenuiQuiz
   onAction?: GenuiBlockProps['onAction']
 }) {
   const t = useT()
   const [selected, setSelected] = useState<number | null>(null)
-  // `id` is the documented reset signal: when the model swaps the quiz in
-  // place (same tree position, new question), the component instance is
-  // reused, so the answered state must not leak onto the new question.
+
   const [prevId, setPrevId] = useState(node.id)
   if (node.id !== prevId) {
     setPrevId(node.id)
@@ -621,10 +563,9 @@ export const QuizNode = memo(function QuizNode({ node, onAction }: {
                 }
               }}
             >
-              {/* Before answering: a radio affordance so the row reads as a
-                  choice. After: ✓ on the right answer, ✗ on a wrong pick.
-                  aria-hidden keeps the glyph out of the accessible name — the
-                  option button must announce as its label alone. */}
+              {
+
+                                                                    }
               <span className={css.quizMarker} aria-hidden="true">
                 {answered ? (opt.correct === true ? '✓' : isChosen ? '✗' : '') : isChosen ? '●' : '○'}
               </span>
@@ -647,7 +588,6 @@ export const QuizNode = memo(function QuizNode({ node, onAction }: {
   )
 })
 
-/** Breadcrumb: path-style navigation trail. */
 export const BreadcrumbNode = memo(function BreadcrumbNode({ node }: { node: GenuiBreadcrumb }) {
   const items = node.items.slice(0, GENUI_LIMITS.maxBreadcrumbItems)
   return (
@@ -661,12 +601,3 @@ export const BreadcrumbNode = memo(function BreadcrumbNode({ node }: { node: Gen
     </nav>
   )
 })
-
-/**
- * Trailing debounce window (ms) for one `[genui-action]` name: rapid
- * repeated interactions on one control (button mashing, switch flipping)
- * collapse into a single action with the LAST payload. Different action
- * names stay independent. The model round-trip takes seconds, so a few
- * hundred ms of trailing delay is imperceptible — and it stops bursts of
- * queued user turns.
- */

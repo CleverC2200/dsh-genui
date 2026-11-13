@@ -1,21 +1,8 @@
-/**
- * Streaming placeholder: shown while a fence body is still arriving and no
- * component has finished. It carries the shape of the component that is coming
- * (table rows, chart bars, …) and the real title as soon as it has arrived, so
- * the swap to real content reads as completion rather than as a different
- * component appearing.
- *
- * Kept in its own module so it can be rendered in isolation (design review,
- * preview builds) without pulling the whole DOM channel dependency graph.
- */
 import css from '../GenuiBlock.module.css'
 import type { SkeletonShape } from '../streaming-shape.ts'
 
-/** Shapes that are an object, not a block: they get no elevated surface, because
- *  a lone button or a divider does not become a card when it finishes. */
 const INLINE_SHAPES: ReadonlySet<SkeletonShape> = new Set<SkeletonShape>(['control', 'rule'])
 
-/** Replace a half-written spec with a placeholder of the same shape. */
 export function GenuiSkeleton({ shape, title, columns, chartKind, lines }: {
   shape: SkeletonShape
   title?: string
@@ -24,10 +11,7 @@ export function GenuiSkeleton({ shape, title, columns, chartKind, lines }: {
   lines?: number
 }) {
   return (
-    // The skeleton replaces the code block OUTSIDE the block root, so it has to
-    // carry `.block` itself: that is where the `--dsl-g-*` tokens are declared.
-    // Without it every gap/padding/radius resolved to nothing and the
-    // placeholder painted as a hard-edged rectangle — the "毛坯" look.
+
     <div className={css.block}>
       <div className={`${css.skeleton} ${INLINE_SHAPES.has(shape) || shape === 'generic' ? css.skeletonInline : ''}`}
         data-genui-skeleton={shape} role="status"
@@ -44,8 +28,6 @@ export function GenuiSkeleton({ shape, title, columns, chartKind, lines }: {
   )
 }
 
-/** Placeholder body per shape: it should read as "a table is arriving", not as
- *  "something is loading". Widths are fixed so nothing reflows on swap. */
 export function SkeletonBody({ shape, columns, chartKind, lines }: {
   shape: SkeletonShape
   columns?: number
@@ -54,8 +36,7 @@ export function SkeletonBody({ shape, columns, chartKind, lines }: {
 }) {
   switch (shape) {
     case 'table': {
-      // The declared column count is the one size hint a table gives away
-      // early: three columns should not render a five-column placeholder.
+
       const count = Math.min(Math.max(columns ?? 3, 1), 8)
       const widths = Array.from({ length: count }, (_, i) => (i === 0 ? '26%' : `${Math.round(56 / count)}%`))
       return (
@@ -72,7 +53,7 @@ export function SkeletonBody({ shape, columns, chartKind, lines }: {
       )
     }
     case 'chart':
-      // A donut announces a circle; bars would promise the wrong ending.
+
       if (chartKind === 'donut' || chartKind === 'pie') {
         return (
           <span className={css.skeletonDonut}>
@@ -111,8 +92,7 @@ export function SkeletonBody({ shape, columns, chartKind, lines }: {
         </span>
       )
     case 'text': {
-      // Paragraph length is knowable: it is the characters already written.
-      // Widths taper like real text so the block does not look like a bar chart.
+
       const count = Math.min(Math.max(lines ?? 3, 1), 6)
       const widths = ['92%', '96%', '88%', '94%', '70%', '54%']
       return (
@@ -147,9 +127,7 @@ export function SkeletonBody({ shape, columns, chartKind, lines }: {
       return <span className={css.skeletonRule} />
     case 'card':
     default:
-      // A card's children are unknown from the prefix alone, so the placeholder
-      // promises a heading + a couple of lines + one detail block, which is what
-      // most cards turn out to be. Three equal pills read as a toolbar instead.
+
       return (
         <>
           <span className={css.skeletonRows}>

@@ -1,7 +1,3 @@
-// @vitest-environment jsdom
-// Debounce handler lifecycle (the slider is the only debounced payload type
-// since #178; discrete gestures deliver synchronously): a pending timer reads
-// the LATEST provider handler through a ref, and unmount cancels it.
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'

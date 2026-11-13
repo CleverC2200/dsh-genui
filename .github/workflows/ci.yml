@@ -5,7 +5,6 @@ on:
     branches: [main]
   pull_request:
 
-# Superseded PR commits can stop; main and manual runs keep unique groups.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -16,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # minimum 与 current 覆盖支持下限和当前 DSH 发布版。
+
         include:
           - node: 24
             host-ref: "dsh-v0.2.0-rc.1"
@@ -40,7 +39,6 @@ jobs:
         with:
           version: 11.7.0
 
-      # 宿主 checkout 供真实 packed e2e 使用；API 检查安装固定标签的 npm 发布包。
       - name: Clone pinned DSH host at DSH_ROOT
         run: |
           DSH_ROOT="$GITHUB_WORKSPACE/../../.dsh/source/current"
@@ -49,9 +47,6 @@ jobs:
           test -f "$DSH_ROOT/packages/client/ui-primitives/src/index.ts" || { echo "::error::宿主预检失败：ui-primitives 源码缺失"; exit 1; }
           echo "HOST_SHA=$(git -C "$DSH_ROOT" rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      # Reuse a completed store for the same immutable host and package manager.
-      # SheetJS CDN timeouts must not repeatedly prevent the other runtime lane
-      # from reaching plugin checks; pnpm still verifies the frozen lockfile.
       - name: Locate current host dependency store
         if: matrix.role == 'current'
         id: host_store
@@ -91,7 +86,6 @@ jobs:
       - name: Check published host API (typecheck + full unit suite + build)
         run: pnpm run check:host-api "${{ matrix.host-ref }}"
 
-      # rc.4 is on npm next; retain rc.3 for source-host browser acceptance.
       - name: Check next published host API
         if: matrix.role == 'current'
         run: pnpm run check:host-api dsh-v0.2.1-rc.4
@@ -100,8 +94,6 @@ jobs:
         id: pack
         run: node scripts/verify-pack.mjs --keep
 
-      # no-key smoke：隔离 DSH_HOME + 精确宿主二进制 + 固定端口，绝不触碰
-      # 任何活跃实例；宿主二进制必须位于本次 checkout 内。
       - name: Smoke e2e (no model key)
         run: |
           node --test scripts/sidechat-acceptance/tests/*.test.mjs
@@ -110,9 +102,6 @@ jobs:
           DSH_ROOT: ${{ github.workspace }}/../../.dsh/source/current
           DSH_BIN: ${{ github.workspace }}/../../.dsh/source/current/apps/cli/lib/bin.js
 
-      # Existing host matrix + verified tarball. This mode requires normal
-      # Chrome sandboxes and the supported software OpenGL ES driver; no unsafe
-      # WebGL fallback, new permissions, model credentials, or external service.
       - name: Map real browser acceptance (sandboxed, no model key)
         run: node scripts/e2e.mjs --smoke --map --install tarball --tarball "${{ steps.pack.outputs.tarball }}" --tarball-sha256 "${{ steps.pack.outputs.sha256 }}" --port 3190
         env:
@@ -144,7 +133,6 @@ jobs:
             computed-acceptance.json
           if-no-files-found: ignore
 
-      # Only bounded synthetic screenshots and explicit verdicts, never HOME/logs/config.
       - name: Archive dual-plugin sidechat evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -188,8 +176,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Ubuntu's installed Chrome runs only synthetic local renderer fixtures.
-      # Range line boxes + Selection.toString catch regressions jsdom cannot.
       - name: Check real browser newline layout and selection
         run: node scripts/check-text-newlines-browser.mjs
 

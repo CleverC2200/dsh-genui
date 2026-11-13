@@ -1,4 +1,3 @@
-// Contract tests with a mocked engine, not a WebGL/browser acceptance claim.
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'
@@ -127,7 +126,6 @@ it('discards a stale engine load after trusted configuration replacement', async
   expect(mocks.mount).toHaveBeenCalledOnce()
 })
 
-
 it('keeps asynchronous worker failure sticky while list selection and explicit submission remain usable', async () => {
   mocks.mount.mockImplementation(() => ({ update: mocks.update, select: mocks.select, destroy: mocks.destroy, reset: mocks.reset, zoom: mocks.zoom, resize: mocks.resize }))
   const onAction = vi.fn()
@@ -143,7 +141,6 @@ it('keeps asynchronous worker failure sticky while list selection and explicit s
   fireEvent.click(button('Confirm'))
   expect(onAction).toHaveBeenCalledExactlyOnceWith('choose', { type: 'submit', answers: {}, fields: { place: 'b' }, total: 1, answered: 1 })
 })
-
 
 it('retains the usable selection when a known blocked worker also rejects a configuration remount', async () => {
   mocks.mount.mockImplementationOnce((_container, _node, _selected, options) => {
@@ -161,7 +158,6 @@ it('retains the usable selection when a known blocked worker also rejects a conf
   expect((button('Reset view') as HTMLButtonElement).disabled).toBe(true)
   expect(mocks.destroy).toHaveBeenCalledOnce()
 })
-
 
 describe('map integration with declared-field and structural identity rules', () => {
   it('clears a removed choice while its map is hidden and does not revive it when locations return', async () => {

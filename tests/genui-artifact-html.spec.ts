@@ -89,7 +89,7 @@ describe('standalone HTML serialization', () => {
   })
 
   it('rejects unsupported components as invalid artifacts before fetching bundles', async () => {
-    // Bypass the creation gate to check the standalone loader's own boundary.
+
     const artifact = createGenuiArtifact({ items: [{ type: 'text', content: 'valid' }] })
     artifact.spec = { items: [{ type: 'weather', temp: 20 }] } as unknown as GenuiSpec
     await expect(buildStandaloneHtml(artifact)).rejects.toMatchObject({ code: 'artifact-invalid' })

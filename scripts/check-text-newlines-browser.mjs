@@ -1,9 +1,5 @@
 #!/usr/bin/env node
-/** Actual Chromium layout/selection regression for #249; synthetic data only.
- * Uses the runner's installed Chrome (or BROWSER_BIN), Vite, and the standalone
- * primitive adapter. No DSH instance, model calls, credentials, or new deps.
- * Run: BROWSER_BIN=/usr/bin/google-chrome node scripts/check-text-newlines-browser.mjs
- */
+
 import { execFile } from 'node:child_process'
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
@@ -22,7 +18,7 @@ try {
   const candidates = process.env.BROWSER_BIN ? [process.env.BROWSER_BIN] : ['google-chrome', 'chromium', 'chromium-browser']
   let browser
   for (const candidate of candidates) {
-    try { await exec(candidate, ['--version']); browser = candidate; break } catch { /* try another installed browser */ }
+    try { await exec(candidate, ['--version']); browser = candidate; break } catch {                                     }
   }
   if (browser === undefined) throw new Error('Install Chrome/Chromium or set BROWSER_BIN to an installed browser executable')
   server = await createServer({
@@ -54,7 +50,7 @@ try {
   await writeFile(join(out, 'browser.log'), stderr)
   const raw = /<pre id="results">([^<]*)<\/pre>/.exec(stdout)?.[1]
   const browserErrors = /<pre id="browser-errors">([\s\S]*?)<\/pre>/.exec(stdout)?.[1]
-  /** 解码 Chromium dump-dom 输出的 HTML 文本。 */
+
   const decodeBrowserText = value => value
     .replaceAll('&quot;', '"')
     .replaceAll('&#39;', "'")

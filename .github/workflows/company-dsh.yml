@@ -18,14 +18,32 @@ jobs:
     if: github.repository == 'CleverC2200/dsh-genui'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: plugin
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: plugin
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: CleverC2200/dsh-agent-workbench
+          ref: f02c89f591b95af135fc8c0b617aa33cd67fae04
+          path: dsh-agent-workbench
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/check-source-comments.mjs
+            scripts/source-comments.mjs
+            scripts/format-comments.mjs
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
       - uses: pnpm/action-setup@v4
         with:
           version: 11.7.0
+          package_json_file: plugin/package.json
       - run: pnpm install --frozen-lockfile
       - run: pnpm run check
       - run: pnpm run check:company-dsh

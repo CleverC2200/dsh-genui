@@ -14,7 +14,7 @@ describe('icon generation from upstream-style TSX', () => {
       const source = join(root, 'upstream')
       const out = join(root, 'output', 'src', 'client', 'icons')
       mkdirSync(source)
-      // The real upstream exports React functions, not object definitions.
+
       const component = (name: string, svg: string): string => `import type { SVGProps } from 'react'\nconst ${name} = (props: SVGProps<SVGSVGElement>) => (${svg})\nexport default ${name}\n`
       for (const name of Object.keys(ICONS)) {
         writeFileSync(join(source, `${name}.tsx`), component(name, '<svg viewBox="0 0 24 24" fill="currentColor" {...props}><path d="M0 0h1" /></svg>'))

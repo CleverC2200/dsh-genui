@@ -1,9 +1,3 @@
-// @vitest-environment jsdom
-// v12 figure primitives: `icon` (bundled glyph + tinted plate) and `blocks`
-// (row × cell block diagram). Both exist so a model can draw a figure without
-// hand-writing SVG coordinates, so the tests pin the *contract* the guard and
-// the SKILL promise: unknown icon names degrade instead of dropping the block,
-// cells are data (not nodes), and null cells stay aligned lanes.
 import { cleanup, render, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { GenuiBlock } from '../src/client/GenuiBlock.tsx'
@@ -36,8 +30,7 @@ describe('icon node', () => {
     document.querySelectorAll('script[src*="icons.js"]').forEach(node => node.remove())
     const spec = repairGenuiSpec({ items: [{ type: 'icon', name: 'TrophyTop' }] })!
     const { container } = render(<GenuiBlock spec={spec} />)
-    // The glyph is not inlined, so the plate starts on the neutral dot and the
-    // catalogue script is requested exactly once.
+
     expect(container.querySelector('svg')).toBeNull()
     await waitFor(() => {
       expect(document.querySelector('script[src*="assets/icons.js"]')).not.toBeNull()
@@ -74,12 +67,11 @@ describe('blocks node', () => {
       }],
     })!
     const { container } = render(<GenuiBlock spec={spec} />)
-    // Only filled cells carry an inline background; row labels and gap pads
-    // deliberately do not.
+
     const cells = [...container.querySelectorAll('[data-genui-blocks] span')]
       .filter(node => (node as HTMLElement).style.background !== '')
     expect(cells.map(node => node.textContent)).toEqual(['0', '1', '2', '01', '2'])
-    // A pale slate needs ink; a deep teal needs white.
+
     expect((cells[0] as HTMLElement).style.color).toBe('rgb(13, 13, 13)')
     expect((cells[3] as HTMLElement).style.color).toBe('rgb(255, 255, 255)')
     expect(container.textContent).toContain('每格代表一个小组')
@@ -112,7 +104,7 @@ describe('blocks node', () => {
     for (const grid of grids) {
       expect((grid as HTMLElement).style.gridTemplateColumns).toContain('repeat(4')
     }
-    // null → visible gap placeholder, not a filled cell.
+
     expect(container.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThanOrEqual(2)
   })
 
@@ -120,7 +112,7 @@ describe('blocks node', () => {
     const rows = Array.from({ length: 8 }, (_, i) => ({ cells: Array.from({ length: 8 }, (_, j) => `${i}${j}`) }))
     const spec = repairGenuiSpec({ items: [{ type: 'blocks', rows }] })!
     expect(spec.items).toHaveLength(1)
-    // A 64-cell figure renders 64 cells through a single node.
+
     const { container } = render(<GenuiBlock spec={spec} />)
     expect(container.querySelectorAll('[data-genui-blocks] span').length).toBeGreaterThanOrEqual(64)
   })
@@ -147,9 +139,9 @@ describe('blocks cell emphasis (v12.1)', () => {
       }],
     })!
     const { container } = render(<GenuiBlock spec={spec} />)
-    // Outline row: every cell keeps the hairline variant class.
+
     expect(container.querySelectorAll('[class*="blocksCellOutline"]')).toHaveLength(8)
-    // Only the sign bit carries a semantic tone, and it names itself.
+
     expect(container.querySelectorAll('[data-tone="danger"]')).toHaveLength(1)
     expect(container.textContent).toContain('SF')
     expect(container.textContent).toContain('最高位为 1')
@@ -209,7 +201,7 @@ describe('icon robustness (review #1 #2)', () => {
     for (const name of hostile) {
       const spec = repairGenuiSpec({ items: [{ type: 'icon', name }] })!
       const { container } = render(<GenuiBlock spec={spec} />)
-      // 退化成一个中性圆点，而不是 ErrorBoundary 兜住的错误卡。
+
       expect(container.querySelector('svg')).toBeNull()
       expect(container.querySelector('[data-tone="default"]')).not.toBeNull()
       expect(container.textContent).toBe('')
@@ -225,7 +217,7 @@ describe('icon robustness (review #1 #2)', () => {
   })
 
   it('keeps fill-rule and stroke glyphs faithful to upstream', () => {
-    // File 在上游是 fill-rule=evenodd + clip-rule=evenodd 的复合形状。
+
     const spec = repairGenuiSpec({ items: [{ type: 'icon', name: 'File' }] })!
     const { container } = render(<GenuiBlock spec={spec} />)
     const path = container.querySelector('svg path')

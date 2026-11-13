@@ -1,10 +1,3 @@
-// @vitest-environment jsdom
-// Localized `stat` / `hero` values: a comma is a decimal separator in
-// ru/de/fr (`1,6328`), not a thousands separator. The renderer used to strip
-// every comma and re-print the parsed number, turning 1,6328 into 16328
-// (×10ⁿ) and dropping the fraction. Only the unambiguous grouped shape
-// (`1,234`, `1,632.80`) may be normalized; every other comma-bearing value is
-// rendered exactly as written.
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'
@@ -68,8 +61,7 @@ describe('stat value: decimal comma is not a thousands separator', () => {
     const { container } = renderBlock({
       items: [{ type: 'stat', label: 'Requests', value: '1,234' }],
     })
-    // Same output as before the fix: grouped digits are re-printed without
-    // separators; only the comma-as-decimal case changed.
+
     expect(valueText(container)).toBe('1234')
   })
 })

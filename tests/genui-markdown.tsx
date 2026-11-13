@@ -1,20 +1,7 @@
-// @vitest-environment jsdom
 import type { ReactNode } from 'react'
 import { fromMarkdown } from 'mdast-util-from-markdown'
 import { renderGenuiFence } from '../src/client/fence-render.tsx'
 
-/**
- * Test-double markdown renderer for the dsh-ui fence suites.
- *
- * Parses Markdown with the project dependency and delegates each dsh-ui code
- * block to {@link renderGenuiFence}. Host Markdown integration is covered by
- * `markdown-labels.tsx` and the DOM-channel suites.
- *
- * `streaming` wraps the output in `[data-streaming]`, the marker the fence
- * pipeline (and the host) uses to distinguish a still-growing reply from a
- * settled defect. Settled renders pass a stable synthetic source so tier-2
- * repair and the export affordance follow the same rules as production.
- */
 export function MarkdownText(props: { text: string; streaming?: boolean }): ReactNode {
   const parts: ReactNode[] = []
   const tree = fromMarkdown(props.text)

@@ -4,6 +4,8 @@
 
 # dsh-genui 协作守则
 
+自有代码通过命名、类型、结构和必要行为测试表达规则，不写代码注释。`node --run check:comments` 检查全部自有代码，生成/第三方资源归 source-comments.json 登记。共享检查使用本票 Workbench；不在同级时由 `DSH_WORKBENCH_CHECKOUT` 指定。业务 Skill、运行时文本与第三方许可保持原含义。
+
 面向在本仓库里改东西的 agent。只写会被反复违反、且有具体代价的规则；风格偏好不进来。
 
 ## 汇报改动：默认用 `compare`

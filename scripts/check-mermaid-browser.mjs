@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-/** Real Chromium regression/benchmark for #303. No host, model or new dependency.
- * BROWSER_BIN=/path/to/chrome node scripts/check-mermaid-browser.mjs [--baseline REF]
- * Baselines are loaded from Git into virtual modules; the checkout stays intact.
- */
+
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -644,8 +641,7 @@ try {
         2,
       ),
     )
-  // Font measurement fixes can legitimately change layout dimensions. The
-  // labels must stay identical, and current CJK geometry is checked above.
+
   if (JSON.stringify(results[0].labels) !== JSON.stringify(results[1].labels))
     throw new Error('Baseline/current label mismatch')
   if (results.some((r) => r.diagrams !== 9 || r.unsafe))

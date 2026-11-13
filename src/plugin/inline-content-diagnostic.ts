@@ -7,12 +7,10 @@ export interface InlineContentWarning {
   replacement: 'code' | 'table'
 }
 
-/** 识别文字字段中的连续代码围栏标记。 */
 function hasFencedCode(value: string): boolean {
   return /`{3,}|~{3,}/.test(value)
 }
 
-/** 判断相邻表头下方的 Markdown 表格分隔行。 */
 function isMarkdownTableSeparator(line: string): boolean {
   let value = line.trim()
   if (value.startsWith('|')) value = value.slice(1)
@@ -21,7 +19,6 @@ function isMarkdownTableSeparator(line: string): boolean {
   return cells.length >= 2 && cells.every(cell => /^:?-{2,}:?$/.test(cell))
 }
 
-/** 仅在相邻表头和分隔行构成表格时报告。 */
 function hasMarkdownTable(value: string): boolean {
   const lines = value.split(/\r?\n/)
   for (let i = 0; i + 1 < lines.length; i++) {
@@ -30,18 +27,15 @@ function hasMarkdownTable(value: string): boolean {
   return false
 }
 
-/** 按组件结构检查需要块级内容诊断的 canonical 显示字段。 */
 export function collectInlineContentWarnings(spec: GenuiSpec): InlineContentWarning[] {
   const warnings: InlineContentWarning[] = []
 
-  /** 将一个可见文字字段中的块级 Markdown 记录为稳定诊断。 */
   function check(value: string | undefined, path: string): void {
     if (value === undefined) return
     if (hasFencedCode(value)) warnings.push({ path, kind: 'fenced_code', replacement: 'code' })
     if (hasMarkdownTable(value)) warnings.push({ path, kind: 'markdown_table', replacement: 'table' })
   }
 
-  /** 只沿 GenUI 组件的子节点字段访问下一层。 */
   function visit(node: GenuiNode, path: string): void {
     switch (node.type) {
       case 'text': check(node.content, `${path}.content`); break
@@ -56,7 +50,7 @@ export function collectInlineContentWarnings(spec: GenuiSpec): InlineContentWarn
       case 'image-group':
         check(node.title, `${path}.title`)
         node.items.slice(0, GENUI_LIMITS.maxImageGroupItems).forEach((item, i) => check(item.caption, `${path}.items[${i}].caption`))
-        // alt and src are plain attributes, not inline Markdown surfaces.
+
         break
       case 'row':
       case 'col':

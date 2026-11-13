@@ -1,9 +1,3 @@
-/**
- * The recursive render dispatcher: maps the white-listed GenuiNode union to
- * concrete components. Leaf cases render inline; compound families live in
- * the sibling block modules. Depth-guarded against pathological specs.
- * @module @changfenhuang/dsh-genui/client/blocks/render-node
- */
 import { type ReactNode, useEffect, useState, type CSSProperties } from 'react'
 import css from '../GenuiBlock.module.css'
 import { GENUI_LIMITS } from '../genui-runtime/index.ts'
@@ -46,28 +40,18 @@ function isListItemNode(item: GenuiList['items'][number]): item is GenuiNode {
   return typeof item === 'object' && item !== null && 'type' in item
 }
 
-/**
- * Split a stat value into its numeric core and unit suffix so the unit can
- * render at half size on the same baseline (`99.96%` → `99.96` + `%`,
- * `6.8 GB` → `6.8` + `GB`). Values that do not start with a number are left
- * whole.
- */
 function splitStatValue(value: string): {
   num: string
   unit: string
-  /** Parsed number when the numeric core is a plain decimal (for count-up). */
+
   numeric: number | undefined
-  /** Decimal places to keep while animating. */
+
   decimals: number
 } {
   const match = /^([+\-−]?[\d.,]+(?:[eE][+\-]?\d+)?)\s*(.*)$/.exec(value.trim())
   if (match === null || match[1] === undefined) return { num: value, unit: '', numeric: undefined, decimals: 0 }
   const raw = match[1]
-  // A comma is a thousands separator only in the unambiguous grouped shape
-  // (`1,234`, `1,632.80`). Anywhere else it is a decimal separator — ru/de/fr
-  // write `1,6328` — and stripping it would silently multiply the metric by a
-  // power of ten and drop the fraction. Such values are rendered verbatim
-  // (numeric === undefined) instead of being reparsed and re-printed.
+
   const hasComma = /[,，]/.test(raw)
   const grouped = /^[+\-−]?\d{1,3}(?:[,，]\d{3})+(?:\.\d+)?$/.test(raw)
   const plain = grouped ? raw.replace(/[,，]/g, '') : raw
@@ -79,12 +63,6 @@ function splitStatValue(value: string): {
   return { num: raw, unit: match[2] ?? '', numeric, decimals: Math.min(decimals, 4) }
 }
 
-/**
- * Micro trend line for `stat.spark`: a 96×24 box stretched to the card width,
- * with an area wash under the line and a constant-size end dot (a zero-length
- * round-capped path with non-scaling stroke, so the stretched viewBox cannot
- * turn the dot into an ellipse).
- */
 function Sparkline({ values }: { values: number[] }) {
   const W = 96
   const H = 24
@@ -124,14 +102,6 @@ function Sparkline({ values }: { values: number[] }) {
   )
 }
 
-/** Live value of a bound control (`node.filter` / `node.sortField`): the field id
- *  resolves against the block's shared field registry, so typing in an input
- *  re-renders every component bound to it. */
-/**
- * Animate a metric from 0 to its target once on mount. Only used for values
- * that are pure numbers with an optional unit — counting up "v0.9.9" would be
- * nonsense, and prefers-reduced-motion turns it off entirely.
- */
 function useCountUp(target: number, decimals: number, enabled: boolean): string {
   const [value, setValue] = useState(enabled ? 0 : target)
   useEffect(() => {
@@ -144,9 +114,7 @@ function useCountUp(target: number, decimals: number, enabled: boolean): string 
     const start = performance.now()
     const duration = 720
     const tick = (now: number): void => {
-      // Clamp both ends: performance.now() is monotonic in a browser, but a
-      // suspended tab or a virtual clock can return a stamp before `start`, and
-      // a negative t eased below zero (a metric briefly rendered -5.69%).
+
       const t = Math.min(1, Math.max(0, (now - start) / duration))
       const eased = 1 - Math.pow(1 - t, 3)
       setValue(target * eased)
@@ -158,14 +126,10 @@ function useCountUp(target: number, decimals: number, enabled: boolean): string 
   return value.toFixed(decimals)
 }
 
-/** Animated metric text: splits the value into number + unit and counts the
- *  number up once. A component (not a helper) so the hook has a stable owner —
- *  renderNode's switch must never call hooks conditionally. */
 function AnimatedValue({ value, unitClass, animate = false }: {
   value: string
   unitClass?: string | undefined
-  /** Only hero-scale numbers count up: a grid of eight stats all ticking at
-   *  once reads as a gimmick, not as polish. */
+
   animate?: boolean | undefined
 }) {
   const parts = splitStatValue(value)
@@ -179,7 +143,6 @@ function AnimatedValue({ value, unitClass, animate = false }: {
   )
 }
 
-/** Plain text of a list item, for the local filter. */
 function listItemText(item: GenuiList['items'][number]): string {
   if (typeof item === 'string') return item
   if (isListItemNode(item)) return ''
@@ -193,11 +156,9 @@ function boundField(answers: AnswersState | undefined, id: string | undefined): 
   return value === undefined || value === '' ? undefined : value
 }
 
-/** True when a container would paint a shell with no content in it. */
 function showsNothing(node: GenuiNode): boolean {
   switch (node.type) {
-    // `card` is NOT here: a childless card still has a title/eyebrow to render
-    // (flat, without the shell) — see the card case below.
+
     case 'grid':
     case 'row':
     case 'col':
@@ -220,16 +181,6 @@ function showsNothing(node: GenuiNode): boolean {
   }
 }
 
-/**
- * Render a node, applying its layout gate first.
- *
- * `when` hides the node; `enableWhen` keeps it on screen but inert. The inert
- * wrapper covers the whole subtree with the HTML `inert` attribute plus
- * `pointer-events: none`, so every control inside it — including ones added
- * later — stops responding without each component having to know about the
- * gate. `disabledReason` says what unlocks it; a disabled control with no
- * explanation is a dead end.
- */
 export function renderNode(
   node: GenuiNode,
   key: number,
@@ -240,8 +191,7 @@ export function renderNode(
 ): ReactNode {
   const rendered = renderNodeBody(node, key, onAction, depth, answers, path)
   if (rendered === null || node.enableWhen === undefined) return rendered
-  // Without block state the condition cannot be evaluated: stay enabled rather
-  // than disable a control for a reason the renderer cannot see.
+
   if (answers === undefined || evaluateWhen(node.enableWhen, answers)) return rendered
   return (
     <div key={key} className={css.nodeGate} data-genui-gated="" aria-disabled="true" {...{ inert: '' }}>
@@ -251,46 +201,27 @@ export function renderNode(
   )
 }
 
-/**
- * Render a node, applying its layout gate first.
- *
- * `when` hides the node; `enableWhen` keeps it on screen but inert. The inert
- * wrapper covers the whole subtree with the HTML `inert` attribute plus
- * `pointer-events: none`, so every control inside it — including ones added
- * later — stops responding without each component having to know about the
- * gate. `disabledReason` says what unlocks it; a disabled control with no
- * explanation is a dead end.
- */
 function renderNodeBody(
   node: GenuiNode,
   key: number,
   onAction: GenuiBlockProps['onAction'] | undefined,
   depth = 0,
   answers?: AnswersState,
-  // A structural occurrence, not node object identity: typed callers may reuse
-  // one node (or container) in several positions. Match walkGenuiNodes paths.
+
   path = `items[${key}]`,
 ): ReactNode {
-  // Empty containers are dropped whole. A `card` with no children used to
-  // render its border + title with nothing inside, a table rendered a header row
-  // over no body, and an empty `diagram`/`file-tree` drew a framed blank — all
-  // of which read as "failed to load" rather than "nothing to show". The spec
-  // still validates; only the paint is suppressed.
+
   if (showsNothing(node)) return null
-  // Conditional visibility: a node carrying `when` renders only while the
-  // condition holds. Without block state (export/panel) there is nothing to read,
-  // so the node stays visible rather than silently dropping content.
+
   if (node.when !== undefined && answers !== undefined && !evaluateWhen(node.when, answers)) return null
-  // Depth guard: a pathological spec must never recurse past the limit
-  // (stack overflow / DOM explosion). The fence path already repairs specs
-  // against the same limit; this also protects direct GenuiBlock use.
+
   if (depth > GENUI_LIMITS.maxDepth) return null
 
   switch (node.type) {
     case 'map': return <MapNode key={JSON.stringify([path, node.id, answers?.round ?? 0])} node={node} answers={answers} />
     case 'text': {
       const size = node.size ?? 'body'
-      // `align` is canonical; legacy `center: true` maps to the center class.
+
       const alignClass = node.align === undefined ? (node.center ? ` ${css.center}` : '') : ` ${css[node.align] ?? ''}`
       return (
         <div
@@ -331,8 +262,8 @@ function renderNodeBody(
     case 'grid': {
       return (
         <div key={key} className={css.grid} style={{ gridTemplateColumns: `repeat(${Math.max(1, node.cols)}, minmax(0, 1fr))` }}>
-          {/* `span` is the bento primitive: a child can occupy several columns,
-              so one wide hero card can sit next to two narrow ones. */}
+          {
+                                                                       }
           {node.items.map((c, i) => {
             const child = renderNode(c, i, onAction, depth + 1, answers, `${path}.items[${i}]`)
             const span = typeof c === 'object' && c !== null && typeof (c as { span?: unknown }).span === 'number'
@@ -344,9 +275,7 @@ function renderNodeBody(
       )
     }
     case 'card': {
-      // No children: the shell is noise, but a title/eyebrow is real content (it
-      // can carry inline math), so render the text flat instead of either boxing
-      // it or dropping it.
+
       if (node.items.length === 0) {
         if (node.title === undefined && node.eyebrow === undefined) return null
         return (
@@ -357,13 +286,7 @@ function renderNodeBody(
         )
       }
       const toneClass = node.tone === undefined ? '' : ` ${css[`card${node.tone[0]!.toUpperCase()}${node.tone.slice(1)}`] ?? ''}`
-      // An explicit accent drives border + title + a very light wash; it is a
-      // colour hint, not a layout change, so it composes with tone.
-      // An accent card keeps its NEUTRAL surface: tinting the background with
-      // 7% of a warm hue over a dark theme produced a muddy olive block that
-      // read as a warning box. The hue now shows up only where it can stay
-      // clean — a blended border and the title — which also keeps charts and
-      // tables inside the card colour-neutral.
+
       const accentStyle = node.accent === undefined ? undefined : {
         borderColor: `color-mix(in srgb, ${node.accent} 18%, var(--dsl-g-border))`,
         '--dsl-card-accent': node.accent,
@@ -384,9 +307,7 @@ function renderNodeBody(
       const tone = node.tone ?? ''
       const cls = `${css.button} ${css[tone] || ''}` + (node.full ? ` ${css.full}` : '') + (node.small ? ` ${css.small}` : '')
       const action = node.action
-      // A button without an action (or without an action provider) is a
-      // display-only control: render it DISABLED so the affordance is honest
-      // — clickable-looking dead buttons were the top complaint in the field.
+
       const interactive = action !== undefined && onAction !== undefined
       return (
         <ClickFeedbackButton
@@ -537,7 +458,7 @@ function renderNodeBody(
       )
     }
     case 'divider':
-      // Labeled variant: a chapter break — hairline + meta label + hairline.
+
       if (node.label !== undefined && node.label !== '') {
         return (
           <div key={key} className={css.dividerLabeled}>
@@ -570,9 +491,7 @@ function renderNodeBody(
         <TableNode
           key={key}
           node={node}
-          // Bound controls are resolved here: the table (and the chart below)
-          // receive plain strings, so they stay presentational and the live
-          // filtering never needs a model round trip.
+
           filterValue={boundField(answers, node.filter)}
           sortValue={boundField(answers, node.sortField)}
           renderDetail={(items, detailIndex) => items.map((child, i) => renderNode(child, i, onAction, depth + 1, answers, `${path}.details[${detailIndex}][${i}]`))}
@@ -649,5 +568,3 @@ function renderNodeBody(
     default: return <div key={key} role="alert" data-genui-error>{t('err.unknownType', { type: String((node as { type: string }).type) })}</div>
   }
 }
-
-/* ---------------- v1.1 nodes ---------------- */

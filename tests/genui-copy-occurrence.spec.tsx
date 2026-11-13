@@ -13,7 +13,7 @@ const toggle = (container: HTMLElement) => within(container).getByRole('button',
 describe.each(['direct typed API', 'canonical JSON'] as const)('copy occurrence identity: %s', mode => {
   const specOf = (items: GenuiNode[]): GenuiSpec => {
     const spec: GenuiSpec = { items }
-    // The direct API intentionally preserves aliases, unlike a JSON round trip.
+
     if (mode === 'direct typed API') return spec
     const result = processGenuiSpec(JSON.parse(JSON.stringify(spec)))
     expect(result.errors).toEqual([])

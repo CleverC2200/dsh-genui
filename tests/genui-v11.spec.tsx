@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// GenUI v1.1 components: plot (safe math), callout, steps, keyvalue, and the
-// 收编 blocks diff/json/code render from a ```dsh-ui fence.
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MarkdownText } from './genui-markdown.tsx'

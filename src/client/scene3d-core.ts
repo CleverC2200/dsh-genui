@@ -1,16 +1,3 @@
-/**
- * three.js scene renderer — the HEAVY half. This module imports three and is
- * bundled ONLY into the lazy asset bundle `lib/assets/three.js`, loaded on
- * demand by the scene3d-lazy loader when a spec contains a `scene3d` node;
- * the main client bundle stays small.
- *
- * Security: the model only supplies white-listed primitive shapes, numeric
- * transforms, and colors. No textures, no external URLs, no scripts, no
- * custom shaders — everything is geometry + material colors constructed
- * locally. The renderer mounts into a caller-owned container and returns a
- * disposer that tears down the WebGL context.
- * @module @changfenhuang/dsh-genui/client/scene3d-core
- */
 import type { GenuiScene3D } from './spec.ts'
 
 let threePromise: Promise<typeof import('three')> | null = null
@@ -20,7 +7,6 @@ function loadThree(): Promise<typeof import('three')> {
   return threePromise
 }
 
-/** Shape constructors we accept, mapped to a size-normalized factory. */
 type ShapeKind = 'box' | 'sphere' | 'cone' | 'cylinder' | 'torus'
 
 function geometryFor(
@@ -53,12 +39,6 @@ function geometryFor(
   }
 }
 
-/**
- * Mount a GenUI 3D scene into `container`.
- * @param container - the DOM node to host the WebGL canvas.
- * @param scene - the declarative scene spec.
- * @returns a disposer that removes the renderer and its context.
- */
 export async function mountScene(container: HTMLElement, scene: GenuiScene3D): Promise<() => void> {
   const THREE = await loadThree()
   const width = container.clientWidth || 420
@@ -75,7 +55,7 @@ export async function mountScene(container: HTMLElement, scene: GenuiScene3D): P
 
   const threeScene = new THREE.Scene()
   if (scene.background !== undefined) {
-    try { threeScene.background = new THREE.Color(scene.background) } catch { /* keep transparent */ }
+    try { threeScene.background = new THREE.Color(scene.background) } catch {                        }
   }
 
   const ambient = new THREE.AmbientLight(0xffffff, scene.ambient ?? 0.8)
@@ -87,7 +67,6 @@ export async function mountScene(container: HTMLElement, scene: GenuiScene3D): P
   rim.position.set(-4, -2, -4)
   threeScene.add(rim)
 
-  // Wireframe-ish ground grid for spatial reference.
   const grid = new THREE.GridHelper(8, 16, 0x3a4152, 0x232a38)
   threeScene.add(grid)
 
@@ -106,11 +85,6 @@ export async function mountScene(container: HTMLElement, scene: GenuiScene3D): P
     threeScene.add(obj)
   }
 
-  // Orbit: simple drag-to-rotate, wheel to zoom (no external controls dep).
-  // EVENT-DRIVEN rendering: one render after init, one per orbit change —
-  // a static scene never runs a requestAnimationFrame loop, so an idle
-  // scene costs zero GPU/battery. Pointer capture keeps all drag events on
-  // the canvas (no window listeners, nothing to leak on unmount).
   let isDragging = false
   let prevX = 0
   let prevY = 0
@@ -131,13 +105,11 @@ export async function mountScene(container: HTMLElement, scene: GenuiScene3D): P
     isDragging = true
     prevX = e.clientX
     prevY = e.clientY
-    try { canvas.setPointerCapture(e.pointerId) } catch { /* jsdom / capture unsupported */ }
+    try { canvas.setPointerCapture(e.pointerId) } catch {                                   }
   }
   const onPointerMove = (e: PointerEvent): void => {
     if (!isDragging) return
-    // Drag follows the cursor (standard orbit feel): dragging right/left
-    // sweeps the azimuth with the pointer, dragging up/down tilts the polar
-    // angle with the pointer (phi grows from +Y down toward the equator).
+
     theta += (e.clientX - prevX) * 0.01
     phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi - (e.clientY - prevY) * 0.01))
     prevX = e.clientX
@@ -147,7 +119,7 @@ export async function mountScene(container: HTMLElement, scene: GenuiScene3D): P
   const onPointerEnd = (e: PointerEvent): void => {
     if (!isDragging) return
     isDragging = false
-    try { canvas.releasePointerCapture(e.pointerId) } catch { /* jsdom */ }
+    try { canvas.releasePointerCapture(e.pointerId) } catch {             }
   }
   const onWheel = (e: WheelEvent): void => {
     e.preventDefault()
@@ -161,9 +133,6 @@ export async function mountScene(container: HTMLElement, scene: GenuiScene3D): P
   canvas.addEventListener('pointercancel', onPointerEnd)
   canvas.addEventListener('wheel', onWheel, { passive: false })
 
-  // Container-size sync: the panel is resizable and the window reflows, so a
-  // fixed mount-time width drifts. Event-driven like the orbit — a resize
-  // renders exactly once, an idle scene still costs nothing.
   let lastWidth = width
   const observer = typeof ResizeObserver !== 'undefined'
     ? new ResizeObserver(() => {
@@ -178,7 +147,7 @@ export async function mountScene(container: HTMLElement, scene: GenuiScene3D): P
     : null
   observer?.observe(container)
 
-  orbit() // initial render; afterwards only interactions re-render.
+  orbit()
 
   return () => {
     observer?.disconnect()

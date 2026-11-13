@@ -1,9 +1,6 @@
-// @vitest-environment jsdom
-// Teaching components: quiz judging, plot animation bar, reset, entrance reveal.
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-// jsdom 没有真正的 requestAnimationFrame 循环；用可控 mock 手动推进帧。
 let rafCallbacks: Array<(t: number) => void> = []
 let rafTime = 0
 beforeEach(() => {
@@ -43,13 +40,13 @@ describe('quiz component', () => {
       ], explanation: '单位圆上 0 弧度的 y 坐标为 0' },
     ] })} />)
     expect(container.querySelector('[data-genui-quiz]')).not.toBeNull()
-    // 答错
+
     fireEvent.click(container.querySelectorAll('[data-genui-quiz] button')[1]!)
     expect(container.textContent).toContain('再想想')
     expect(container.textContent).toContain('sin(0) 不是 1')
-    // 重新作答
+
     fireEvent.click(container.querySelector('[class*="quizRetry"]')!)
-    // 答对
+
     fireEvent.click(container.querySelectorAll('[data-genui-quiz] button')[0]!)
     expect(container.textContent).toContain('回答正确')
     expect(container.textContent).toContain('单位圆上')
@@ -71,11 +68,11 @@ describe('plot animation', () => {
       { type: 'plot', series: [{ expr: 'a*sin(x)', params: [{ name: 'a', value: 1, min: 0, max: 5, animateTo: 3, durationMs: 200 }] }] },
     ] })} />)
     fireEvent.click(container.querySelector('[class*="playBtn"]')!)
-    // 播放中：推进几帧，参数值应偏离初始值
+
     act(() => { tick(50); tick(50); tick(50) })
     const value = container.querySelector('[class*="sliderValue"]')?.textContent
     expect(value).not.toBe('1')
-    // 推进到结束（durationMs 200），回到停止状态
+
     act(() => { tick(200) })
     expect(container.querySelector('[class*="playBtn"]')?.textContent).toContain('播放')
   }, 5000)
@@ -107,8 +104,7 @@ describe('entrance reveal', () => {
       const match = style.match(/animation[- ]delay:\s*([0-9.]+)ms/i)
       return match === null ? 0 : Number(match[1])
     })
-    // 90ms of rhythm per item, capped at 160ms: he last item lands at ~410ms
-    // (160 delay + 250ms fade) instead of the uncapped 1.17s.
+
     expect(delays).toEqual([0, 90, 160])
   })
 })

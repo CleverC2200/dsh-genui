@@ -11,7 +11,6 @@ import { createGenuiArtifact } from '../src/client/artifact/create.ts'
 beforeEach(() => setLocale('en'))
 afterEach(() => { cleanup(); localStorage.clear() })
 
-/** 挂载组件并收集实际动作与状态快照。 */
 function mount(raw: unknown) {
   const spec = resolveGenuiSpec(JSON.stringify(raw))
   expect(spec).not.toBeNull()
@@ -67,7 +66,7 @@ describe('field ownership across containers', () => {
 
   it('resets local values when a streaming field changes ID or password type', () => {
     const states: BlockInteractionState[] = []
-    /** 保存组件发布的状态快照。 */
+
     const capture = (state: BlockInteractionState) => states.push(state)
     const view = render(<GenuiBlock spec={{ items: [{ type: 'input', id: 'first', label: 'Field' }] }} onStateSnapshot={capture} />)
     fireEvent.change(view.getByLabelText('Field'), { target: { value: 'old draft' } })

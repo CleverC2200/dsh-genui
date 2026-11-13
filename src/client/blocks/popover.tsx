@@ -21,7 +21,6 @@ import { renderInline } from '../inline.ts'
 import { useT } from '../i18n/index.ts'
 import css from './popover.module.css'
 
-/** 显示支持点击、悬停、键盘操作和关闭行为的浮层说明。 */
 export function PopoverNode({ node }: { node: GenuiPopover }): ReactElement {
   const t = useT()
   const [open, setOpen] = useState(false)
@@ -35,7 +34,7 @@ export function PopoverNode({ node }: { node: GenuiPopover }): ReactElement {
       flip({ padding: 12 }),
       size({
         padding: 12,
-        /** 限制长内容高度，使弹层在可用视口范围内滚动。 */
+
         apply({ availableHeight, availableWidth, elements }) {
           Object.assign(elements.floating.style, {
             maxHeight: `${Math.min(420, Math.max(0, availableHeight))}px`,
@@ -47,8 +46,7 @@ export function PopoverNode({ node }: { node: GenuiPopover }): ReactElement {
     ],
     whileElementsMounted: autoUpdate,
   })
-  // Portal 根节点无法自动继承 .block 中定义的自定义变量。
-  // 浮层通过 ref 回调同步初始主题，并监听祖先属性变化以支持实时切换。
+
   const syncTheme = useCallback((floating: HTMLElement): void => {
     const reference = refs.domReference.current
     if (reference === null) return

@@ -1,4 +1,3 @@
-/** standalone 页面使用的基础颜色和版面样式。 */
 export const STANDALONE_THEME_CSS = `
 :root {
   color-scheme: light;

@@ -1,15 +1,5 @@
 #!/usr/bin/env -S npx tsx
-/**
- * C2（选集美学纲领）：从 gallerySpec 生成 GitHub Pages 选集页。
- *
- * 链路：gallerySpec → createGenuiArtifact → createStandaloneHtmlDocument
- * （bundles 由本脚本从 lib/assets/ 读文件注入——浏览器导出走 fetch，node 里
- * 直接读盘，同一纯函数两个来源）→ site/anthology.html。
- * site/** 由 deploy-product-site.yml 自动部署到 GitHub Pages，零新增基建。
- *
- * 前置：先 `pnpm build`——standalone-runtime.js 内嵌渲染器，旧产物不含新字段。
- * 用法：npx tsx scripts/build-anthology-page.mts
- */
+
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'

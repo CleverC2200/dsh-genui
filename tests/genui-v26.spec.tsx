@@ -1,10 +1,3 @@
-// @vitest-environment jsdom
-// GenUI v2.6 LOCAL-FIRST interaction:
-// 1) submit grades IN PLACE when the questions carry `answer`/`explanation`
-//    data — score + per-question ✓/✗ + explanations, zero model round trip,
-//    questions lock until 重新作答 resets them locally;
-// 2) without answer data the submit keeps the v2.5 fallback (ONE action);
-// 3) actionable buttons show a brief local "已响应" feedback on click.
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MarkdownText } from './genui-markdown.tsx'
@@ -24,7 +17,6 @@ function fenced(spec: unknown): string {
   return `\`\`\`dsh-ui\n${JSON.stringify(spec)}\n\`\`\``
 }
 
-/** A 2-question paper WITH local answers. */
 const paper = {
   items: [
     { type: 'radio', label: '1. 9+6=？', group: 'q1', answer: 1, explanation: '9+6=15，个位相加', options: ['14', '15', '16'] },
@@ -42,8 +34,8 @@ describe('v2.6: local grading (zero round trip)', () => {
       </GenuiActionContext.Provider>,
     )
     const groups = container.querySelectorAll('[role="radiogroup"]')
-    fireEvent.click(groups[0]!.querySelectorAll('input')[1]!) // q1: 15 ✓
-    fireEvent.click(groups[1]!.querySelectorAll('input')[2]!) // q2: 北京 ✓
+    fireEvent.click(groups[0]!.querySelectorAll('input')[1]!)
+    fireEvent.click(groups[1]!.querySelectorAll('input')[2]!)
     fireEvent.click(container.querySelector('[class*="submitRow"] button')!)
 
     const grade = container.querySelector('[data-genui-grade]')
@@ -53,18 +45,18 @@ describe('v2.6: local grading (zero round trip)', () => {
     expect(grade!.textContent).toContain('9+6=？')
     expect(grade!.textContent).toContain('个位相加')
     expect(grade!.textContent).toContain('北京是首都')
-    // all answered correctly: no ✗ rows, no 正确答案 reveals
+
     expect(grade!.textContent).not.toContain('✗')
     expect(grade!.textContent).not.toContain('正确答案')
-    // zero model round trip
+
     expect(actions).toHaveLength(0)
   })
 
   it('marks wrong answers with ✗ and reveals the correct answer + explanation', () => {
     const { container } = render(<MarkdownText text={fenced(paper)} />)
     const groups = container.querySelectorAll('[role="radiogroup"]')
-    fireEvent.click(groups[0]!.querySelectorAll('input')[0]!) // q1: 14 ✗
-    fireEvent.click(groups[1]!.querySelectorAll('input')[0]!) // q2: 上海 ✗
+    fireEvent.click(groups[0]!.querySelectorAll('input')[0]!)
+    fireEvent.click(groups[1]!.querySelectorAll('input')[0]!)
     fireEvent.click(container.querySelector('[class*="submitRow"] button')!)
 
     const grade = container.querySelector('[data-genui-grade]')!
@@ -88,20 +80,17 @@ describe('v2.6: local grading (zero round trip)', () => {
     fireEvent.click(groups[1]!.querySelectorAll('input')[1]!)
     fireEvent.click(container.querySelector('[class*="submitRow"] button')!)
 
-    // graded → locked
     expect(inputs().every(i => i.disabled)).toBe(true)
     expect(container.querySelector('[data-genui-grade]')).not.toBeNull()
 
-    // 重新作答 → reset, unlocked, no action
     fireEvent.click(container.querySelector('[data-genui-grade] button')!)
     expect(container.querySelector('[data-genui-grade]')).toBeNull()
     expect(container.querySelector('[class*="submitRow"] button')).not.toBeNull()
     expect(inputs().every(i => !i.disabled)).toBe(true)
     expect(actions).toHaveLength(0)
 
-    // can answer and grade again (inputs order: q1[0..2], q2[3..5])
-    fireEvent.click(inputs()[1]!) // q1: 15 ✓
-    fireEvent.click(inputs()[4]!) // q2: 广州 ✗
+    fireEvent.click(inputs()[1]!)
+    fireEvent.click(inputs()[4]!)
     fireEvent.click(container.querySelector('[class*="submitRow"] button')!)
     expect(container.querySelector('[data-genui-grade]')!.textContent).toContain('1 / 2')
   })
@@ -116,11 +105,11 @@ describe('v2.6: local grading (zero round trip)', () => {
       </GenuiActionContext.Provider>,
     )
     const groups = container.querySelectorAll('[role="radiogroup"]')
-    fireEvent.click(groups[0]!.querySelectorAll('input')[1]!) // q1: 15 ✓
-    fireEvent.click(groups[1]!.querySelectorAll('input')[2]!) // q2: 北京 ✓
+    fireEvent.click(groups[0]!.querySelectorAll('input')[1]!)
+    fireEvent.click(groups[1]!.querySelectorAll('input')[2]!)
     fireEvent.click(container.querySelector('[class*="submitRow"] button')!)
     fireEvent.click(container.querySelector('[data-genui-grade] button')!)
-    // resetAction goes through the same per-name trailing debounce
+
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(actions).toEqual([['redo', { type: 'submit-reset', groups: ['q1', 'q2'] }]])
   })
@@ -150,10 +139,10 @@ describe('v2.6: fallback keeps v2.5 behavior without answers', () => {
   it('grades locally WITHOUT any action provider (fully offline)', () => {
     const { container } = render(<MarkdownText text={fenced(paper)} />)
     const groups = container.querySelectorAll('[role="radiogroup"]')
-    fireEvent.click(groups[0]!.querySelectorAll('input')[1]!) // q1: 15 ✓
-    fireEvent.click(groups[1]!.querySelectorAll('input')[2]!) // q2: 北京 ✓
+    fireEvent.click(groups[0]!.querySelectorAll('input')[1]!)
+    fireEvent.click(groups[1]!.querySelectorAll('input')[2]!)
     const submit = container.querySelector('[class*="submitRow"] button') as HTMLButtonElement
-    expect(submit.disabled).toBe(false) // local grading does not need the model channel
+    expect(submit.disabled).toBe(false)
     fireEvent.click(submit)
     expect(container.querySelector('[data-genui-grade]')!.textContent).toContain('2 / 2')
   })

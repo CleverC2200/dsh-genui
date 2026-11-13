@@ -1,11 +1,5 @@
 #!/usr/bin/env node
-/**
- * Cross-platform `prepack` wrapper: rebuild lib before packing, but keep the
- * build's stdout OFF the process stdout. `npm pack --json` parses stdout as
- * JSON, so any tsdown banner leaking to stdout corrupts the pack gate and
- * tooling that drives npm pack programmatically. Build progress is forwarded
- * to stderr instead.
- */
+
 import { spawnSync } from 'node:child_process'
 
 const isWindows = process.platform === 'win32'

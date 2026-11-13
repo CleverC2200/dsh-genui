@@ -1,9 +1,3 @@
-// @vitest-environment jsdom
-// End-to-end streaming proof for containers: the DOM channel must render a
-// finished CHILD while the container is still open. The parser unit tests cover
-// `parsePartialGenuiSpec`; this drives the real observer pipeline, so a
-// regression in the takeover path (skeleton never leaves, or the container waits
-// for its own close) fails here and not only in a unit test.
 import { cleanup, fireEvent } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'

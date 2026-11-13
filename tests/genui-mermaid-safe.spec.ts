@@ -1,10 +1,3 @@
-/**
- * mermaid sanitization gate: the rendered SVG is the only GenUI output that
- * reaches the DOM via dangerouslySetInnerHTML, so the last line of defense is
- * assertSafeSvg, not mermaid's own sanitizer. These cases pin that gate:
- * legitimate strict-mode mermaid output must pass; anything with script tags,
- * event-handler attributes, or javascript: URIs must throw.
- */
 import { describe, expect, it } from 'vitest'
 import { assertSafeSvg, ensureFlowchartKind, repairMermaidSource } from '../src/client/mermaid-lazy.ts'
 
@@ -84,7 +77,7 @@ describe('repairMermaidSource', () => {
     const repaired = repairMermaidSource('graph LR\nA[模型生成 spec] --> B[fence 通道]\nB --> C[plain]')
     expect(repaired).toContain('A["模型生成 spec"]')
     expect(repaired).toContain('B["fence 通道"]')
-    expect(repaired).toContain('C[plain]') // ASCII, no space: untouched
+    expect(repaired).toContain('C[plain]')
   })
 
   it('leaves already-quoted labels alone', () => {

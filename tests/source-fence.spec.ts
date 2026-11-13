@@ -101,8 +101,7 @@ describe('sourceLanguageAt', () => {
 
 describe('normalizeFenceLanguage', () => {
   it('absorbs the trailing punctuation a model leaves on the fence label', () => {
-    // 真实会话：同一模型在一条消息里写出 182 个 ```dsh-ui> 围栏，全部静默退化成
-    // 普通代码块，因为宿主的 mdast lang 原样保留了那个 `>`。
+
     for (const raw of ['dsh-ui>', 'dsh-ui`', 'dsh-ui"', 'dsh-ui.', 'dsh-ui)', 'dsh-ui】', 'dsh-ui」']) {
       expect(normalizeFenceLanguage(raw)).toBe('dsh-ui')
     }

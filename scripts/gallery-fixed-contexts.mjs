@@ -1,4 +1,3 @@
-/** Two fixed input contexts on the already-owned smoke browser. One real session and one Choose. */
 import assert from 'node:assert/strict'
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -39,7 +38,7 @@ export async function runGalleryFixedContexts({ browser, page, readyUrl, artifac
     } catch (error) {
       cleanupErrors.push(galleryErrorDetails(error))
       report.touchContextCleanup.fallback = 'Existing e2e common cleanup must close the owned browser'
-      throw error // No retry after an uncertain close; outer browser.close owns the fallback.
+      throw error
     }
   }
   try {
@@ -57,8 +56,6 @@ export async function runGalleryFixedContexts({ browser, page, readyUrl, artifac
         inputProfile: 'desktop', report: report.contexts.desktop, log })
     }
 
-    // Supported Playwright construction owns a second isolated context. No copied
-    // storageState, permissions, browser connection, credentials, or profile writes.
     report.stage = 'touch-navigation'
     touchPage = await bounded(browser.newPage({ viewport: { width: 1440, height: 1200 },
       locale: 'zh-CN', hasTouch: true }), 15000, 'Create fixed touch context')
@@ -68,7 +65,7 @@ export async function runGalleryFixedContexts({ browser, page, readyUrl, artifac
     touchPage.on('console', message => {
       if (message.text().includes('[genui] client active; fence-channel=')) touchClientActive = true
     })
-    // The in-memory URL is the same synthetic host. Never save its auth token.
+
     await touchPage.goto(readyUrl, { waitUntil: 'domcontentloaded', timeout: 60000 })
     await touchPage.waitForTimeout(5000)
     await input(touchPage, 'touch', 'after-navigation')
@@ -126,7 +123,7 @@ export async function runGalleryFixedContexts({ browser, page, readyUrl, artifac
   } finally {
     try { await closeTouch() } catch (error) { errors.push(error); report.passed = false }
     report.cleanupErrors = cleanupErrors
-    // Re-save both context reports after final input checks and aggregate without losing failure evidence.
+
     for (const profile of ['desktop', 'touch']) {
       await writeFile(join(artifactsDir, `gallery-${profile}-results.json`), `${JSON.stringify(report.contexts[profile], null, 2)}\n`)
     }

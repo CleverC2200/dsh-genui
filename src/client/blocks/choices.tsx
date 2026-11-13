@@ -1,13 +1,3 @@
-/**
- * `choices` node: a decision the reader has to MAKE. Each row carries its own
- * cost, so the trade-off is visible at the point of choosing instead of being
- * reconstructed from a paragraph.
- *
- * Local-first: selection is local state, `action` is optional. Submitting an
- * option is not the same as the work being done — the footer therefore says
- * "已提交" and keeps the rows editable instead of pretending completion.
- * @module @changfenhuang/dsh-genui/client/blocks/choices
- */
 import { useCallback, useId, useMemo, useState, type ReactNode } from 'react'
 
 import { useGenuiAction } from '../action-context.ts'
@@ -17,7 +7,6 @@ import type { GenuiChoices } from '../spec.ts'
 import type { AnswersState } from './state.ts'
 import css from './choices.module.css'
 
-/** Cap matches the guard: more than eight options is a table, not a choice. */
 const MAX_OPTIONS = 8
 
 export function ChoicesNode({ node, onAction, answers }: {
@@ -30,9 +19,7 @@ export function ChoicesNode({ node, onAction, answers }: {
   const send = onAction ?? contextAction
   const name = useId()
   const group = node.group
-  // Paper mode: the selection lives in the block's shared registry so a sibling
-  // `submit` can collect and grade it. Local mode keeps its own state and can
-  // fire its own action.
+
   const paper = group !== undefined && answers !== undefined
   const locked = paper && answers?.locked === true
   const mode = node.mode ?? 'single'
@@ -48,13 +35,11 @@ export function ChoicesNode({ node, onAction, answers }: {
   const toggle = useCallback((label: string): void => {
     if (locked) return
     if (paper) {
-      // Paper questions are single-select; re-clicking the same option keeps it
-      // (a paper answer is not a toggle).
+
       answers?.setAnswer(group, label)
       return
     }
-    // Editing after submit is allowed and clears the "已提交" line: the model
-    // worked on the previous answer, so leaving it up would be a lie.
+
     setSubmitted(false)
     setLocalSelected(previous => {
       if (previous.includes(label)) return previous.filter(item => item !== label)
@@ -134,8 +119,7 @@ export function ChoicesNode({ node, onAction, answers }: {
         <span className={css.status} role="status" aria-live="polite">
           {submitted
             ? (node.action === undefined || node.action === ''
-              // Older fences can still carry a submit with no action: say what
-              // actually happened instead of claiming a delivery that never was.
+
               ? t('block.choices.localOnly')
               : t('block.choices.sent'))
             : selected.length === 0

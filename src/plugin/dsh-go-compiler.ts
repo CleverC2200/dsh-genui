@@ -14,7 +14,6 @@ const text = (value: string): NativeView => ({ type:'text',text:value })
 const stack = (children: NativeView[]): NativeView => ({ type:'stack',children })
 const tone = (value: string | undefined): string | undefined => ({success:'good',warning:'warn',error:'bad',danger:'bad'} as Record<string,string>)[value ?? ''] ?? value
 
-/** Keep full grading feedback within the App's 2000 UTF-16 units per text node. */
 function feedbackBlocks(value: string): NativeView[] {
   const parts: NativeView[] = []
   let start = 0
@@ -27,7 +26,6 @@ function feedbackBlocks(value: string): NativeView[] {
   return parts
 }
 
-/** The original web spec stays authoritative; native limitations are visible. */
 export function compileDshGo(spec: GenuiSpec, surface: NativeSurface, state: NativeState = emptyNativeState(), locale = 'zh', generation?: string) {
   const identity = generation ?? nativeIdentity(spec), actions = new Map<string,NativeAction>(), issues: string[] = []
   const en = locale.startsWith('en')
@@ -193,7 +191,6 @@ export function compileDshGo(spec: GenuiSpec, surface: NativeSurface, state: Nat
   return {view:{...stack(children(resolved.items,'n')),...(spec.title ? {title:spec.title}:{})},actions,issues,identity}
 }
 
-/** The published native budgets; refuse truncation of meaningful content. */
 export function fitsNativeView(view: NativeView,surface: NativeSurface): boolean {
   let count = 0
   const panel = surface === 'panel'
@@ -215,12 +212,11 @@ export function fitsNativeView(view: NativeView,surface: NativeSurface): boolean
   return visit(view,1) && new TextEncoder().encode(JSON.stringify(view)).length <= (panel ? 32768:surface === 'fence' ? 16384:8192)
 }
 
-/** Fixed stack root is deliberately unknown to the web component vocabulary. */
 export function dualNativeFence(spec: GenuiSpec): Record<string,unknown> | null {
   if (spec.panel || spec.append) return null
   const r = compileDshGo(spec,'fence')
   if (r.issues.length || !fitsNativeView(r.view,'fence')) return null
-  // The App settles the whole model card after one visible reply.
+
   const answers = (v: NativeView): number => Number(v.type === 'options' || v.type === 'confirm') + ((v.children ?? []) as NativeView[]).reduce((sum,c) => sum+answers(c),0)
   if (answers(r.view) > 1) return null
   const dual = {...spec,...r.view}

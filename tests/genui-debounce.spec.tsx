@@ -1,9 +1,3 @@
-// @vitest-environment jsdom
-// GenUI action dispatch: DISCRETE gestures (button/checkbox/…) deliver one
-// action per user interaction — no debounce window, nothing silently dropped
-// (#178). The CONTINUOUS gesture (slider drag) still collapses per control
-// into a single action with the last payload; sliders sharing an action name
-// but not an id stay independent; unmount cancels pending timers.
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'
@@ -41,7 +35,7 @@ describe('action dispatch', () => {
       ['refresh', { type: 'button', label: '刷新' }],
     ])
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
-    expect(actions).toHaveLength(3) // the window adds nothing on top
+    expect(actions).toHaveLength(3)
   })
 
   it('keeps same-name discrete actions from displacing each other (#178)', () => {
@@ -62,7 +56,7 @@ describe('action dispatch', () => {
     renderWithActions({ items: [{ type: 'slider', label: '透明度', min: 0, max: 100, value: 10, action: 'opacity' }] }, actions)
     const slider = document.querySelector<HTMLInputElement>('input[type="range"]')!
     for (const v of [20, 40, 80]) fireEvent.change(slider, { target: { value: String(v) } })
-    expect(actions).toHaveLength(0) // nothing fired inside the window
+    expect(actions).toHaveLength(0)
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(actions).toEqual([['opacity', { type: 'slider', value: 80 }]])
   })

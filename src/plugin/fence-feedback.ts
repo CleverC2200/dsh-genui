@@ -1,30 +1,3 @@
-/**
- * Fence feedback loop (issue #160): a reply whose ```dsh-ui fence the guard
- * cannot render should not stay broken for the reader. The host's
- * `agent/turn-stopping` boundary lets a plugin steer input into the SAME turn —
- * the machine re-reads its inbox and runs another step instead of closing
- * (see the `dsh-agent` runtime contract) — so the model can resend a corrected
- * fence while the user is still looking at the raw JSON.
- *
- * The loop is deliberately narrow, matching the contract agreed on the issue:
- * - **默认开启。** 插件配置中的 `fenceFeedback: false` 可以关闭回合转向。
- * - **修正上限。** 每个 turn 最多发送两条 correction；render failure 和 delivery reminder 共用上限，
- *   每个 fence body 在当前回合中最多修正一次，新回合可重新修正。
- * - **仅含 reasoning 的恢复。** 已验证的 GenUI 回合若只以 reasoning block 结束，使用宿主的
- *   `EMPTY_RESPONSE` retry policy。
- * - **Never for subagents.** A child session's fence belongs to a parent reply.
- * - **Shared fence matching.** GenUI labels use the renderer's case/punctuation
- *   normalization. Unrelated labels such as ` ```dsh-ui-dark `, indented prose,
- *   and mentions of the name are never rewritten.
- * - **Accounted before sending.** The fingerprint is recorded before `steer`,
- *   so a re-entrant boundary cannot deliver the same correction twice.
- * - **Cancellation-aware.** An aborted turn or a missing session is left alone.
- *
- * 检查会复用 renderer 在回合结束后的流程，包括 JSON 修复和坏节点清理；
- * 已经可以渲染的最终回复不会收到修正请求。
- * @module @changfenhuang/dsh-genui/plugin/fence-feedback
- */
-
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-agent'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
@@ -34,45 +7,31 @@ import { droppedNodeFailure } from './genui-diagnostic.ts'
 import { resolveFence } from '../shared/fence-resolve.ts'
 import { isGenuiFenceLanguage } from '../shared/fence-language.ts'
 
-/** Plugin name recorded on every message this loop steers. */
 export const FEEDBACK_PLUGIN_NAME = '@changfenhuang/dsh-genui'
-/** Source kind persisted by this plugin in Session format v4. */
+
 export const FEEDBACK_SOURCE_KIND = `plugin:${FEEDBACK_PLUGIN_NAME}` as const
 
-/** Marker prefix inside the correction text: `[genui-fence-repair #<fingerprint>]`. */
 const MARKER_PREFIX = '[genui-fence-repair #'
-/**
- * 同一个 turn 内 fence-feedback correction 的共享上限。
- * Render failure 和 nothing-delivered reminder 共用该 budget；各自的 ledger 独立阻止重复修正。
- */
+
 export const MAX_CORRECTIONS_PER_TURN = 2
 
-/** Marker prefix written by older plugin versions. */
 const LEGACY_MARKER_PREFIX = '[genui 自修 #'
 
-/** Read one language token (≤3 spaces indent); backticks are invalid in a backtick info string. */
 const FENCE_OPEN = /^ {0,3}```[ \t]*([^` \t]+)[ \t]*$/u
-/** Any fence closer (the renderer never nests fences in one body). */
+
 const FENCE_CLOSE = /^ {0,3}```[ \t]*$/u
-/** Upper bound on fences inspected per reply — a reply is text, not a corpus. */
+
 const MAX_FENCES = 40
 
-/** One ```dsh-ui fence found in an assistant reply. */
 export interface ExtractedFence {
-  /** Raw body between the fences (no delimiters). */
+
   readonly raw: string
-  /** False when the reply ended before the closing fence. */
+
   readonly closed: boolean
-  /** 1-based position among this reply's fences. */
+
   readonly index: number
 }
 
-/**
- * Extract every ```dsh-ui fence from one assistant reply.
- *
- * @param text - the assistant message text.
- * @returns the fences in document order (at most {@link MAX_FENCES}).
- */
 export function extractDshUiFences(text: string): ExtractedFence[] {
   const lines = text.split('\n')
   const fences: ExtractedFence[] = []
@@ -95,25 +54,17 @@ export function extractDshUiFences(text: string): ExtractedFence[] {
   return fences
 }
 
-/** Stable, log-safe identity of one fence body (same body → same fingerprint). */
 export function fenceFingerprint(raw: string): string {
   return createHash('sha256').update(raw.trim()).digest('hex').slice(0, 12)
 }
 
-/** One fence the guard refuses to render, with its model-facing reason. */
 export interface FenceFailure {
   readonly index: number
   readonly fingerprint: string
-  /** Actionable diagnosis, in the same wording the validator tool uses. */
+
   readonly detail: string
 }
 
-/**
- * Validate every fence in a reply the way the DOM channel would render it.
- *
- * @param text - the assistant message text.
- * @returns the fences that would stay a raw code block, in document order.
- */
 export function fenceFailures(text: string): FenceFailure[] {
   const failures: FenceFailure[] = []
   for (const fence of extractDshUiFences(text)) {
@@ -123,11 +74,10 @@ export function fenceFailures(text: string): FenceFailure[] {
   return failures
 }
 
-/** `null` when this fence renders; otherwise the reason it does not. */
 function fenceFailureDetail(fence: ExtractedFence): string | null {
   const resolution = resolveFence(fence.raw, { settled: true })
   if (resolution.spec !== null) return null
-  // 缺少 Markdown 收尾不等于渲染失败；先复用 renderer 判断，避免把已显示的卡片重发（#288）。
+
   if (!fence.closed) return 'error=unterminated_fence\nrequired=closing_fence'
   if (resolution.processed !== null) {
     const dropped = droppedNodeFailure(resolution.processed, resolution.value)
@@ -137,12 +87,6 @@ function fenceFailureDetail(fence: ExtractedFence): string | null {
   return 'error=invalid_json\nrepair=failed'
 }
 
-/**
- * Build the correction input for a reply with unrenderable fences.
- *
- * @param failures - fences {@link fenceFailures} rejected.
- * @returns the message text to steer into the running turn.
- */
 export function fenceCorrectionText(failures: readonly FenceFailure[]): string {
   const body = failures
     .map(failure => `fence=${failure.index}\nfingerprint=${failure.fingerprint}\n${failure.detail}`)
@@ -151,18 +95,6 @@ export function fenceCorrectionText(failures: readonly FenceFailure[]): string {
   return `${marker}\n\n[genui-fence-repair]\nstatus=render_failed\nfences=${failures.length}\nnext=resend_corrected_fence_only\nrepeat_rendered_content=false\nreply_language=conversation\n\n${body}\n`
 }
 
-/**
- * Create the identified user-role message this loop steers.
- *
- * Mirrors `createUserMessage` from `@deepseek-ai/dsh-llm` (id + role + frozen)
- * without a runtime dependency on that package: the node half of this plugin
- * deliberately imports no `@deepseek-ai/*` values, so a linked or npm-installed
- * copy resolves identically on every host.
- *
- * @param text - the correction text.
- * @param sessionFormatVersion - the format recorded by the active session.
- * @returns a frozen user message attributed to this plugin as a notice.
- */
 export function createFeedbackMessage(text: string, sessionFormatVersion: number): UserMessage {
   const source = sessionFormatVersion >= 4
     ? {
@@ -186,97 +118,60 @@ export function createFeedbackMessage(text: string, sessionFormatVersion: number
   return Object.freeze(message) as unknown as UserMessage
 }
 
-/** Per-session bookkeeping for the loop (process lifetime). */
 interface SessionFeedback {
-  /** Latest assistant reply text of the current turn (fences are read from here). */
+
   text: string
-  /**
-   * A `validate_dsh_ui` call happened in this turn. This is the FORMAL signal
-   * that the turn is GenUI-related — the loop never guesses intent by scanning
-   * the reasoning block.
-   */
+
   validatedThisTurn: boolean
-  /** 子代理会话的输出不会直接交给用户。 */
+
   isSubagent: boolean
-  /**
-   * The turn delivered something formal: a non-empty body text, or a
-   * `render_ui` call whose RESULT reports success. A failed render is not an
-   * answer, and a call whose result has not arrived yet proves nothing.
-   */
+
   deliveredThisTurn: boolean
-  /**
-   * `render_ui` calls of this turn whose result has not arrived yet. The
-   * result — not the call — decides delivery, so an outstanding call blocks
-   * steering at the boundary instead of being guessed about.
-   */
+
   pendingRenders: Set<string>
-  /** Fence fingerprints already corrected for a RENDER failure in the current turn. */
+
   correctedSpec: Set<string>
-  /**
-   * Turns already given the "nothing was delivered" reminder. Kept separate from
-   * {@link correctedSpec}: a missing delivery must not consume the render-failure
-   * ledger (nor the other way round).
-   */
+
   deliveryRemindedTurns: Set<number>
-  /** Corrections already steered in {@link correctionsTurn}. */
+
   correctionsThisTurn: number
-  /** Turn {@link correctionsThisTurn} counts. */
+
   correctionsTurn: number | undefined
-  /** 从 session event 中恢复的当前 turn。 */
+
   currentTurn: number | undefined
-  /** 已计入 correction budget 的 message ID。 */
+
   accountedCorrectionMessageIds: Set<string>
 }
 
-/** What the pure planner needs to decide whether a correction may be sent. */
 export interface FenceFeedbackPlanInput {
-  /** Latest assistant reply text of the current turn. */
+
   readonly text: string
   readonly turn: number
-  /** Fence bodies already corrected for a render failure in the current turn. */
+
   readonly correctedSpec: ReadonlySet<string>
-  /** Turns already given the delivery reminder. */
+
   readonly deliveryRemindedTurns?: ReadonlySet<number> | undefined
-  /** A `validate_dsh_ui` call happened this turn (formal GenUI signal). */
+
   readonly validatedThisTurn?: boolean | undefined
-  /** The turn already delivered a body or a successful `render_ui` result. */
+
   readonly deliveredThisTurn?: boolean | undefined
   readonly aborted: boolean
-  /** Corrections already steered in this turn (shared hard cap). */
+
   readonly correctionsThisTurn?: number | undefined
-  /** Turn {@link correctionsThisTurn} counts (stale counts are ignored). */
+
   readonly correctionsTurn?: number | undefined
-  /** Whether the host has registered the `render_ui` tool. Defaults to enabled. */
+
   readonly renderUiToolEnabled?: boolean | undefined
 }
 
-/** A correction the caller must account for before steering. */
 export interface FenceFeedbackPlan {
   readonly text: string
   readonly fingerprints: readonly string[]
   readonly turn: number
-  /**
-   * `render` corrects a fence that failed to resolve; `delivery` reminds the
-   * model that the turn produced nothing formal. They share the per-turn budget
-   * but keep separate ledgers.
-   */
+
   readonly kind: 'render' | 'delivery'
 }
 
-/**
- * Decide whether this turn boundary should steer a correction — the pure core of
- * the loop, so every bound (per-turn cap, per-fence ledger, cancellation) is
- * testable without a host.
- *
- * The decision is driven by FORMAL events only: fences in the reply body, a
- * `validate_dsh_ui` call, a delivered body text or a successful `render_ui`
- * result. The reasoning block is
- * never read here — a draft inside the thinking block is not proof that the model
- * chose to deliver it, so it must not change any decision.
- *
- * @param input - reply text, turn identity, formal signals, and the accounting.
- * @returns the correction to send, or null when the loop must stay silent.
- */
 export function planFenceFeedback(input: FenceFeedbackPlanInput): FenceFeedbackPlan | null {
   if (input.aborted) return null
   const used = input.correctionsTurn === input.turn ? (input.correctionsThisTurn ?? 0) : 0
@@ -290,8 +185,7 @@ export function planFenceFeedback(input: FenceFeedbackPlanInput): FenceFeedbackP
       kind: 'render',
     }
   }
-  // No un-corrected render failure. If the turn formally validated a spec and
-  // then delivered nothing, remind the model once for this turn.
+
   if (input.validatedThisTurn !== true || input.deliveredThisTurn === true) return null
   if (input.deliveryRemindedTurns?.has(input.turn) === true) return null
   return {
@@ -302,15 +196,6 @@ export function planFenceFeedback(input: FenceFeedbackPlanInput): FenceFeedbackP
   }
 }
 
-/**
- * Correction for a validated GenUI turn that reached the boundary without any
- * formal delivery.
- *
- * @param turn - turn that reached the boundary.
- * @param attempt - correction number within the shared turn budget.
- * @param renderUiToolEnabled - whether the correction may recommend `render_ui`.
- * @returns the message text to steer into the running turn.
- */
 export function missingBodyCorrectionText(turn: number, attempt = 1, renderUiToolEnabled = true): string {
   const head = `${MARKER_PREFIX}turn-${turn}]\n\n[genui-fence-repair]\nstatus=nothing_delivered\nfences=0\nnext=emit_fence_in_body\nrepeat_rendered_content=false\nreply_language=conversation\n\n`
   const emphasis = attempt <= 1 ? '' : `（第 ${attempt} 次提醒）`
@@ -318,20 +203,6 @@ export function missingBodyCorrectionText(turn: number, attempt = 1, renderUiToo
   return `${head}本轮尚未产生正式回答，也没有通过支持的通道交付结果${emphasis}。请根据用户当前请求完成正式答复；需要 UI 时，在回答正文输出你最终选定的 dsh-ui 围栏${renderUiInstruction}。可以修改或放弃此前候选；不能完成时，请在正文说明原因。\n`
 }
 
-/**
- * 将 GenUI 回合中仅含 reasoning 的完整响应转换为宿主已有的可重试空响应错误。
- *
- * 只有回合边界确实还能发送交付提醒时，才放行原始 stop，
- * 让回合正常结束并走到 `agent/turn-stopping` 边界——那里会 steer 一条交付提醒，
- * 回合因此继续到下一个 step，模型有机会在同一回合把内容补进正文。
- * 提醒发过仍然只有 reasoning，才用 EMPTY_RESPONSE 交给宿主重试兜底。
- *
- * @param options - LLM stream waterfall 拦截的请求。
- * @param source - 本次请求的 provider stream。
- * @param state - 当前回合状态；缺省时没有可用提醒，保留宿主重试。
- * @param feedbackEnabled - 同回合修正是否启用。关闭时没有提醒可用，保持原有改写行为。
- * @returns 原始 stream；仅在提醒已发出、或提醒不可用时改写 reasoning-only 终止。
- */
 async function* retryReasoningOnlyGenuiStream(
   options: GenerateOptions,
   source: AsyncIterable<StreamChunk>,
@@ -352,10 +223,7 @@ async function* retryReasoningOnlyGenuiStream(
       else hasOtherBlock = true
     }
     if (chunk.type === 'finish' && chunk.reason.kind === 'stop' && hasReasoningBlock && !hasOtherBlock) {
-      // Reuse the boundary's decision: an unused reminder is not necessarily
-      // available (for example, a previous broken fence counts as body delivery).
-      // This response has no body, so its assistant/message will clear text;
-      // do not plan against the previous step's fence before that event arrives.
+
       const reminderAvailable = feedbackEnabled
         && state !== undefined
         && state.currentTurn !== undefined
@@ -391,7 +259,6 @@ async function* retryReasoningOnlyGenuiStream(
   }
 }
 
-/** Text of one assistant message's text blocks, in order. */
 function textOfContent(content: unknown): string {
   if (!Array.isArray(content)) return ''
   return content
@@ -406,7 +273,6 @@ function textOfContent(content: unknown): string {
 
 type RenderResultStatus = 'rendered' | 'invalid'
 
-/** 读取 render_ui result protocol 中明确返回的 status。 */
 function renderResultStatus(content: unknown): RenderResultStatus | undefined {
   const lines = textOfContent(content).split(/\r?\n/u)
   if (lines[0]?.trim() !== '[genui-render]') return undefined
@@ -423,7 +289,6 @@ interface ObservedToolResult {
   readonly content: unknown
 }
 
-/** 从 legacy wrapper 与 Session format v4 中提取 tool result 数据。 */
 function observedToolResult(message: unknown): ObservedToolResult | null {
   if (typeof message !== 'object' || message === null) return null
   const record = message as { toolCallId?: unknown; isError?: unknown; content?: unknown }
@@ -441,21 +306,8 @@ function observedToolResult(message: unknown): ObservedToolResult | null {
   return { callId: block.toolCallId, isError: block.isError === true, content: block.content }
 }
 
-/** Tool whose SUCCESSFUL result is a formal delivery. */
 const DELIVERY_TOOL = 'render_ui'
 
-/**
- * Whether one assistant message delivered a non-empty body text.
- *
- * Deliberately narrow: a non-empty text block. A `render_ui` call is decided
- * by its `tool/result`, not by the call appearing in a message — a call that
- * failed (or whose result has not arrived) is not a delivery. Other tools
- * (validate_dsh_ui, bash, …) may succeed without producing any answer, so
- * they are NOT counted as delivery.
- *
- * @param content - assistant content blocks.
- * @returns true when this message delivered a body text.
- */
 function deliveredBodyText(content: unknown): boolean {
   if (!Array.isArray(content)) return false
   return content.some(block => {
@@ -465,13 +317,11 @@ function deliveredBodyText(content: unknown): boolean {
   })
 }
 
-
 interface FeedbackMarkers {
   readonly renderFingerprints: string[]
   readonly deliveryTurns: number[]
 }
 
-/** 分类当前与 legacy correction message 中的 marker。 */
 function feedbackMarkersIn(text: string): FeedbackMarkers {
   const renderFingerprints: string[] = []
   const deliveryTurns: number[] = []
@@ -494,7 +344,6 @@ function feedbackMarkersIn(text: string): FeedbackMarkers {
   return { renderFingerprints, deliveryTurns }
 }
 
-/** 恢复一条持久化 correction 消耗的 turn budget。 */
 function accountReplayedCorrection(state: SessionFeedback, turn: number): void {
   if (state.correctionsTurn !== turn) {
     state.correctionsTurn = turn
@@ -504,19 +353,11 @@ function accountReplayedCorrection(state: SessionFeedback, turn: number): void {
   state.correctionsThisTurn = Math.min(MAX_CORRECTIONS_PER_TURN, state.correctionsThisTurn + 1)
 }
 
-/** Identify this plugin's source across current and migrated session shapes. */
 function isFeedbackSource(source: { kind?: unknown; plugin?: unknown } | undefined): boolean {
   return source?.kind === FEEDBACK_SOURCE_KIND
     || (source?.kind === 'plugin' && source.plugin === FEEDBACK_PLUGIN_NAME)
 }
 
-/**
- * 注册 GenUI 回合跟踪、宿主重试判定和可选的围栏修正流程。
- *
- * @param ctx - 宿主 Context。
- * @param enabled - 是否启用同回合围栏修正。
- * @param renderUiToolEnabled - 是否已注册 `render_ui` 工具。
- */
 export function installFenceFeedback(ctx: Context, enabled: boolean, renderUiToolEnabled = true): void {
   const sessions = new Map<string, SessionFeedback>()
   const stateOf = (sessionId: string): SessionFeedback => {
@@ -555,12 +396,10 @@ export function installFenceFeedback(ctx: Context, enabled: boolean, renderUiToo
   const observeEvent = (session: Session, event: SessionEvent): void => {
     const sessionId = String(session.id)
     if (event.type === 'turn/start') {
-      // The formal turn boundary: whatever happened in the previous turn is
-      // settled and this turn starts clean. The `user/message` reset below is
-      // only a fallback for direct prompts.
+
       const state = stateOf(sessionId)
       state.isSubagent = session.header.parentSession !== undefined
-      // 去重只约束当前回合，新一轮仍可修正相同错误。
+
       state.correctedSpec.clear()
       resetTurnState(state, (event.data as { turn?: number }).turn)
       return
@@ -570,12 +409,9 @@ export function installFenceFeedback(ctx: Context, enabled: boolean, renderUiToo
       const text = textOfContent(content)
       const state = stateOf(sessionId)
       state.isSubagent = session.header.parentSession !== undefined
-      // Fences are read from the BODY only: a draft in the reasoning block is not
-      // a delivery and must not become one.
+
       state.text = extractDshUiFences(text).length > 0 ? text : ''
-      // Delivery is sticky for the turn: once a body text exists, the turn has
-      // answered and must never be corrected into publishing again. A
-      // `render_ui` call in the content proves nothing here — its result does.
+
       state.deliveredThisTurn = state.deliveredThisTurn || deliveredBodyText(content)
       return
     }
@@ -583,9 +419,9 @@ export function installFenceFeedback(ctx: Context, enabled: boolean, renderUiToo
       const data = event.data as { name?: unknown; callId?: unknown }
       const state = stateOf(sessionId)
       state.isSubagent = session.header.parentSession !== undefined
-      // validate_dsh_ui is the FORMAL signal that this turn is GenUI-related.
+
       if (data.name === 'validate_dsh_ui') state.validatedThisTurn = true
-      // The result — not the call — decides whether render_ui delivered.
+
       if (data.name === DELIVERY_TOOL && typeof data.callId === 'string') {
         state.pendingRenders.add(data.callId)
       }
@@ -619,16 +455,12 @@ export function installFenceFeedback(ctx: Context, enabled: boolean, renderUiToo
       }
       return
     }
-    // A DIRECT human prompt starts a new turn: the previous reply is settled.
-    // Synthetic context that rides the same user surface — `agent.inject()`
-    // notices, team member messages — carries a different source kind and
-    // arrives MID-TURN: resetting here used to wipe the turn's validation and
-    // delivery state before the boundary could use it.
+
     if (data.source?.kind !== 'user') return
     const state = sessions.get(sessionId)
     if (state !== undefined) {
       state.isSubagent = session.header.parentSession !== undefined
-      // turn/start 先于用户消息；清掉正文状态时保留正式回合身份。
+
       resetTurnState(state, state.currentTurn)
     }
   }
@@ -638,7 +470,7 @@ export function installFenceFeedback(ctx: Context, enabled: boolean, renderUiToo
     for (const event of session.snapshotEvents()) observeEvent(session, event)
   }
   ctx.on('session/event', (session, event) => {
-    // 服务注入是异步的；首条实时事件也先接管历史，避免丢失旧纠错次数。
+
     restoreHistory(session)
     observeEvent(session, event)
   })
@@ -648,7 +480,7 @@ export function installFenceFeedback(ctx: Context, enabled: boolean, renderUiToo
     if (store === undefined) return
     for (const session of store.list()) restoreHistory(session)
   }
-  // 宿主不重播历史；安装时同步接管已有会话，异步注入负责晚到的服务。
+
   restoreSessions(ctx)
   ctx.inject(['sessions'], restoreSessions)
 
@@ -661,15 +493,12 @@ export function installFenceFeedback(ctx: Context, enabled: boolean, renderUiToo
 
   ctx.on('agent/turn-stopping', ({ agent, turn, signal }): void => {
     if (!enabled) return
-    // A child session's fence belongs to a parent reply, and an aborted turn is
-    // on its way out: never steer into either.
+
     if (agent.session.header.parentSession !== undefined) return
     const state = sessions.get(String(agent.session.id))
     if (state === undefined) return
     state.currentTurn = turn
-    // A render_ui result still outstanding could deliver (or fail) after this
-    // boundary fires: steering now would race the late result, so stay silent
-    // and let the next boundary decide on settled facts.
+
     if (state.pendingRenders.size > 0) return
     const usedThisTurn = state.correctionsTurn === turn ? state.correctionsThisTurn : 0
     const plan = planFenceFeedback({
@@ -685,7 +514,7 @@ export function installFenceFeedback(ctx: Context, enabled: boolean, renderUiToo
       renderUiToolEnabled,
     })
     if (plan === null) return
-    // Account BEFORE sending: a re-entrant boundary must not deliver twice.
+
     for (const fingerprint of plan.fingerprints) state.correctedSpec.add(fingerprint)
     if (plan.kind === 'delivery') state.deliveryRemindedTurns.add(plan.turn)
     state.correctionsTurn = plan.turn

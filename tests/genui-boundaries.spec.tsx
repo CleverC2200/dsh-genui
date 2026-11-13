@@ -1,14 +1,3 @@
-// @vitest-environment jsdom
-// GenUI hardening boundaries (design 2026-08-12):
-// 1) forms inside tabs share the block-level answers/fields registry;
-// 2) field invariants: blank values leave the registry, spec defaults
-//    register at mount, submit computes answered/ready/payload from ONE
-//    filled-fields view (whitespace preserved, blanks filtered);
-// 3) IME three-layer protection: Enter / Ctrl(Cmd)+Enter never submit while
-//    composing (ref, native isComposing, keyCode 229), and the 10ms
-//    composition-end delay covers Safari's closing keydown;
-// 4) password inputs stay masked, never persist, never join submit
-//    collection, and restore blank — while their own action still delivers.
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MarkdownText } from './genui-markdown.tsx'
@@ -52,13 +41,13 @@ describe('forms inside tabs share the block answers registry', () => {
   it('grades locally inside a tab and keeps the answer when switching tabs', () => {
     const onAction = vi.fn()
     renderBlock(gradeSpec, undefined, onAction)
-    // answer the grouped radio inside the tab
+
     fireEvent.click(screen.getByRole('radio', { name: '甲' }))
     fireEvent.click(screen.getByRole('button', { name: '交卷' }))
-    // local grading result appears (no round trip)
+
     expect(screen.getByText(/得分/)).toBeTruthy()
     expect(onAction).not.toHaveBeenCalled()
-    // switching away and back keeps the graded result
+
     fireEvent.click(screen.getAllByRole('tab')[0]!)
     expect(screen.getByText(/得分/)).toBeTruthy()
   })
@@ -191,7 +180,7 @@ describe('IME protection (three layers)', () => {
     const input = screen.getAllByRole('textbox')[0]!
     fireEvent.compositionStart(input)
     fireEvent.compositionEnd(input)
-    fireEvent.keyDown(input, { key: 'Enter' }) // lands inside the 10ms window
+    fireEvent.keyDown(input, { key: 'Enter' })
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(onAction).not.toHaveBeenCalled()
   })
@@ -202,7 +191,7 @@ describe('IME protection (three layers)', () => {
     const input = screen.getAllByRole('textbox')[0]!
     fireEvent.compositionStart(input)
     fireEvent.compositionEnd(input)
-    vi.advanceTimersByTime(10) // composition-end delay elapsed
+    vi.advanceTimersByTime(10)
     fireEvent.keyDown(input, { key: 'Enter' })
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(onAction).toHaveBeenCalledTimes(1)
@@ -242,7 +231,7 @@ describe('password boundary (masked, never persisted, never collected)', () => {
     renderBlock(passSpec, KEY, vi.fn())
     fireEvent.change(screen.getByLabelText('口令'), { target: { value: 's3cret!' } })
     fireEvent.change(screen.getByLabelText('昵称'), { target: { value: '小明' } })
-    vi.advanceTimersByTime(400) // durable-save debounce
+    vi.advanceTimersByTime(400)
     const raw = localStorage.getItem('dsh.genui.interaction')
     expect(raw).not.toBeNull()
     const parsed = JSON.parse(raw!) as { blocks: Record<string, { fields?: Record<string, string> }> }
@@ -282,7 +271,7 @@ describe('password boundary (masked, never persisted, never collected)', () => {
     const submit = screen.getByRole('button', { name: '发送' }) as HTMLButtonElement
     fireEvent.change(screen.getByLabelText('口令'), { target: { value: 's3cret!' } })
     expect(submit.disabled).toBe(true)
-    // the input's own action fires on explicit Enter (user-authorized)
+
     fireEvent.keyDown(screen.getByLabelText('口令'), { key: 'Enter' })
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(onAction).toHaveBeenCalledWith('pw-action', expect.objectContaining({ type: 'input', value: 's3cret!', submit: true }))

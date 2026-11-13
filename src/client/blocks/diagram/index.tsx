@@ -1,13 +1,3 @@
-/**
- * Editorial diagram renderer: `diagram` node → inline SVG. The browser-side
- * port of the diagram-design editorial design system — semantic tokens,
- * dotted-paper ground, orthogonal connectors, 4px grid, complexity budget,
- * zone grouping, legend strip — as a white-listed dsh-genui component.
- *
- * Layout is resolved by `resolveLayout`, routing by `routeEdge`, and every
- * value is sanitized by the guard before this component ever sees it.
- * @module @changfenhuang/dsh-genui/client/blocks/diagram
- */
 import { renderInline } from '../../inline.ts'
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import css from '../../GenuiBlock.module.css'
@@ -22,12 +12,10 @@ import { t, type GenuiTextKey } from '../../i18n/index.ts'
 const FONT_SANS = "'Geist', -apple-system, 'Segoe UI', sans-serif"
 const FONT_MONO = "'Geist Mono', ui-monospace, 'SF Mono', monospace"
 
-/** Editorial constants (diagram-design §5–7). */
-const NODE_H = 64 // node box height (48→64 for the editorial ramp)
+const NODE_H = 64
 const LEGEND_COL_W = 150
 const LEGEND_ROW_H = 22
-/** Legend labels resolve per call from the active dictionary: a frozen label
- *  kept printing LEGEND / Focal / Backend in the middle of a Chinese answer. */
+
 const LEGEND_ITEMS: Array<{ key: GenuiTextKey; type: string | undefined }> = [
   { key: 'dgm.legend.focal', type: 'focal' },
   { key: 'dgm.legend.backend', type: 'backend' },
@@ -37,10 +25,6 @@ const LEGEND_ITEMS: Array<{ key: GenuiTextKey; type: string | undefined }> = [
   { key: 'dgm.legend.security', type: 'security' },
 ]
 
-/**
- * Compute a deterministic parent map for tree-like kinds: the first edge
- * into each node is its parent (a stable convention the model can rely on).
- */
 function buildParentMap(edges: Array<{ from: string; to: string }>): (id: string) => string | undefined {
   const parents = new Map<string, string>()
   for (const e of edges) {
@@ -49,7 +33,6 @@ function buildParentMap(edges: Array<{ from: string; to: string }>): (id: string
   return id => parents.get(id)
 }
 
-/** Render one node box + its text content (tag / name / sublabel). */
 function renderNodeBox(
   box: Box,
   label: string,
@@ -61,13 +44,13 @@ function renderNodeBox(
 ): React.ReactNode {
   const treatment = nodeTreatment(type, palette)
   const cx = box.x + box.w / 2
-  // Editorial 64px ramp: name centered, sublabel below, tag top-left.
+
   const nameY = box.y + (box.h - NODE_H) / 2 + 28
   const subY = box.y + (box.h - NODE_H) / 2 + 44
   const tagW = Math.min(44, Math.max(24, (tag ?? '').length * 7 + 8))
   return (
     <g>
-      {/* opaque paper mask: arrows must not bleed through transparent fills */}
+      {                                                                        }
       <rect x={box.x} y={box.y} width={box.w} height={box.h} rx={6} fill={palette.paper} />
       <rect
         x={box.x}
@@ -94,12 +77,11 @@ function renderNodeBox(
   )
 }
 
-/** Render one routed edge: path, optional label mask + text. */
 function renderEdge(edge: { from: Box; to: Box; label?: string | undefined; kind?: string | undefined }, key: number, palette: ReturnType<typeof resolvePalette>, markerId: string): React.ReactNode {
   const routed = routeEdge(edge.from, edge.to)
   const stroke = edgeStroke(edge.kind, palette)
   const dashed = edge.kind === 'dashed'
-  // Accent arrows are the focal signal: slightly heavier stroke (1.4).
+
   const width = edge.kind === 'accent' ? 1.4 : 1.2
   const lg = labelGeometry(routed.a, routed.b)
   return (
@@ -129,7 +111,6 @@ function renderEdge(edge: { from: Box; to: Box; label?: string | undefined; kind
   )
 }
 
-/** Arrow marker defs (default / accent / link), per-diagram unique ids. */
 function renderMarkers(uid: string, palette: ReturnType<typeof resolvePalette>): React.ReactNode {
   return (
     <defs>
@@ -146,7 +127,6 @@ function renderMarkers(uid: string, palette: ReturnType<typeof resolvePalette>):
   )
 }
 
-/** Dotted-paper ground: the editorial backdrop behind every diagram. */
 function renderGround(uid: string, palette: ReturnType<typeof resolvePalette>): React.ReactNode {
   return (
     <>
@@ -161,7 +141,6 @@ function renderGround(uid: string, palette: ReturnType<typeof resolvePalette>): 
   )
 }
 
-/** Zone container: hairline dashed rect + mono uppercase eyebrow label. */
 function renderZone(z: { label: string; x: number; y: number; w: number; h: number }, palette: ReturnType<typeof resolvePalette>): React.ReactNode {
   const labelW = z.label.length * 7 + 12
   const cx = z.x + z.w / 2
@@ -174,7 +153,6 @@ function renderZone(z: { label: string; x: number; y: number; w: number; h: numb
   )
 }
 
-/** Legend strip at the bottom: hairline separator + treatment swatches. */
 function renderLegend(palette: ReturnType<typeof resolvePalette>, items: ReadonlyArray<{ label: string; type: string | undefined }>, width: number, cols: number): React.ReactNode {
   return (
     <g>
@@ -201,14 +179,12 @@ function markerFor(kind: string | undefined, uid: string): string {
   return `${uid}-arrow`
 }
 
-/** Stable per-render uid (avoid id collisions across diagrams on one page). */
 let uidCounter = 0
 function nextUid(): string {
   uidCounter += 1
   return `genui-diagram-${uidCounter}`
 }
 
-/** 渲染可选择的图解，并通过共享字段保存所选节点。 */
 export function DiagramNode({ node, answers }: { node: GenuiDiagram; answers?: AnswersState | undefined }) {
   const uid = useMemo(nextUid, [])
   const [localSelection, setLocalSelection] = useState<{ scope: string | undefined; id: string }>({ scope: node.id, id: '' })
@@ -218,18 +194,16 @@ export function DiagramNode({ node, answers }: { node: GenuiDiagram; answers?: A
   const selectableNodes = node.nodes.slice(0, GENUI_LIMITS.maxDiagramNodes)
   const selected = selectableNodes.some(item => item.id === candidate) ? candidate : ''
   const selectedNode = selectableNodes.find(item => item.id === selected)
-  // CSS token references follow the surrounding theme without remounting SVG nodes.
+
   const palette = useMemo(() => resolvePalette(node.variant, node.theme), [node.variant, node.theme])
   const layout = useMemo(() => resolveLayout(node, buildParentMap(node.edges ?? [])), [node])
 
   const byId = useMemo(() => new Map(layout.nodes.map(l => [l.node.id, l.box])), [layout])
-  // figcaption gets its own id so aria-labelledby can point at the SVG <title>
-  // alone — sharing one id between the two renders duplicates ids in the DOM.
+
   const titleId = `${uid}-title`
   const captionId = `${uid}-caption`
   const descId = `${uid}-desc`
 
-  // Complexity budget is enforced by the guard; belt-and-suspenders here.
   const nodes = layout.nodes.slice(0, GENUI_LIMITS.maxDiagramNodes)
   const edges = layout.edges.slice(0, GENUI_LIMITS.maxDiagramEdges)
   const zones = (node.zones ?? []).slice(0, GENUI_LIMITS.maxDiagramZones)
@@ -253,28 +227,22 @@ export function DiagramNode({ node, answers }: { node: GenuiDiagram; answers?: A
     if (node.id !== undefined && candidate !== '') answers?.setField(node.id, '')
   }, [answers, candidate, localSelection, node.id, selected, storedSelection])
 
-  /** 在本地保存节点选择，并通过稳定 ID 更新周边组件。 */
   function selectNode(id: string): void {
     setLocalSelection({ scope: node.id, id })
     if (node.id !== undefined) answers?.setField(node.id, id)
   }
 
-  /** 使用原生按钮的键盘操作激活节点。 */
   function handleNodeKeyDown(event: KeyboardEvent<SVGGElement>, id: string): void {
     if (event.key !== 'Enter' && event.key !== ' ') return
     event.preventDefault()
     selectNode(id)
   }
 
-  // Focal budget: accent on 1–2 nodes max; extra focal nodes downgrade to backend.
   let focalSeen = 0
   const focalBudget = GENUI_LIMITS.maxDiagramFocal
 
-  // Canvas: content bounds + editorial chrome (bottom legend strip).
   const contentH = layout.height
-  // Legend: only the types this diagram actually uses, wrapped to the canvas
-  // width (the old fixed 170px pitch + hardcoded 1000px rule overflowed any
-  // narrow canvas and printed "Extern…").
+
   const legendItems = LEGEND_ITEMS
     .filter(item => item.type !== undefined
       && nodes.some(n => (n.node.type ?? 'backend') === item.type))
@@ -300,9 +268,7 @@ export function DiagramNode({ node, answers }: { node: GenuiDiagram; answers?: A
           maxWidth: '100%',
           height: 'auto',
           background: palette.paper,
-          /* Match the card surface the diagram sits next to: same radius, same
-             hairline. A full-bleed square slab read as an image pasted into the
-             answer rather than a component of it. */
+
           borderRadius: 'var(--dsl-g-radius-surface)',
           border: '1px solid var(--dsl-g-border)',
         }}
@@ -311,7 +277,7 @@ export function DiagramNode({ node, answers }: { node: GenuiDiagram; answers?: A
         <desc id={descId}>{`${node.kind} diagram with ${nodes.length} nodes and ${edges.length} connectors`}</desc>
         {renderMarkers(uid, palette)}
         {renderGround(uid, palette)}
-        {/* zones drawn before arrows and nodes */}
+        {                                         }
         <g>
           {zones.map((z, i) => (
             <g key={`zone-${i}`}>
@@ -327,7 +293,7 @@ export function DiagramNode({ node, answers }: { node: GenuiDiagram; answers?: A
             return renderEdge({ from, to, label: e.edge.label, kind: e.edge.kind }, i, palette, markerFor(e.edge.kind, uid))
           })}
         </g>
-        {/* nodes after edges */}
+        {                       }
         <g>
           {nodes.map(l => {
             const effectiveType = l.node.type === 'focal' && focalSeen >= focalBudget ? undefined : l.node.type
@@ -349,7 +315,7 @@ export function DiagramNode({ node, answers }: { node: GenuiDiagram; answers?: A
             )
           })}
         </g>
-        {/* legend strip */}
+        {                  }
         <g transform={`translate(0, ${contentH + 8})`}>
           {renderLegend(palette, legendItems, layout.width, legendCols)}
         </g>

@@ -1,6 +1,3 @@
-/** Passive observation of the official workspace New session control's one RPC.
- * Does not send, intercept, replay or modify any request or selection.
- */
 import assert from 'node:assert/strict'
 import { bounded } from './sidechat-browser-contracts.mjs'
 import { validateUiAway } from '../fixture/lib/ui-away.mjs'

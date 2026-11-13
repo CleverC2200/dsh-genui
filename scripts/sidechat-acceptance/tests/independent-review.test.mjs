@@ -1,5 +1,3 @@
-/** Pure synthetic assertions only: no browser, DOM, host, filesystem mutation,
- * network or runtime accessibility-engine claims. */
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { nativeThreadTab, threadTitlePattern } from '../scripts/sidechat-browser-locators.mjs'
@@ -35,7 +33,7 @@ for (const [index, owner] of ['A', 'B'].entries()) {
   })
 }
 test('locator construction scopes the production title node under the owned actual native tab', () => {
-  // A locator-call recorder, not a DOM: it only preserves selector arguments.
+
   const recorder = steps => ({
     steps,
     locator(selector) { return recorder([...steps, ['locator', selector]]) },

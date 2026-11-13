@@ -8,7 +8,6 @@ import * as GenUI from '../src/plugin/index.ts'
 
 import { COMPONENT_SCHEMAS } from '../src/client/genui-runtime/schema.ts'
 
-/** Boot the plugin and return the assembled system-prompt sections. */
 async function assemble() {
   const ctx = new Context()
   await ctx.plugin(SystemPrompt)
@@ -16,19 +15,10 @@ async function assemble() {
   return ctx.systemPrompt.assemble({})
 }
 
-/**
- * The complete whitelist the slim fence section must still advertise.
- *
- * Derived from COMPONENT_SCHEMAS rather than hand-copied: the previous literal
- * had drifted behind the schema (hero / image / icon / blocks / arrow / echart /
- * diagram / svg were all missing), so the gate stayed green while the prompt
- * went stale. Any future node type now fails this test until it is advertised.
- */
 const WHITELISTED_COMPONENT_TYPES: readonly string[] = Object.keys(COMPONENT_SCHEMAS)
 
 const BROKEN_FENCE_REPLY = '```dsh-ui\n{"items":[{"type":"stat"}]}\n```'
 
-/** 将已经结束的 assistant 回复写入真实 Cordis Context。 */
 function emitAssistantReply(ctx: Context, session: object): void {
   ctx.emit('session/event', session as never, {
     type: 'assistant/message',
@@ -38,7 +28,6 @@ function emitAssistantReply(ctx: Context, session: object): void {
   } as never)
 }
 
-/** 写入 validate_dsh_ui 调用事件，触发本轮无交付修正路径。 */
 function emitValidationToolCall(ctx: Context, session: object): void {
   ctx.emit('session/event', session as never, {
     type: 'tool/call',
@@ -48,7 +37,6 @@ function emitValidationToolCall(ctx: Context, session: object): void {
   } as never)
 }
 
-/** 触发允许插件请求修正的回合结束事件。 */
 function emitTurnStopping(ctx: Context, session: object, steer: (message: { content: Array<{ text: string }> }) => void): void {
   ctx.emit('agent/turn-stopping', {
     agent: { session, steer },
@@ -70,7 +58,7 @@ describe('genui:fence section', () => {
     expect(section).toBeDefined()
     const text = typeof section!.text === 'string' ? section!.text : ''
     expect(text).toContain('dsh-ui')
-    // The model must know the white-listed component types.
+
     for (const type of ['text', 'card', 'grid', 'stat', 'table', 'audio', 'video', 'chart', 'tabs', 'button', 'progress', 'plot', 'callout', 'steps', 'diff', 'mermaid', 'scene3d']) {
       expect(text).toContain(type)
     }
@@ -104,17 +92,12 @@ describe('genui:fence section', () => {
   })
 
   it('keeps the full type whitelist in the slim section within the token budget', async () => {
-    // Issue #29: GENUI_SECTION_TEXT is a fixed per-request cost, so the slim
-    // section must stay compact while still listing every allowed type.
+
     const assembly = await assemble()
     const section = assembly.sections.find(s => s.name === 'genui:fence')
     expect(section).toBeDefined()
     const text = typeof section!.text === 'string' ? section!.text : ''
-    // Budget: 3400 chars keeps the mixed CJK/ASCII section near ~1k tokens
-    // (CJK ≈ 1 tok/char, ASCII ≈ 0.25 tok/char) — roughly half of the
-    // original ~6.1k chars / ~2.3k tokens measured in issue #29. Raised from
-    // 3200 for issue #186's counter-example block (file-tree/callout field
-    // warnings + tightened validate wording); still ~45% below the original.
+
     expect(text.length).toBeLessThanOrEqual(3400)
     for (const type of WHITELISTED_COMPONENT_TYPES) {
       expect(text).toContain(type)
@@ -122,9 +105,7 @@ describe('genui:fence section', () => {
   })
 
   it('carries a judgment, not a component quota', async () => {
-    // The quota ("默认就该出 UI", "≥3 条要点就出 list", "一条回答 3–8 个组件")
-    // shaped every answer into the same skeleton. The replacement is one
-    // question; a reintroduced count is a regression, so it is asserted here.
+
     const assembly = await assemble()
     const section = assembly.sections.find(s => s.name === 'genui:fence')
     const text = typeof section!.text === 'string' ? section!.text : ''
@@ -146,7 +127,7 @@ describe('genui:fence section', () => {
   it('sorts the section among the tool-guidance sections', async () => {
     const assembly = await assemble()
     const names = assembly.sections.map(s => s.name)
-    // The section lands among the tool-guidance band, not at the harness identity head.
+
     const index = names.indexOf('genui:fence')
     expect(index).toBeGreaterThan(0)
   })
@@ -369,11 +350,6 @@ describe('genui:fence section', () => {
     expect(skill?.description).toContain('Preserve conversation language')
     expect(skill?.description).not.toMatch(/[\u3400-\u9fff]/u)
 
-    // The description the panel shows is PARSED out of SKILL.md, not a second copy in
-    // code. Asserting the two agree would not catch the bug: both copies shared the
-    // sentence \`Preserve conversation language\`, and they had already drifted apart
-    // everywhere else, so a substring check passed while the panel showed a stale
-    // sentence the model never read. Compare against the file instead.
     const skillMd = readFileSync(join(process.cwd(), 'SKILL.md'), 'utf8')
     const front = skillMd.slice(4, skillMd.indexOf('\n---\n', 4))
     const declared = /^description:\s*(.+?)\s*$/mu.exec(front)?.[1]?.replace(/^['"]|['"]$/gu, '')

@@ -1,15 +1,3 @@
-/**
- * ECharts CORE asset bundle — the tree-shaken engine used by the common
- * presets (bar / line / area / pie / scatter / bigline).
- *
- * Progressive disclosure for the engine: the full ECharts build is ~1 MB, and
- * most answers only ever draw a bar or line chart. This bundle registers the
- * same `createChart` surface with only the chart types and components those
- * presets touch, so a basic chart downloads a fraction of the payload; the
- * full engine (`echarts-full.js`) is fetched only when a spec needs a type
- * outside this set or ships a raw `option`.
- * @module @changfenhuang/dsh-genui/client/asset-echarts-core
- */
 import * as echarts from 'echarts/core'
 import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts'
 import {

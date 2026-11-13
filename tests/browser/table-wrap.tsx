@@ -1,16 +1,3 @@
-/** Synthetic real-renderer regression for #382 (`table.wrap`). No host or model
- *  service: just the real renderer, the real stylesheet, and a fixed column
- *  width standing in for the message area.
- *
- *  Two behaviours are pinned against each other:
- *  - the data-table voice (#326): `.table` sizes to `max-content`, cells stay
- *    `nowrap`, and `.tableWrap` scrolls when the table is wider than the
- *    message column. A grid of short values must keep exactly this shape.
- *  - the opt-in prose layout (`wrap: true`): the table tracks the container and
- *    cells wrap, so a column of sentences is readable without a scrollbar —
- *    while token wrapping + a `min-width` floor keep #326's column-collapse bug
- *    (a short column squeezed to one glyph per line) from coming back.
- */
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { GenuiBlock } from '../../src/client/GenuiBlock.tsx'
@@ -24,10 +11,6 @@ const hostCascade = document.createElement('style')
 hostCascade.textContent = '.case { overflow-wrap: anywhere } .case :not(pre) > code { display: inline-flex; padding: 0 5px; box-sizing: border-box }'
 document.head.appendChild(hostCascade)
 
-/** Keep #326's six-column incident, including its CJK product name and hard
- *  newline. The ASCII description makes the nowrap row exceed the container
- *  even on Linux runners whose CJK fallback glyphs are narrower. Both modes
- *  receive the same text, with ordinary word boundaries for prose wrapping. */
 const ISSUE_326_ROWS = [[
   '某店',
   '洁柔粉Face悬挂抽纸280抽4层加厚柔韧可湿水不易烂可作洗脸巾可擦手面巾纸餐巾纸'
@@ -39,9 +22,6 @@ const ISSUE_326_ROWS = [[
   '现货',
 ]]
 
-/** Keep #382's comparison wording and extend the first measured row with
- *  ASCII prose. The original CJK-only row can fit without wrapping on Linux,
- *  so it cannot by itself prove the difference between the two layout modes. */
 const PROSE_ROWS = [
   ['跨设备记忆同步评估 · 1.7k 字', '2 处，全部真命中（翻案腔、结论冒号）',
     '5 处顿号，约 3 处是技术枚举，其余是正常并列'

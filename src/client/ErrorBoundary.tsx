@@ -1,17 +1,8 @@
-/**
- * Rendering error boundary: a component render failure inside one GenUI
- * block must never take down the whole chat surface (pre-2026-08-09 builds
- * crashed the entire conversation tree on a missing API). Every fence,
- * toolview card and panel body renders under this boundary; on error the
- * block degrades to a compact inline alert instead of unmounting the tree.
- * @module @changfenhuang/dsh-genui/client
- */
-
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { t } from './i18n/index.ts'
 
 interface ErrorBoundaryProps {
-  /** What the block is, shown in the fallback alert (fence / tool / panel). */
+
   label?: string
   children: ReactNode
 }
@@ -35,12 +26,6 @@ const fallbackStyle: Record<string, string | number> = {
   fontFamily: 'inherit',
 }
 
-/**
- * Class boundary because function components cannot catch their own subtree
- * errors. `getDerivedStateFromError` flips to the fallback render; the error
- * itself is logged (and its message surfaced in the alert) so the user sees
- * a hint instead of a silent white region.
- */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   override state: ErrorBoundaryState = { error: null }
 

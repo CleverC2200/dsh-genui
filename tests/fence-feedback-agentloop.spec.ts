@@ -1,6 +1,3 @@
-// 真实 AgentLoop 集成测试：验证首次缺正文时提醒进入下一请求，
-// 以及坏围栏修正只返回 reasoning 时，宿主重试仍能补出正文。
-// 断言 provider 实际收到的请求、重试错误和最终会话正文。
 import { describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
@@ -13,12 +10,10 @@ import AgentLoop from '@deepseek-ai/dsh-agent-loop'
 import type { GenerateOptions, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { apply as applyGenui } from '../src/plugin/index.ts'
 
-/** 交付提醒的稳定特征串，出现在 missingBodyCorrectionText 里。 */
 const REMINDER_MARK = '本轮尚未产生正式回答'
 
 const SPEC = JSON.stringify({ title: '集成测试', gap: 10, items: [{ type: 'callout', tone: 'info', title: '集成测试', content: '集成测试' }] })
 
-/** 受控 provider：验证后可选先发坏围栏，再返回 reasoning-only 与正文。 */
 class ScriptedAdapter extends LlmAdapter {
   readonly requests: GenerateOptions[] = []
   constructor(readonly repairBrokenFence: boolean) { super() }
@@ -56,7 +51,6 @@ class ScriptedAdapter extends LlmAdapter {
   }
 }
 
-/** 把一次请求的 messages 摊平成可搜索文本。 */
 function messageText(options: GenerateOptions): string {
   return (options.messages ?? [])
     .map(message => (message.content ?? []).map(block => (block as { text?: string }).text ?? '').join(' '))
@@ -74,10 +68,10 @@ describe('真实 AgentLoop：reasoning-only 后的提醒与重试恢复', () => 
     }
     if ('setExecutor' in ctx.tools) {
       const module = '@deepseek-ai/dsh-tool-executor-native'
-      await ctx.plugin(await import(/* @vite-ignore */ module))
+      await ctx.plugin(await import(                   module))
     }
     applyGenui(ctx, {})
-    // 工具注册走 inject fiber，给它一轮微任务落地。
+
     await new Promise(resolve => setTimeout(resolve, 100))
 
     const adapter = new ScriptedAdapter(repairBrokenFence)
@@ -85,11 +79,11 @@ describe('真实 AgentLoop：reasoning-only 后的提醒与重试恢复', () => 
     await ctx.plugin(AgentLoop, { agents: [] })
 
     const agent = await ctx.agentLoop.create('agentloop-reasoning-only', { provider: 'mock', model: 'mock-model' })
-    // kick() 会把 driver 内的失败吞在边界里，测试期间显式记录，避免「0 请求」无从归因。
+
     const failures: unknown[] = []
     ctx.on('agent/error', payload => { failures.push((payload as { error?: unknown }).error) })
     const requestErrors: string[] = []
-    // Model the host retry policy, with one retry so a regression cannot loop.
+
     ctx.on('agent/request-error', ({ failure }) => {
       requestErrors.push(failure.code ?? '')
       if (failure.code === 'EMPTY_RESPONSE' && requestErrors.length === 1) return { kind: 'retry' as const }

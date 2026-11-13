@@ -32,7 +32,6 @@ export interface FileLinkAvailability {
 
 const FileLinkOpenContext = createContext<((path: string, line?: number) => void) | undefined>(undefined)
 
-/** Track an optional host service through arrival, removal, and plugin unload. */
 export function createFileLinkAvailability(ctx: FileLinkCordisContext): FileLinkAvailability {
   let available = ctx.get('sidebarRight', false)?.openResource !== undefined
   const listeners = new Set<() => void>()
@@ -61,7 +60,6 @@ export function createFileLinkAvailability(ctx: FileLinkCordisContext): FileLink
   }
 }
 
-/** Provide one fence's session-scoped file opener to descendant components. */
 function FileLinkProvider({ ctx, availability, sessionId, streaming, children }: {
   ctx: FileLinkHostContext
   availability: FileLinkAvailability
@@ -88,7 +86,6 @@ function FileLinkProvider({ ctx, availability, sessionId, streaming, children }:
   return createElement(FileLinkOpenContext.Provider, { value: open }, children)
 }
 
-/** Render a file link as an accessible host navigation button when available. */
 export function FileLink({ path, line, label, children }: { path: string; line?: number; label: string; children?: ReactNode }) {
   const open = useContext(FileLinkOpenContext)
   if (open === undefined) return createElement('span', { title: path }, children)
@@ -104,7 +101,6 @@ export function FileLink({ path, line, label, children }: { path: string; line?:
   }, children)
 }
 
-/** Add session-scoped file navigation to one fence render tree. */
 export function withFileLinkContext(
   ctx: FileLinkHostContext,
   availability: FileLinkAvailability,

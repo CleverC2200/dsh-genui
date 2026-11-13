@@ -1,6 +1,3 @@
-// GenUI echart guard: preset whitelist, height clamping, option sanitization
-// (XSS filter, tooltip renderMode, array/node budget), and node rejection.
-// Pure node tests — no DOM.
 import { describe, expect, it } from 'vitest'
 import { repairGenuiSpec } from '../src/client/guard.ts'
 import { GENUI_LIMITS } from '../src/client/genui-runtime/index.ts'
@@ -54,7 +51,7 @@ describe('repairGenuiSpec: echart node rejection', () => {
   it('drops an echart with no option, data, or series', () => {
     const spec = repairGenuiSpec({ items: [
       echart(),
-      echart({ preset: 'bar' }), // preset alone without data/series
+      echart({ preset: 'bar' }),
     ] })
     expect(spec?.items).toHaveLength(0)
   })
@@ -185,18 +182,14 @@ describe('sanitizeEChartOption: resource budget (via repairGenuiSpec)', () => {
   })
 
   it('caps nesting depth to maxEChartOptionDepth', () => {
-    // Deep nesting beyond the limit causes the walk to return undefined at
-    // the cutoff depth, which cascades up (each parent loses its only child
-    // → empty object → undefined). The option gets stripped entirely.
+
     let inner: Record<string, unknown> = { v: 'leaf' }
     for (let i = 0; i < 20; i++) inner = { a: inner }
     const spec = repairGenuiSpec({ items: [echart({ option: inner })] })
     const node = spec?.items[0] as { option?: Record<string, unknown> }
-    // The entire option is stripped because the deep nesting exceeds the
-    // depth budget — every level above the cutoff becomes an empty object.
+
     expect(node?.option).toBeUndefined()
 
-    // A nesting depth WITHIN the limit survives.
     let ok: Record<string, unknown> = { v: 'leaf' }
     for (let i = 0; i < 5; i++) ok = { a: ok }
     const spec2 = repairGenuiSpec({ items: [echart({ option: ok })] })

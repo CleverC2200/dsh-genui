@@ -9,8 +9,6 @@ interface CopyPreviewState {
 
 export const CopyPreviewContext = createContext<CopyPreviewState | undefined>(undefined)
 
-/** Reply-local state, including temporarily unmounted tab/accordion children.
- * GenuiBlock's existing identity owns its lifetime; nothing is persisted. */
 export function useCopyPreviewState(spec: GenuiSpec): CopyPreviewState {
   const paths = useMemo(() => {
     const result = new Set<string>()
@@ -20,7 +18,7 @@ export function useCopyPreviewState(spec: GenuiSpec): CopyPreviewState {
     return result
   }, [spec])
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
-  // A removed/disabled node must not leave state for a later replacement.
+
   useEffect(() => {
     setExpanded(previous => {
       const next = new Set([...previous].filter(path => paths.has(path)))

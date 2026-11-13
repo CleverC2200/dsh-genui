@@ -20,7 +20,7 @@ describe('carousel readiness (async synthetic controls, not Chromium acceptance)
     expect(resolved).toBe(false)
     actual = state(600, 1, 0)
     await vi.advanceTimersByTimeAsync(50)
-    expect(resolved).toBe(false) // One coherent sample is not sufficient.
+    expect(resolved).toBe(false)
     await vi.advanceTimersByTimeAsync(50)
     expect((await result).nextCount).toBe(0)
   })

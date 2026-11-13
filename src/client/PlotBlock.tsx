@@ -1,13 +1,3 @@
-/**
- * PlotBlock: renders one or more math functions as an SVG line chart. The
- * model supplies expressions (e.g. "sin(x)") which are evaluated by the
- * SafeMath white-listed evaluator — never eval — and sampled into polylines.
- * Pure SVG: linear x/y scales computed in place, no chart library.
- *
- * v2 interactivity: series may declare `params` (e.g. {a: 2} in "a*sin(x)")
- * which render as live sliders under the chart — dragging re-samples the
- * curve in place. The plot itself supports drag-to-pan and wheel-to-zoom.
- */
 import { renderInline } from './inline.ts'
 import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
 import { sampleExpr } from './safe-math.ts'
@@ -19,31 +9,27 @@ export interface PlotSeriesParam {
   min?: number | undefined
   max?: number | undefined
   step?: number | undefined
-  /** v1.5: animate this parameter from its initial value to this target. */
+
   animateTo?: number | undefined
-  /** Animation duration in ms (default 4000). */
+
   durationMs?: number | undefined
-  /** Loop the animation (default false). */
+
   loop?: boolean | undefined
 }
 
 export interface PlotSeries {
-  /** Math expression in x. */
+
   expr: string
-  /** Optional label shown in a legend row. */
+
   label?: string | undefined
-  /** Stroke color; defaults to the accent token (multi-series auto-assign). */
+
   color?: string | undefined
-  /** v2.9 draw shape: line (default), area (fill to baseline), scatter. */
+
   kind?: 'line' | 'area' | 'scatter' | undefined
-  /** v2: adjustable parameters, one slider each, live re-render. */
+
   params?: PlotSeriesParam[] | undefined
 }
 
-/** Categorical palette for multi-series plots: host static tokens only
- * (design system v2 — same families as the chart/avatar palettes in
- * GenuiBlock, no off-theme hexes). CSS custom properties resolve inside
- * inline `style` on SVG strokes and legend swatches. */
 export const PLOT_COLORS = [
   'var(--dsw-static-deepseek-400)',
   'var(--dsw-static-green-400)',
@@ -55,20 +41,19 @@ export const PLOT_COLORS = [
   'var(--dsw-static-deepseek-300)',
 ]
 
-/** Series color: explicit wins; multi-series auto-assign from the palette. */
 const seriesColor = (i: number, n: number, c?: string): string | undefined =>
   c ?? (n > 1 ? PLOT_COLORS[i % PLOT_COLORS.length] : undefined)
 
 export interface PlotBlockProps {
-  /** Functions to draw, in draw order. */
+
   series: PlotSeries[]
-  /** Horizontal range, inclusive. */
+
   xMin?: number | undefined
   xMax?: number | undefined
-  /** Vertical bounds; omitted = auto-fit to the sampled data. */
+
   yMin?: number | undefined
   yMax?: number | undefined
-  /** Chart title. */
+
   title?: string | undefined
 }
 
@@ -80,7 +65,6 @@ const PAD_T = 14
 const PAD_B = 24
 const SAMPLES = 240
 
-/** Auto-fit y-range from finite samples with a small margin. */
 function fitY(points: ReadonlyArray<readonly [number, number]>): [number, number] {
   let lo = Infinity
   let hi = -Infinity
@@ -113,16 +97,8 @@ function formatTick(v: number): string {
   return String(Math.round(v * 100) / 100)
 }
 
-/** Polyline with manual points sync: React 18 does not reliably update the
- * SVG `points` attribute when only the value changes (the element is diffed
- * but the attribute write is skipped), so this wrapper writes it through a
- * ref on every render. */
 function Polyline({ points, className, color }: { points: string; className: string | undefined; color?: string | undefined }) {
-  // React 18 does not reliably update the SVG `points` attribute when the
-  // value changes on an existing element (the DOM write is skipped). Keying
-  // the element on a prefix of the points string forces a fresh element per
-  // distinct curve, which sidesteps the update entirely. The prefix must
-  // change whenever the curve changes: include the first and last point.
+
   const key = points.length > 40 ? `${points.slice(0, 16)}|${points.slice(-16)}` : points
   return (
     <polyline
@@ -134,17 +110,12 @@ function Polyline({ points, className, color }: { points: string; className: str
   )
 }
 
-/** Render one plot: grid, axes, one polyline per series, legend, sliders. */
 export const PlotBlock = memo(function PlotBlock({
   series, xMin: propXMin = -5, xMax: propXMax = 5, yMin, yMax, title,
 }: PlotBlockProps) {
-  // Pan/zoom view state: x range plus a LOCKED y range. The y range is fit
-  // ONCE from the initial parameters and then fixed, so dragging a parameter
-  // slider changes the curve's SHAPE (amplitude/slope) instead of rescaling
-  // the axis every time — the user sees the function move, not the numbers.
+
   const [view, setView] = useState(() => {
-    // Fit y from the default parameter values (the same fallback the render
-    // path uses), so the initial axis already frames the default curve.
+
     const defaults: Record<string, number> = {}
     for (const [si, s] of series.entries()) {
       for (const p of s.params ?? []) {
@@ -169,16 +140,8 @@ export const PlotBlock = memo(function PlotBlock({
   })
   const dragRef = useRef<{ startX: number; startY: number; xMin: number; xMax: number } | null>(null)
 
-  // Parameter values keyed by series index + param name; slider drag updates.
-  // Deliberately starts EMPTY: the initializer must never read series props
-  // (a parent re-mount can rebuild them mid-interaction), so every value
-  // falls back to the param's declared default at render time. This makes
-  // remounts during slider drags crash-proof.
   const [params, setParams] = useState<Record<string, number>>(() => ({}))
 
-  // Animation: pick the first parameter that declares animateTo. A play/pause
-  // button drives it from its current value to animateTo over durationMs
-  // using requestAnimationFrame; the curve moves in place (y axis is locked).
   const animParam = (() => {
     for (const [si, s] of series.entries()) {
       for (const p of s.params ?? []) {
@@ -202,7 +165,7 @@ export const PlotBlock = memo(function PlotBlock({
     let cycleStart = performance.now()
     const tick = (now: number): void => {
       const t = duration === 0 ? 1 : Math.min(1, Math.max(0, (now - cycleStart) / duration))
-      const eased = 1 - Math.pow(1 - t, 3) // easeOutCubic
+      const eased = 1 - Math.pow(1 - t, 3)
       const value = cycleFrom + (to - cycleFrom) * eased
       setParams(prev => ({ ...prev, [key]: value }))
       setAnimProgress(t)
@@ -244,9 +207,6 @@ export const PlotBlock = memo(function PlotBlock({
   const toX = (x: number): number => PAD_L + ((x - xMin) / (xMax - xMin)) * plotW
   const toY = (y: number): number => PAD_T + (1 - (y - lo) / (hi - lo)) * plotH
 
-  // Sample with current parameter values, then convert to screen coordinates
-  // in one pass against the LOCKED y range — the `points` string changes with
-  // the parameters, so the curve's shape visibly responds to the slider.
   const sampled = series.map((s, si) => {
     const p: Record<string, number> = {}
     for (const param of s.params ?? []) {
@@ -265,8 +225,6 @@ export const PlotBlock = memo(function PlotBlock({
   const hasData = sampled.some(p => p.points.length > 1)
   const hasValidRange = Number.isFinite(xMin) && Number.isFinite(xMax) && xMax > xMin && Number.isFinite(hi) && Number.isFinite(lo) && hi > lo
 
-  // v2.9 draw shapes: line (polyline), area (fill to the locked baseline),
-  // scatter (dots only). Colors stay on the shared categorical palette.
   const renderSeries = (s: PlotSeries, i: number, points: string): ReactNode => {
     const color = seriesColor(i, sampled.length, s.color) ?? 'var(--dsw-alias-state-business-primary, #4f8ef7)'
     const kind = s.kind ?? 'line'
@@ -292,8 +250,6 @@ export const PlotBlock = memo(function PlotBlock({
     return <Polyline key={i} points={points} className={css.line} color={color} />
   }
 
-  // Drag-to-pan and wheel-to-zoom on the SVG surface. Pan/zoom move the x
-  // window only; the y range stays locked so parameter changes stay visible.
   const onPointerDown = (e: React.PointerEvent): void => {
     dragRef.current = { startX: e.clientX, startY: e.clientY, xMin, xMax }
     ;(e.target as Element).setPointerCapture?.(e.pointerId)
@@ -301,12 +257,9 @@ export const PlotBlock = memo(function PlotBlock({
   const onPointerMove = (e: React.PointerEvent): void => {
     const d = dragRef.current
     if (d === null) return
-    // A few pixels of slack: a plain click or a text-selection drag must not
-    // shift the domain.
+
     if (Math.abs(e.clientX - d.startX) < 4) return
-    // Pointer coordinates are CSS pixels, while plotW is in SVG viewBox
-    // units. Use the SVG surface (not the event's curve/tick target) so
-    // responsive plots track the pointer at both wide and narrow widths.
+
     const width = e.currentTarget.getBoundingClientRect().width
     if (!Number.isFinite(width) || width <= 0) return
     const span = d.xMax - d.xMin
@@ -315,16 +268,6 @@ export const PlotBlock = memo(function PlotBlock({
   }
   const onPointerUp = (): void => { dragRef.current = null }
 
-  // Wheel-to-zoom must not scroll the enclosing dialog (#63): React attaches
-  // onWheel as a passive listener, where preventDefault() is ignored and the
-  // event bubbles up to the scroll container. Register natively with
-  // { passive: false } instead — the same pattern as the 3D scene viewer.
-  // Wheel zoom requires a modifier (Cmd/Ctrl). Without one the wheel is left
-  // alone so the CONVERSATION scrolls: an unmodified wheel over the chart used
-  // to be swallowed by the plot, so scrolling the page silently rescaled the
-  // chart instead (a reader could end up looking at a domain nobody asked for,
-  // with no way back). The #63 requirement still holds for the modified case —
-  // a native non-passive listener keeps the event from reaching the host.
   const svgRef = useRef<SVGSVGElement | null>(null)
   useEffect(() => {
     const el = svgRef.current
@@ -346,10 +289,6 @@ export const PlotBlock = memo(function PlotBlock({
 
   const hasParams = series.some(s => (s.params?.length ?? 0) > 0)
 
-  // Zoom/pan move the x window; without a way back a reader who zoomed by
-  // accident was stuck with a domain nobody asked for. The header therefore
-  // shows the CURRENT domain whenever it differs from the initial one and
-  // offers a one-click return.
   const initialX = useRef({ min: propXMin, max: propXMax })
   const viewMoved = Math.abs(xMin - initialX.current.min) > 1e-6 || Math.abs(xMax - initialX.current.max) > 1e-6
   const resetView = (): void => {
@@ -384,24 +323,24 @@ export const PlotBlock = memo(function PlotBlock({
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerUp}
         >
-          {/* y grid */}
+          {            }
           {yTicks.map(t => (
             <g key={`y${t}`}>
               <line x1={PAD_L} x2={WIDTH - PAD_R} y1={toY(t)} y2={toY(t)} className={css.gridLine} />
               <text x={PAD_L - 6} y={toY(t) + 4} className={css.tick} textAnchor="end">{formatTick(t)}</text>
             </g>
           ))}
-          {/* x grid */}
+          {            }
           {xTicks.map(t => (
             <g key={`x${t}`}>
               <line x1={toX(t)} x2={toX(t)} y1={PAD_T} y2={HEIGHT - PAD_B} className={css.gridLine} />
               <text x={toX(t)} y={HEIGHT - PAD_B + 14} className={css.tick} textAnchor="middle">{formatTick(t)}</text>
             </g>
           ))}
-          {/* axes */}
+          {          }
           <line x1={PAD_L} x2={WIDTH - PAD_R} y1={HEIGHT - PAD_B} y2={HEIGHT - PAD_B} className={css.axis} />
           <line x1={PAD_L} x2={PAD_L} y1={PAD_T} y2={HEIGHT - PAD_B} className={css.axis} />
-          {/* series */}
+          {            }
           {sampled.map(({ series: s, points }, i) => renderSeries(s, i, points))}
         </svg>
       ) : (
@@ -446,8 +385,7 @@ export const PlotBlock = memo(function PlotBlock({
                   step={p.step ?? 0.1}
                   value={value}
                   onChange={e => {
-                    // Read the value synchronously: React 18 may null out
-                    // currentTarget after the handler in concurrent renders.
+
                     const next = Number(e.currentTarget.value)
                     setParams(prev => ({ ...prev, [key]: next }))
                   }}
@@ -466,7 +404,7 @@ export const PlotBlock = memo(function PlotBlock({
             onClick={() => {
               if (playing) { setPlaying(false) }
               else {
-                // Reset to the declared start value before playing.
+
                 setParams(prev => ({ ...prev, [`${animParam.si}:${animParam.param.name}`]: animParam.param.value }))
                 setAnimProgress(0)
                 setPlaying(true)

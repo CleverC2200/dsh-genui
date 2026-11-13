@@ -1,6 +1,3 @@
-/** Test-only bounded failure classification. Never reads an error message,
- * stack, event payload, path, URL, header or credential into a report.
- */
 const PHASES = new Set(['binding', 'flush', 'open', 'header', 'read', 'close', 'ownership', 'projection', 'write', 'unknown'])
 const OWNERS = new Set(['all', 'parent', 'child-a', 'child-b', 'seeded-away', 'ui-away', 'unknown'])
 const NAMES = new Set(['Error', 'TypeError', 'RangeError', 'SyntaxError', 'AssertionError', 'AggregateError',
@@ -26,7 +23,6 @@ const FATALS = new Map([
 const PRIOR = new Set([...FATALS.values(), 'none', 'unknown'])
 const allowed = (set, value) => set.has(value) ? value : 'unknown'
 
-/** A second projection at both artifact writers discards all untrusted fields. */
 export function projectSnapshotFailure(input) {
   if (!input || typeof input !== 'object' || !Object.hasOwn(input, 'phase')) return undefined
   return { phase: allowed(PHASES, input.phase), owner: allowed(OWNERS, input.owner),
@@ -45,7 +41,7 @@ function errorKinds(error) {
   }
   return result
 }
-/** Preserve the first failing operation even when a finally/close also fails. */
+
 export function snapshotTrace() {
   let first
   return {
@@ -62,7 +58,7 @@ export function snapshotTrace() {
     },
   }
 }
-/** Same public open/header/read/close sequence as the original fixture reader. */
+
 export async function readSnapshotSession(persistence, id, owner, trace) {
   const handle = await trace.run('open', owner, () => persistence.open(id, 'read'))
   try {

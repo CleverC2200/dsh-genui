@@ -1,6 +1,3 @@
-// @vitest-environment jsdom
-// Partial genui parsing: while the fence body grows, finished components
-// must extract and render; unfinished tails must drop.
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MarkdownText } from './markdown-labels.tsx'
@@ -15,8 +12,7 @@ describe('parsePartialGenuiSpec', () => {
   })
 
   it('wraps a single-component root into a col (documented fence vocabulary)', () => {
-    // Regression: bare component bodies (no root `items`) were rejected —
-    // the DOM channel kept the code block with a parse-failure warning.
+
     const spec = parsePartialGenuiSpec('{"type":"callout","tone":"info","title":"T","content":"c"}')
     expect(spec).not.toBeNull()
     expect(spec!.items).toHaveLength(1)
@@ -35,7 +31,7 @@ describe('parsePartialGenuiSpec', () => {
   })
 
   it('extracts finished components while the array is still growing', () => {
-    // 第 1 个元素完成，第 2 个未写完 —— 应只返回第 1 个
+
     const spec = parsePartialGenuiSpec('{"items":[{"type":"text","content":"A"},{"type":"stat","labe')
     expect(spec?.items).toHaveLength(1)
     expect((spec!.items[0] as { type: string }).type).toBe('text')
@@ -91,24 +87,24 @@ describe('parsePartialGenuiSpec', () => {
 
 describe('partial render while streaming', () => {
   it('renders finished components from an incomplete fence while streaming', () => {
-    // 围栏没闭合、第 2 个组件没写完 —— 已完成的 text + stat 应渲染
+
     const partial = '```dsh-ui\n{"items":[{"type":"text","content":"你好"},{"type":"stat","label":"进度","value":"50%"},{"type":"but'
     const { container } = render(<MarkdownText text={partial} streaming />)
-    // 已完成的组件渲染出来了
+
     expect(container.textContent).toContain('你好')
     expect(container.textContent).toContain('进度')
-    // 未完成的按钮不渲染
+
     expect(container.textContent).not.toContain('button')
   })
 
   it('grows the render as more components complete', () => {
     const head = '```dsh-ui\n{"items":[{"type":"text","content":"A"},'
     const r1 = render(<MarkdownText text={head + '{"type":"text","content":"B"}'} streaming />)
-    // 两个都完成
+
     expect(r1.container.textContent).toContain('A')
     expect(r1.container.textContent).toContain('B')
     r1.unmount()
-    // 只有一个完成
+
     const r2 = render(<MarkdownText text={head} streaming />)
     expect(r2.container.textContent).toContain('A')
     expect(r2.container.textContent).not.toContain('B')
@@ -124,7 +120,7 @@ describe('bounded repair (single scan, capped attempts)', () => {
     const items = Array.from({ length: 8000 }, (_, i) => `{"type":"text","content":"c${i}"}`).join(',')
     const raw = `{"items":[${items}`
     const { candidates, scannedChars } = collectPartialCandidates(raw)
-    expect(scannedChars).toBe(raw.length) // one full pass, no re-scans
+    expect(scannedChars).toBe(raw.length)
     expect(candidates.length).toBeLessThanOrEqual(32)
   })
 
@@ -133,8 +129,7 @@ describe('bounded repair (single scan, capped attempts)', () => {
     const parseSpy = vi.spyOn(JSON, 'parse')
     const result = parsePartialGenuiSpec(raw)
     expect(result).not.toBeNull()
-    // The bound is an UPPER cap (1 full + the repair budget), not an exact
-    // count — the pathological input usually recovers on the first candidate.
+
     expect(parseSpy.mock.calls.length).toBeLessThanOrEqual(33)
     parseSpy.mockRestore()
   })
@@ -144,7 +139,7 @@ describe('bounded repair (single scan, capped attempts)', () => {
     const raw = '{"items":[' + Array.from({ length: 8000 }, (_, i) => `{"type":"text","content":"c${i}"}`).join(',') + ',"type":"bu'
     const parseSpy = vi.spyOn(JSON, 'parse')
     parsePartialGenuiSpec(raw)
-    expect(parseSpy.mock.calls.length).toBeLessThanOrEqual(5) // 1 full + 4 repair attempts
+    expect(parseSpy.mock.calls.length).toBeLessThanOrEqual(5)
     parseSpy.mockRestore()
   })
 
@@ -157,8 +152,7 @@ describe('bounded repair (single scan, capped attempts)', () => {
 
 describe('progressive inside a container', () => {
   it('shows a finished child before its container closes', () => {
-    // The answer is mid-container: the col has one complete text child and the
-    // second child is still being written.
+
     const raw = '{"items":[{"type":"col","items":[{"type":"text","content":"第一行"},{"type":"te'
     const spec = parsePartialGenuiSpec(raw)
     expect(spec).not.toBeNull()
@@ -184,7 +178,7 @@ describe('progressive inside a container', () => {
   })
 
   it('does not invent a child from a half-written object', () => {
-    // The second child never closed: nothing of it may appear.
+
     const raw = '{"items":[{"type":"col","items":[{"type":"text","content":"完整"},{"type":"text","content":"半'
     expect((parsePartialGenuiSpec(raw)!.items[0] as { items: unknown[] }).items).toHaveLength(1)
   })

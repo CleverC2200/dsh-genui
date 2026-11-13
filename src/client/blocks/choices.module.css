@@ -1,7 +1,3 @@
-/* `choices`: a decision list. Rows are separated by hairlines and the selected
-   row is marked by a left accent bar + a faint wash — no card per option, since
-   the choice itself is one object, not N cards. */
-
 .choices {
   display: flex;
   flex-direction: column;
@@ -48,8 +44,6 @@
 .row:last-child { border-bottom: 0; }
 .row:hover { background: var(--dsl-g-hover); }
 
-/* Selection is carried by a real accent bar, not a colour wash alone: the wash
-   sits under the text and a bar is unambiguous at a glance. */
 .row::before {
   content: '';
   position: absolute;
@@ -113,8 +107,6 @@
   color: var(--dsw-alias-label-tertiary);
 }
 
-/* Evidence sits on the right edge in the data voice: a number you can compare
-   down the column while reading the options. */
 .meta {
   flex: none;
   font-family: var(--dsl-g-font-mono);

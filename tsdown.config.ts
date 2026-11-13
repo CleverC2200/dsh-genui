@@ -1,14 +1,3 @@
-/**
- * dsh-genui build: node-half lib (host plugin, prompt injection) + browser
- * client bundle (the dsh-ui renderer) speaking the dsh module-loader
- * protocol (`window.__ModuleLoader__.load`). Mirrors the dsh repo's
- * packages/client/tsdown.client.ts preset, simplified for one package.
- *
- * Deterministic output: the CSS Modules class map is emitted in fixed
- * UTF-16 local-name order (never localeCompare — system-locale drift), and
- * the production browser bundle carries no sourcemap, so the same source
- * builds byte-identical client.js every time.
- */
 import { createHash } from 'node:crypto'
 import { readFile, realpath } from 'node:fs/promises'
 import { basename, dirname, extname, relative, resolve as resolvePath } from 'node:path'
@@ -20,10 +9,6 @@ import { transform } from 'lightningcss'
 const ID = '@changfenhuang/dsh-genui'
 const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url))
 
-/** Module-table entries this bundle may leave external: platform seed rows
- * (react family, cordis, ui-primitives) answered by the loader's require.
- * `react-dom/client` joins the list for the DOM render channel (pure-plugin
- * fence rendering on pristine hosts mounts its own React roots). */
 const EXTERNALS = [
   'react', 'react/jsx-runtime', 'react-dom/client', '@deepseek-ai/cordis', '@deepseek-ai/dsh-client-ui-primitives',
 ]
@@ -31,14 +16,12 @@ const EXTERNALS = [
 const CSS_VIRTUAL_PREFIX = '\0dsh-css:'
 const CSS_VIRTUAL_SUFFIX = '.mjs'
 
-
 function cssModulesPlugin(): NonNullable<UserConfig['plugins']>[number] {
   return {
     name: 'dsh-css-modules-inline',
     resolveId(source: string, importer: string | undefined) {
       if (!source.endsWith('.module.css')) return null
-      // The bundle builds straight from src, so the importer's directory is
-      // always the source tree — no lib/types backtracking needed.
+
       const abs = importer !== undefined ? resolvePath(dirname(importer), source) : source
       const stableId = relative(PROJECT_ROOT, abs).replaceAll('\\', '/')
       return CSS_VIRTUAL_PREFIX + stableId + CSS_VIRTUAL_SUFFIX
@@ -55,8 +38,7 @@ function cssModulesPlugin(): NonNullable<UserConfig['plugins']>[number] {
         cssModules: { pattern: '[hash]_[local]' },
         minify: true,
       })
-      // Deterministic key order: fixed UTF-16 comparison on the LOCAL class
-      // names (localeCompare depends on the system locale). Values unchanged.
+
       const entries = Object.entries(cssExports ?? {})
         .map(([local, exp]) => [local, exp.name] as const)
         .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0))
@@ -83,14 +65,6 @@ const MAPLIBRE_MAIN_SHA256 = 'fbbdf8ddd9a48e49059a4be6795a4f214a711314bb5809f72d
 const MAPLIBRE_WORKER_SHA256 = '0bf06492bdb7ba3d4132b78e435621bfba60d5250967991c02b1a73affea8cd5'
 const WORKER_FACTORY_PREFIX = 'async function al(){let e=kn.WORKER_URL||el(),t=!tl(e);'
 
-/**
- * Local, version-locked packaging adaptation, not a public MapLibre API.
- * Chromium cannot start the module worker from file://. Its file origin also
- * sends a .cjs Blob through vendor fetch(), forbidden by our offline CSP.
- * Only our exact live Blob takes the direct classic Worker path on file://;
- * native Worker still enforces CSP/origin rules. Every unowned/HTTP path and
- * the vendor pool lifecycle remain unchanged. Fail closed on vendor changes.
- */
 export function adaptMaplibreWorkerFactory(code: string, version: string, ownershipModule: string): string {
   if (version !== MAPLIBRE_VERSION || createHash('sha256').update(code).digest('hex') !== MAPLIBRE_MAIN_SHA256
     || code.split(WORKER_FACTORY_PREFIX).length !== 2) throw new Error('MapLibre worker adapter requires the audited 6.16.0 main distribution')
@@ -99,13 +73,11 @@ export function adaptMaplibreWorkerFactory(code: string, version: string, owners
       + 'if(globalThis.location?.protocol==="file:"&&e.startsWith("blob:")&&__genuiOwnsWorker(e))return new Worker(e);')
 }
 
-/** Rebundle the official worker as a single classic-compatible IIFE, no runtime dependencies. */
 export async function buildMaplibreClassicWorker(workerFile: string): Promise<string> {
   const source = await readFile(workerFile, 'utf8')
   if (createHash('sha256').update(source).digest('hex') !== MAPLIBRE_WORKER_SHA256) throw new Error('MapLibre worker adapter requires the audited 6.16.0 worker distribution')
   const bundle = await Rolldown.rolldown({
-    // The package marks modules side-effect-free; the worker entry's self.worker
-    // initialization must survive even though its default export is unused.
+
     input: '\0genui-maplibre-worker', platform: 'browser', treeshake: false,
     plugins: [{
       name: 'genui-maplibre-worker-entry',
@@ -121,7 +93,6 @@ export async function buildMaplibreClassicWorker(workerFile: string): Promise<st
   } finally { await bundle.close() }
 }
 
-/** CSS and the self-contained worker stay inert until the lazy map mounts. */
 function maplibreResourcesPlugin(): NonNullable<UserConfig['plugins']>[number] {
   const source = resolvePath(PROJECT_ROOT, 'src/client/maplibre-resources.ts')
   const virtualId = '\0dsh-genui-maplibre-resources'
@@ -199,7 +170,7 @@ function standaloneKatexCssPlugin(): NonNullable<UserConfig['plugins']>[number] 
         analyzeDependencies: true,
         visitor: {
           Rule: {
-            /** 独立 HTML 面向支持 WOFF2 的浏览器，每种字体只需内嵌一份。 */
+
             'font-face'(rule) {
               const source = rule.value.properties.find(property => property.type === 'source')
               if (source === undefined) throw new Error('KaTeX font face has no source')
@@ -232,11 +203,9 @@ const clientConfig: UserConfig = {
   format: 'cjs',
   platform: 'browser',
   dts: false,
-  // Minified production bundles: the host serves plugin bytes uncompressed,
-  // so every byte counts at first-load time.
+
   minify: true,
-  // No sourcemap in the production bundle: nothing ships the map, nothing
-  // rewrites paths, builds are byte-identical.
+
   sourcemap: false,
   clean: false,
   deps: {
@@ -251,10 +220,7 @@ const clientConfig: UserConfig = {
   plugins: [purityGate(), cssModulesPlugin()],
   outputOptions: {
     entryFileNames: 'client.js',
-    // The loader fetches one script per plugin; the lazy mermaid/three
-    // engines are NOT part of this bundle anymore — they ship as standalone
-    // IIFE assets under lib/assets/, fetched on demand by the runtime loaders
-    // (see asset-loader.ts). Nothing heavy may re-enter this bundle.
+
     codeSplitting: false,
     banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(ID)}, factory: (require) => {`,
     footer: 'return module.exports; } });',
@@ -282,15 +248,6 @@ const standaloneConfig: UserConfig = {
   outputOptions: { entryFileNames: '[name].js', codeSplitting: false },
 }
 
-/**
- * Lazy engine assets: mermaid and three ship as standalone single-entry
- * IIFEs that register themselves on `window.__GenuiAssets__` (no
- * module-loader protocol — the loaders read the global directly after script
- * injection). Two configs because rolldown refuses IIFE with multiple
- * entries; each bundle is fully independent (no cross-entry chunks). The
- * main client bundle never contains either engine, so the eager download
- * drops from ~9 MB to the small renderer core.
- */
 function assetConfig(name: 'mermaid' | 'three' | 'echarts' | 'echarts-core' | 'echarts-full' | 'icons' | 'maplibre', entry: string): UserConfig {
   return {
     name: `${ID}/assets/${name}`,
@@ -299,8 +256,7 @@ function assetConfig(name: 'mermaid' | 'three' | 'echarts' | 'echarts-core' | 'e
     format: 'iife',
     platform: 'browser',
     dts: false,
-    // Minified: these engines are huge unminified (6.7 MB / 1.8 MB) and the
-    // host serves uncompressed bytes; on-demand loads still want them small.
+
     minify: true,
     sourcemap: false,
     clean: false,
@@ -310,7 +266,7 @@ function assetConfig(name: 'mermaid' | 'three' | 'echarts' | 'echarts-core' | 'e
     },
     define: {
       'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
-      // The IIFE has no module URL. Every mount supplies our embedded worker Blob URL.
+
       ...(name === 'maplibre' ? { 'import.meta.url': 'undefined' } : {}),
     },
     plugins: [purityGate(), maplibreResourcesPlugin()],
@@ -322,7 +278,7 @@ function assetConfig(name: 'mermaid' | 'three' | 'echarts' | 'echarts-core' | 'e
 
 const libConfig: UserConfig = {
   name: ID,
-  // Keep the root plugin bundle at lib/index.js, built from src/index.ts.
+
   entry: { index: 'src/index.ts' },
   outDir: 'lib',
   format: ['esm'],
@@ -330,10 +286,9 @@ const libConfig: UserConfig = {
   target: 'es2024',
   fixedExtension: false,
   dts: false,
-  // Keep the output name aligned with the package's root export.
+
   outputOptions: { entryFileNames: '[name].js' },
-  // Cleanup happens in the build script (`rm -rf lib` before tsc): tsdown
-  // must never wipe lib/types (tsc's declaration output) mid-pipeline.
+
   clean: false,
 }
 
@@ -346,7 +301,6 @@ export default [
   assetConfig('maplibre', 'src/client/asset-maplibre.ts'),
   assetConfig('echarts-core', 'src/client/asset-echarts-core.ts'),
   assetConfig('echarts-full', 'src/client/asset-echarts.ts'),
-  // Full 749-glyph icon catalogue (~1 MB of path data): fetched once, only
-  // when a spec names a glyph outside the 64 inlined in icon-data.ts.
+
   assetConfig('icons', 'src/client/icons/asset-icons.ts'),
 ]

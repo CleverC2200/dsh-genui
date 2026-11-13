@@ -1,6 +1,3 @@
-/* TemplateDrawer: the GenUI template center inside the session panel body.
-   Tokens mirror GenuiBlock.module.css (--dsw-alias-* sheets, fallbacks last). */
-
 .wrap {
   display: flex;
   flex-direction: column;
@@ -10,7 +7,6 @@
   overflow: auto;
 }
 
-/* ---- achievements tab ---- */
 .achievements {
   display: flex;
   flex-direction: column;
@@ -19,7 +15,6 @@
   overflow: auto;
 }
 
-/* ---- category chips ---- */
 .cats {
   display: flex;
   flex-wrap: wrap;
@@ -47,7 +42,6 @@
   background: color-mix(in srgb, var(--dsw-alias-state-business-primary, #4f8ef7) 14%, transparent);
 }
 
-/* ---- template cards ---- */
 .list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -92,7 +86,6 @@
   color: var(--dsw-alias-label-secondary, rgba(255, 255, 255, 0.6));
 }
 
-/* ---- detail preview ---- */
 .detail {
   display: flex;
   flex-direction: column;

@@ -1,7 +1,3 @@
-/** rc.3-only real conversation oracle for the existing no-key smoke job.
- * Runtime files live under the caller's disposable DSH_HOME. No installation,
- * credentials, persisted session seeding, production patches, or new server.
- */
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readFile, writeFile, access, copyFile } from 'node:fs/promises'
@@ -13,8 +9,7 @@ const INITIAL = 'Display the synthetic map fixture.'
 const TITLE = 'Map browser synthetic conversation'
 
 export function mapConversationTitle(page) {
-  // The active conversation also appears in the breadcrumb. Target the
-  // session navigation region, retaining strict uniqueness within that region.
+
   return page.getByLabel('会话', { exact: true }).getByText(TITLE, { exact: true }).and(page.locator(':visible'))
 }
 
@@ -38,11 +33,11 @@ export async function prepareMapConversation({ dshRoot, dshHome, spec, published
   const host = publishedHost === undefined
     ? JSON.parse(await readFile(join(dshRoot, 'apps/cli/package.json'), 'utf8'))
     : { version: publishedHost.hostVersion }
-  // Minimum rc.1 continues to run the reusable DOM-fence visual checks only.
+
   if (host.version === '0.2.0-rc.1') return null
   assert.ok(['0.2.1-rc.3', '0.2.1-rc.5', '0.2.2-alpha.2', '0.2.2-rc.1'].includes(host.version), 'Unrecognized host must not silently skip conversation coverage')
   const replayModule = publishedHost?.modules.replayModule ?? join(dshRoot, 'packages/test-support/llm-replay/lib/index.js')
-  await access(replayModule) // Missing official build output is a failure, not a skip.
+  await access(replayModule)
   const root = join(dshHome, 'map-e2e')
   await mkdir(join(root, 'workspace'), { recursive: true })
   const sessionId = `session-e2e-map-${randomUUID()}`
@@ -55,10 +50,7 @@ export async function prepareMapConversation({ dshRoot, dshHome, spec, published
     replayChunks(`\`\`\`dsh-ui\n${JSON.stringify(spec)}\n\`\`\``), replayChunks(ACK),
   ]))
   const patchFile = join(root, 'cordis.patch.yml')
-  // Loader discovers client packages through the nearest package.json. Mounting
-  // scripts/fixtures directly would make this a second GenUI client source next
-  // to the installed tarball. Give the unchanged host-only fixture its own
-  // disposable package boundary; do not symlink back into the repository.
+
   const fixtureRoot = join(root, 'host-fixture')
   await mkdir(fixtureRoot, { recursive: true })
   await writeFile(join(fixtureRoot, 'package.json'), JSON.stringify({
@@ -66,7 +58,7 @@ export async function prepareMapConversation({ dshRoot, dshHome, spec, published
   }))
   const plugin = join(fixtureRoot, 'index.mjs')
   await copyFile(join(dirname(fileURLToPath(import.meta.url)), 'fixtures/map-host.mjs'), plugin)
-  // JSON is YAML-compatible; the official --patch loader owns application.
+
   await writeFile(patchFile, JSON.stringify([
     { id: 'agent-default-model', config: { provider: config.provider, model: config.model } },
     { insert: [{ id: 'e2e-map-host', name: plugin, config }] },
@@ -87,8 +79,7 @@ export async function prepareMapConversation({ dshRoot, dshHome, spec, published
     assert.fail(`${label} did not settle within 30 seconds`)
   }
   const textOf = row => row.message.content.filter(part => part.type === 'text').map(part => part.text).join('')
-  // The host also appends user-role runtime-context/time-context snapshots.
-  // Only source.kind=user represents admitted client input and carries rpcId.
+
   const users = rows => rows.filter(row => row.type === 'user-message' && row.message.source.kind === 'user')
   const assertNoActions = async () => {
     const rows = await audit()
@@ -155,7 +146,7 @@ export async function prepareMapConversation({ dshRoot, dshHome, spec, published
       await renderedRoot.getByRole('button', { name: 'Submit map selection', exact: true }).click({ timeout: 15000 })
       await waitFor(rows => rows.some(row => row.type === 'replay-consumed'), 'Real Submit action and second replay turn')
       await page.getByText(ACK, { exact: true }).waitFor({ state: 'visible', timeout: 15000 })
-      // Include the renderer's trailing debounce window before final counts.
+
       await page.waitForTimeout(1000)
       const rows = await audit()
       const inputs = users(rows)

@@ -1,8 +1,3 @@
-// @vitest-environment jsdom
-// GenUI hardening: render-level caps, depth guards, and a11y wiring. The
-// fence path repairs specs first (see genui-guard.spec.ts); these tests pin
-// the renderer's own belt-and-suspenders behavior and the accessibility
-// contract of interactive components.
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MarkdownText } from './genui-markdown.tsx'
@@ -26,14 +21,11 @@ describe('render caps', () => {
   it('renders pathological nesting without crashing', () => {
     let node: unknown = { type: 'text', content: 'deep' }
     for (let i = 0; i < 40; i++) node = { type: 'col', items: [node] }
-    // The leaf sits beyond the depth cap and is elided by the guard; the
-    // important invariant is that rendering never blows the stack.
+
     expect(() => render(<MarkdownText text={fenced({ items: [node] })} />)).not.toThrow()
     expect(document.querySelector('[data-genui]')).not.toBeNull()
   })
 
-  // #298 方向 A:政策性截断不再计入「声明 vs 渲染」缺陷账——超限 tabs
-  // 截断到 maxTabs 后照常渲染,并向模型发出 policy_truncated 教学警告。
   it('caps tabs at render time', () => {
     const spec = { items: [
       { type: 'tabs', tabs: Array.from({ length: 30 }, (_, i) => ({ label: `tab ${i}`, items: [{ type: 'text', content: `body ${i}` }] })) },

@@ -1,4 +1,3 @@
-/** Synthetic data only. Identical spec bytes are deliberate collision probes. */
 export const PARENT_ID = 'session-e2e-dsh354-parent'
 export const CHILD_IDS = ['session-e2e-dsh354-thread-a', 'session-e2e-dsh354-thread-b']
 export const PROVIDER = 'dsh354-replay'
@@ -12,8 +11,7 @@ export const FORM_SPEC = {
   ],
 }
 export const FENCE = '```dsh-ui\n' + JSON.stringify(FORM_SPEC) + '\n```'
-// Text block indexes are 0 and 2. Reasoning at 1 must not collapse the second
-// text block to index 1. Each text block has two fences with identical bytes.
+
 export const CONTENT = [
   { type: 'text', text: 'Fixture text block 0, fence 0\n\n' + FENCE + '\n\nFixture text block 0, fence 1\n\n' + FENCE },
   { type: 'reasoning', text: 'Synthetic reasoning gap. Not model reasoning.' },

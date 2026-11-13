@@ -1,7 +1,3 @@
-// `trimToBalancedRoot` is the "legal JSON + trailing junk" cutter used by content
-// recognition (an unlabelled CodeBlock whose body the host does not label as
-// dsh-ui). Real sample: the model leaked its tool-call template after the JSON
-// and never closed the fence, so the whole thing arrived as one code block.
 import { describe, expect, it } from 'vitest'
 import { trimToBalancedRoot } from '../src/shared/fence-repair.ts'
 

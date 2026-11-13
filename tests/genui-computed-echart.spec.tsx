@@ -6,7 +6,6 @@ import { resolveFence } from '../src/shared/fence-resolve.ts'
 
 const points = [{ label: 'A', value: 0 }, { label: 'B', value: { $computed: 'total' } }, { label: 'C', value: 3 }]
 
-/** 从围栏的计算结果生成图表 option，检查缺失值与真实零值。 */
 function chartOption(preset: string, amount: string, withSeries = true): Record<string, unknown> {
   const spec = resolveFence(JSON.stringify({ computed: [{ id: 'total', expr: 'amount*2' }], items: [
     { type: 'input', id: 'amount', inputType: 'number', label: 'Amount', value: '2' },

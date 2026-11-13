@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render } from '@testing-library/react'
 import { init, setPlatformAPI, type ECharts, type EChartsOption } from 'echarts'
@@ -7,8 +6,6 @@ import { createChart } from '../src/client/echarts-lazy.ts'
 
 vi.mock('../src/client/echarts-lazy.ts', () => ({ createChart: vi.fn() }))
 
-// This suite exercises the real option/state merger. Text measurement is
-// irrelevant to those assertions, and jsdom has no canvas implementation.
 setPlatformAPI({ measureText: text => ({ width: text.length * 8 }) })
 
 beforeEach(() => {
@@ -21,8 +18,7 @@ beforeEach(() => {
   const computedStyle = globalThis.getComputedStyle
   vi.spyOn(globalThis, 'getComputedStyle').mockImplementation(element => {
     const result = computedStyle(element)
-    // CSS-variable calculation is covered by the real-browser font fixtures;
-    // supply their resolved token values for the component's probe in jsdom.
+
     if (element instanceof HTMLElement) {
       const token = element.style.fontSize.match(/^var\(--dsl-g-font-(data|meta|display)\)$/)?.[1]
       if (token !== undefined) {

@@ -1,4 +1,3 @@
-/** The existing dsh-go v1 service, used without a runtime SDK dependency. */
 export type NativeView = { type: string; [key: string]: unknown }
 export interface NativeScope { sessionId?: string; messageId?: string; callId?: string }
 export interface NativeEvent { action?: string; value?: unknown; locale: string }

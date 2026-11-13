@@ -1,11 +1,3 @@
-// @vitest-environment jsdom
-// GenUI v2.5 interaction hardening:
-// 1) buttons WITHOUT action render DISABLED (honest affordance — dead
-//    clickable-looking buttons were the top field complaint);
-// 2) textarea and quiz now support `action` (blur / answer selection);
-// 3) grouped radios record selections locally and a `submit` node collects
-//    ALL groups into ONE [genui-action] (the 交卷 pattern) instead of
-//    per-click round trips.
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MarkdownText } from './genui-markdown.tsx'
@@ -106,7 +98,7 @@ describe('v2.5: quiz action', () => {
     fireEvent.click(options[1]!)
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(actions).toEqual([['answer-q1', { type: 'quiz', question: '1+1=?', answer: '2', correct: true }]])
-    // local judging still works in place
+
     expect(container.textContent).toContain('回答正确')
   })
 
@@ -146,18 +138,14 @@ describe('v2.5: submit 交卷 aggregation', () => {
     const submit = container.querySelector('[class*="submitRow"] button') as HTMLButtonElement
     expect(submit.disabled).toBe(true)
 
-    // answer q1 only → still disabled, hint shows progress (click the SECOND
-    // option: index 0 is pre-selected and clicking it fires no change event)
     const radioGroups = container.querySelectorAll('[role="radiogroup"]')
     fireEvent.click(radioGroups[0]!.querySelectorAll('input')[1]!)
     expect(submit.disabled).toBe(true)
     expect(container.querySelector('[class*="submitHint"]')?.textContent).toContain('已选 1/2')
 
-    // answer q2 → enabled
     fireEvent.click(radioGroups[1]!.querySelectorAll('input')[1]!)
     expect(submit.disabled).toBe(false)
 
-    // 交卷: ONE action with both answers, no per-click spam
     fireEvent.click(submit)
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
     expect(actions).toEqual([['grade', { type: 'submit', answers: { q1: 'B', q2: 'D' }, total: 2, answered: 2 }]])
@@ -174,7 +162,7 @@ describe('v2.5: submit 交卷 aggregation', () => {
     fireEvent.click(radioGroups[0]!.querySelectorAll('input')[1]!)
     fireEvent.click(radioGroups[1]!.querySelectorAll('input')[1]!)
     vi.advanceTimersByTime(GENUI_ACTION_DEBOUNCE_MS)
-    expect(actions).toHaveLength(0) // nothing fired per click
+    expect(actions).toHaveLength(0)
   })
 
   it('enables after ≥1 answer when no groups list is given', () => {
@@ -232,8 +220,8 @@ describe('v2.5: guard coverage', () => {
 
   it('repair keeps a submit without action (local grading) and drops one without label', () => {
     const spec = repairGenuiSpec({ items: [
-      { type: 'submit', groups: ['g1'] }, // no label → dropped
-      { type: 'submit', label: '交卷' }, // no action → KEPT (local grading needs no round trip)
+      { type: 'submit', groups: ['g1'] },
+      { type: 'submit', label: '交卷' },
       { type: 'submit', label: '交卷', action: 'ok' },
     ] })
     const items = spec!.items as Array<Record<string, unknown>>
@@ -246,8 +234,7 @@ describe('v2.5: guard coverage', () => {
     const bad = validateGenuiSpec({ items: [{ type: 'submit' }] })
     expect(bad.ok).toBe(false)
     expect(bad.errors.join('\n')).toContain("type 'submit' requires label")
-    // A label-only submit is valid: when questions carry `answer` data the
-    // click grades locally with zero round trip — no action needed.
+
     const good = validateGenuiSpec({ items: [{ type: 'submit', label: '交卷' }] })
     expect(good.ok).toBe(true)
     const withAction = validateGenuiSpec({ items: [{ type: 'submit', label: '交卷', action: 'grade' }] })

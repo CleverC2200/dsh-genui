@@ -1,4 +1,3 @@
-/** 验收已安装的渲染器、真实会话和导出的独立运行页面。 */
 import assert from 'node:assert/strict'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -23,7 +22,7 @@ export const panelBase = { panel: true, title: 'Computed panel acceptance',
 export const panelAppend = { panel: true, append: true,
   computed: [{ id: 'answer', expr: 'base+1' }], items: [{ type: 'text', content: 'Panel answer {{answer}}' }],
 }
-/** 在追加面板内容之前修改并收起输入字段。 */
+
 export async function editPanelBeforeAppend(page) {
   const panel = page.locator('[data-genui-panel]')
   await panel.waitFor({ state: 'visible' })
@@ -31,7 +30,7 @@ export async function editPanelBeforeAppend(page) {
   await panel.getByLabel('Panel amount', { exact: true }).fill('5')
   await panel.locator('button[aria-expanded="true"]').first().click()
 }
-/** 确认面板追加后仍保留输入值并显示计算结果。 */
+
 export async function checkPanelAfterAppend(page) {
   const panel = page.locator('[data-genui-panel]')
   await panel.locator('button[aria-expanded="false"]').first().click()
@@ -40,7 +39,6 @@ export async function checkPanelAfterAppend(page) {
   await panel.locator('button[aria-expanded="true"]').first().click()
 }
 
-/** 验收宿主会话、组件导出和独立页面中的计算字段。 */
 export async function runComputedBrowserChecks({ page, browser, artifactsDir, verifySubmit }) {
   const report = { fixture: 'Official rc.3 replay conversation; installed tarball and exported HTML', passed: false }
   let standalone
@@ -66,7 +64,7 @@ export async function runComputedBrowserChecks({ page, browser, artifactsDir, ve
     assert.equal(await root.getByRole('textbox', { name: /^Amount/ }).inputValue(), '-')
     assert.equal(await root.getByRole('button', { name: 'Send computed', exact: true }).isDisabled(), true)
     report.hostDraftAndSecret = true
-    /** 从当前组件下载指定格式的导出文件。 */
+
     const download = async format => {
       await root.getByRole('button', { name: /^(导出|Export)$/ }).click()
       const pending = page.waitForEvent('download')
@@ -94,8 +92,7 @@ export async function runComputedBrowserChecks({ page, browser, artifactsDir, ve
     assert.equal(await standalone.getByRole('checkbox', { name: 'Choose 6', exact: true }).isChecked(), true)
     await standalone.getByRole('textbox', { name: /^Amount/ }).fill('')
     await standalone.locator('canvas').first().waitFor({ state: 'visible' })
-    // 从真实 Canvas 读取像素：真实零值有颜色，缺失值没有图块。
-    // 取样点避开标签、边框与坐标轴，并等待 ECharts 完成重绘。
+
     await assertHeatmapPixels(standalone, true)
     await standalone.screenshot({ path: join(artifactsDir, 'computed-standalone-missing-value.png'), fullPage: true })
     await standalone.getByRole('textbox', { name: /^Amount/ }).fill('0')
@@ -120,7 +117,6 @@ export async function runComputedBrowserChecks({ page, browser, artifactsDir, ve
   }
 }
 
-/** 检查热力图 Canvas 中真实零值与缺失值的像素差异。 */
 export async function assertHeatmapPixels(page, missing) {
   await page.waitForFunction(missing => {
         const canvas = document.querySelector('canvas')

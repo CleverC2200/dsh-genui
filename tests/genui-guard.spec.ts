@@ -1,6 +1,3 @@
-// GenUI spec guard: resource limits, deterministic repair, and validation.
-// Pure node tests — no DOM. The fence path runs every body through
-// `repairGenuiSpec` before rendering, so these invariants protect the UI.
 import { describe, expect, it } from 'vitest'
 import { countDeclaredGenuiNodes, countGenuiNodes, isRenderableProcess, partialRepairGenuiSpec, processGenuiSpec, repairGenuiSpec, validateGenuiSpec } from '../src/client/guard.ts'
 import { GENUI_LIMITS } from '../src/client/genui-runtime/index.ts'
@@ -48,8 +45,7 @@ describe('repairGenuiSpec: single-component roots', () => {
   it('wraps a bare component root into a col (documented fence vocabulary)', () => {
     const spec = repairGenuiSpec({ type: 'callout', tone: 'info', title: '核心观察', content: '你好' })
     expect(spec).not.toBeNull()
-    // The repaired GenuiSpec carries no `type` (root spec field set) — the
-    // observable wrap effect is the items array holding the bare component.
+
     expect(spec?.items).toHaveLength(1)
     expect((spec?.items[0] as { type: string }).type).toBe('callout')
     expect(isGenuiSpec(spec)).toBe(true)
@@ -84,9 +80,7 @@ describe('validateGenuiSpec / parseGenuiSpec: single-component roots', () => {
 
   it('parseGenuiSpec wraps a single-component fence body', () => {
     const spec = parseGenuiSpec(JSON.stringify({ type: 'keyvalue', pairs: [{ key: 'a', value: 'b' }] }))
-    // The wrapper is a plain spec (issue #172): a spec root is already
-    // rendered as a column, and carrying a `col` type would make the guard
-    // read the wrapper as one more bare component root and nest it again.
+
     expect(spec?.type).toBeUndefined()
     expect(spec?.items).toHaveLength(1)
     expect((spec?.items[0] as { type: string }).type).toBe('keyvalue')
@@ -101,12 +95,12 @@ describe('validateGenuiSpec / parseGenuiSpec: single-component roots', () => {
 describe('repairGenuiSpec: node-level healing', () => {
   it('drops nodes with missing required fields', () => {
     const spec = repairGenuiSpec({ items: [
-      { type: 'text' }, // no content
-      { type: 'button' }, // no label
-      { type: 'table', columns: ['a'] }, // no rows
-      { type: 'quiz', question: 'q' }, // no options
-      { type: 'audio' }, // no src
-      { type: 'video' }, // no src
+      { type: 'text' },
+      { type: 'button' },
+      { type: 'table', columns: ['a'] },
+      { type: 'quiz', question: 'q' },
+      { type: 'audio' },
+      { type: 'video' },
       text('kept'),
     ] })
     expect(spec?.items).toHaveLength(1)
@@ -114,9 +108,7 @@ describe('repairGenuiSpec: node-level healing', () => {
   })
 
   it('normalizes object-array options into strings (select/radio)', () => {
-    // Models sometimes reuse ask_user_question's {label,description} shape for
-    // select/radio options; the guard must extract readable text instead of
-    // silently dropping every option (empty list = "options not rendered").
+
     const spec = repairGenuiSpec({ items: [
       { type: 'radio', label: 'Q', group: 'q', options: [
         { label: '甲方案', description: '说明' },
@@ -224,7 +216,7 @@ describe('repairGenuiSpec: node-level healing', () => {
       cur = items?.[0]
       depth += 1
     }
-    // Root col at depth 0 … deepest kept node at depth maxDepth, one more dropped.
+
     expect(depth).toBe(GENUI_LIMITS.maxDepth + 1)
   })
 
@@ -308,8 +300,7 @@ describe('node counting: container descent + declared nodes (issue #42)', () => 
         { name: 'src', type: 'dir', children: [{ name: 'i.ts', type: 'file' }] },
       ] },
     ] }
-    // row + text + the file-tree node itself; the dir/file children are not
-    // GenUI nodes and must not count.
+
     expect(countDeclaredGenuiNodes(tree)).toBe(3)
   })
 
@@ -420,10 +411,7 @@ describe('repairGenuiSpec: list nodes', () => {
       ],
     })
     const lists = spec!.items as Array<{ items: Array<{ type: string; label: string }> }>
-    // 3 full lists (3×50 badges) + 3 list nodes = 153 nodes; the 4th list
-    // node costs 1 and fits 46 more badges before the 200-node budget cuts
-    // (196 badges + 4 lists = 200 exactly). Without the deduction all 204
-    // nodes would slip through.
+
     expect(lists[0]!.items).toHaveLength(50)
     expect(lists[1]!.items).toHaveLength(50)
     expect(lists[2]!.items).toHaveLength(50)
@@ -478,8 +466,7 @@ describe('repairGenuiSpec: list nodes', () => {
         },
       ],
     })
-    // list + badge + nested-list + nested-text = 4; the 'plain' string and
-    // {title,desc} shape are list-item entries, not nodes.
+
     expect(count).toBe(4)
   })
 })

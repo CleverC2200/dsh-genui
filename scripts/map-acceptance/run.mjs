@@ -1,4 +1,3 @@
-/** CI-only real Map acceptance on the existing sandboxed host browser. */
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
@@ -51,8 +50,7 @@ export async function runMapAcceptance({ browser, page, readyUrl, repoRoot, tarb
     let root
     if (conversation) root = await conversation.openConversation({ page, dismissCredentialsOverlay: dismiss })
     else {
-      // Supported minimum has no official replay fixture. Feed the existing DOM
-      // fence channel, not React/store internals; never claim host action routing.
+
       await page.evaluate(spec => {
         const fixture = document.createElement('div'); fixture.dataset.mapMinimum = ''
         const host = document.createElement('div'); host.className = 'md-code-block'
@@ -81,8 +79,7 @@ export async function runMapAcceptance({ browser, page, readyUrl, repoRoot, tarb
     assert.deepEqual(hostEvidence.csp, [], 'Host Map CSP must allow its real worker')
 
     report.stage = 'packed-embed'
-    // Test the actual packed public ./embed source and built IIFE, not an
-    // accidental working-copy import or a rebuilt empty worker placeholder.
+
     packed = await mkdtemp(join(out, 'packed-'))
     const entries = execFileSync('tar', ['-tzf', tarball], { encoding: 'utf8' }).trim().split('\n')
     assert.ok(entries.every(name => name.startsWith('package/') && !name.split('/').includes('..')), 'Only package-relative archive entries')
@@ -153,8 +150,7 @@ export async function runMapAcceptance({ browser, page, readyUrl, repoRoot, tarb
     await section.getByRole('button', { name: controls.reset }).click()
     embedEvidence.trustedStyleRoute = await assertRoutePixels(embed, section, join(out, 'map-embed-trusted-route.png'))
     await assertNoEmbedActions()
-    // Export through the public API fixture's actual UI; snapshot originates
-    // exclusively from real user interactions and public onStateSnapshot.
+
     const downloadPromise = embed.waitForEvent('download')
     await embed.getByRole('button', { name: 'Export offline HTML', exact: true }).click()
     const download = await downloadPromise
@@ -185,8 +181,7 @@ export async function runMapAcceptance({ browser, page, readyUrl, repoRoot, tarb
         assert.deepEqual(embedEvidence.csp, [])
         noErrors(embedEvidence)
       } finally {
-        // Sample at the check boundary, before screenshots or context.close().
-        // Later teardown events cannot repair this verdict or these counts.
+
         embedEvidence.workerCleanup = { workersRemaining: embed.workers().length,
           workerClosesBeforeContextCleanup: embedEvidence.workerCloses }
       }
@@ -194,8 +189,7 @@ export async function runMapAcceptance({ browser, page, readyUrl, repoRoot, tarb
     embedEvidence.workerCleanup.passed = workerCleanupPassed
 
     await independentCheck('offline-file', async () => {
-      // This file navigation happens ONLY on CI, not through any local/cloud CUA
-      // route. New offline context before its FIRST navigation, original CSP.
+
       const offlineContext = await browser.newContext({ viewport: { width: 1000, height: 1100 }, locale: 'en', offline: true })
       ownedContexts.push(offlineContext)
       const offline = await offlineContext.newPage(); offline.setDefaultTimeout(10000); active = offline
@@ -232,8 +226,7 @@ export async function runMapAcceptance({ browser, page, readyUrl, repoRoot, tarb
       await until(() => touchMap.getByRole('button', { name: controls.reset }).isEnabled(), 'Touch Map ready')
       await listChoice(touchMap, 'Synthetic East').tap()
       await assertSelection(touchMap)
-      // Selection recenters the camera. Refit before targeting the opposite
-      // endpoint in a 390px viewport, where it would otherwise be clipped.
+
       await touchMap.getByRole('button', { name: controls.reset }).tap()
       await marker(touchMap, 'Synthetic West').tap()
       await until(async () => await listChoice(touchMap, 'Synthetic West').getAttribute('aria-pressed') === 'true', 'Touch marker → list')
@@ -275,7 +268,7 @@ export async function runMapAcceptance({ browser, page, readyUrl, repoRoot, tarb
   } catch (error) {
     report.error = safeMapError(error)
     try { await active.screenshot({ path: join(out, 'map-failure.png') }) } catch (failure) { report.screenshotError = safeMapError(failure) }
-    throw new Error(safeMapError(error)) // Do not retain raw URL-bearing cause/stack.
+    throw new Error(safeMapError(error))
   } finally {
     const cleanup = []
     for (const context of ownedContexts.reverse()) {

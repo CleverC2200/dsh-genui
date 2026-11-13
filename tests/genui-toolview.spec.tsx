@@ -1,7 +1,3 @@
-// @vitest-environment jsdom
-// The render_ui tool's keyed toolview: reads the repaired spec from the
-// result node's meta and renders through GenuiBlock; falls back to a summary
-// row while the call runs or when meta is missing (replay of old logs).
 import { cleanup, render } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'

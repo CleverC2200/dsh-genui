@@ -1,21 +1,3 @@
-// @vitest-environment jsdom
-// Regression: a table cell carrying a pasted code block lost its line breaks
-// AND its leading indentation. `.table td` sets `white-space: nowrap` (the
-// table's data voice), which collapses runs of spaces; worse, the inline
-// renderer used to turn every `\n` into a `<br>`, and a `<br>` contributes
-// NOTHING to `textContent` or `Selection.toString()` — so selecting a cell and
-// copying it produced ONE run-on line. A `python - <<'PY' … PY` heredoc lost
-// its structure and could not be pasted back into a shell (the user had to
-// reassemble it by hand).
-//
-// The contract pinned here:
-//   1. newlines stay real newline characters in the DOM (so they survive
-//      selection/copy);
-//   2. a code-shaped cell gets `pre-wrap` (indentation preserved), a prose
-//      cell gets `pre-line` (breaks painted, spaces collapsed), a single-line
-//      cell keeps `nowrap`;
-//   3. the stylesheet still declares both, so a future edit cannot silently
-//      re-collapse the indentation.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { cleanup, render } from '@testing-library/react'
@@ -24,12 +6,10 @@ import { GenuiBlock } from '../src/client/GenuiBlock.tsx'
 
 afterEach(cleanup)
 
-/** A cell exactly as the model writes one: a heredoc script with indentation. */
 const CODE_CELL = "python - <<'PY'\nimport json\nd = json.load(open('g1.json'))\n    print(d.get('eligible'))\nPY"
-/** A prose cell that happens to carry a hard line break. */
+
 const PROSE_CELL = '第一行\n第二行'
 
-/** What a user gets when they select the cell and hit copy. */
 function selectionTextOf(node: Element): string {
   const range = document.createRange()
   range.selectNodeContents(node)
@@ -50,11 +30,11 @@ describe('multi-line table cells keep their line structure and indentation', () 
   it('copies a heredoc cell back as the multi-line snippet the model wrote', () => {
     const container = renderCell(CODE_CELL)
     const td = container.querySelector('td:nth-child(2)')!
-    // The selection (and textContent) carries real newlines, not `<br>` holes.
+
     expect(selectionTextOf(td)).toBe(CODE_CELL)
     expect(td.textContent).toBe(CODE_CELL)
     expect(container.querySelectorAll('td br')).toHaveLength(0)
-    // Indentation survives the copy path too.
+
     expect(selectionTextOf(td)).toContain('\n    print(')
   })
 
@@ -105,14 +85,13 @@ describe('multi-line table cells keep their line structure and indentation', () 
   })
 
   it('pins the stylesheet contract for both markers and the prose surfaces', () => {
-    // jsdom does not compute CSS-module styles, so the contract is asserted on
-    // the stylesheet source.
+
     const css = readFileSync(join(process.cwd(), 'src/client/GenuiBlock.module.css'), 'utf8')
     expect(css).toMatch(/\.table th\.tdCode,\s*\.table td\.tdCode\s*\{[^}]*white-space:\s*pre-wrap/)
     expect(css).toMatch(/\.table th\.tdMultiline,\s*\.table td\.tdMultiline\s*\{[^}]*white-space:\s*pre-line/)
     expect(css).toMatch(/\.table td\s*\{[^}]*white-space:\s*nowrap/)
     expect(css).toMatch(/\.table > thead > tr > th:not\(\.tdCode\):not\(\.tdMultiline\) \.inlineCode,[\s\S]*?\.table > tbody > tr:not\(\.detailRow\) > td:not\(\.tdCode\):not\(\.tdMultiline\) \.inlineCode,[\s\S]*?\.table > tfoot > tr > td:not\(\.tdCode\):not\(\.tdMultiline\) \.inlineCode\s*\{[^}]*white-space:\s*pre/)
-    // Prose containers that may now carry a real newline must paint it.
+
     expect(css).toMatch(/\.calloutBody,[\s\S]*?\.kvValue[\s\S]*?\{[^}]*white-space:\s*pre-line/)
   })
 })

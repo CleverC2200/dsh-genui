@@ -1,10 +1,3 @@
-/**
- * achievement-toast.tsx — the unlock toast stack (bottom right, 3.6s auto-fade).
- *
- * Its own React root at document.body level: an unlock from the panel OR an
- * inline fence pops a toast, so it does not depend on the panel existing.
- * Consumes achievement-store's new-unlock queue.
- */
 import { createElement, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { createRoot } from 'react-dom/client'
 import { consumeUnlocks, subscribeAchievements } from './achievement-store.ts'
@@ -19,7 +12,6 @@ interface ToastItem {
 
 let toastKey = 0
 
-/** Fixed bottom stack: the queue rendered FIFO as a vertical stack. */
 function AchievementToasts() {
   const t = useT()
   const [, force] = useSyncExternalStore(subscribeAchievements, () => '')
@@ -56,7 +48,6 @@ function AchievementToasts() {
   )
 }
 
-/** Mount the toast stack (called from apply; returns the unmount disposer). */
 export function mountAchievementToasts(): () => void {
   if (typeof document === 'undefined') return () => {}
   const host = document.createElement('div')

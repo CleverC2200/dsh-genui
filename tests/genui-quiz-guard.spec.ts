@@ -61,11 +61,10 @@ describe('repairGenuiSpec: quiz option healing (issue #57)', () => {
   })
 
   it('drops the whole quiz when no option is recoverable (issue #57)', () => {
-    // Empty list or all-non-string non-object items must not survive as a
-    // half-rendered "question without options" node.
+
     expect(repairGenuiSpec({ type: 'quiz', question: 'Q', options: [] })?.items).toHaveLength(0)
     expect(repairGenuiSpec({ type: 'quiz', question: 'Q', options: [123, null] })?.items).toHaveLength(0)
-    // Object items without labels are equally unrecoverable.
+
     expect(repairGenuiSpec({ type: 'quiz', question: 'Q', options: [{ feedback: 'x' }] })?.items).toHaveLength(0)
   })
 

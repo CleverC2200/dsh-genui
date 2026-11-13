@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import { act, cleanup, fireEvent, render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GenuiActionContext } from '../src/client/action-context.ts'
@@ -11,14 +10,12 @@ import { GENUI_LIMITS } from '../src/client/genui-runtime/index.ts'
 
 type Action = [string, Record<string, unknown>]
 
-/** 在真实 GenuiBlock 中收集 action，保留组件原有的状态和 effect。 */
 function mount(spec: GenuiSpec, actions: Action[], stateKey?: string, onStateSnapshot?: (state: BlockInteractionState) => void) {
   return render(<GenuiActionContext.Provider value={(action, payload) => actions.push([action, payload])}>
     <GenuiBlock spec={spec} stateKey={stateKey} onStateSnapshot={onStateSnapshot} />
   </GenuiActionContext.Provider>)
 }
 
-/** 获取 submit 按钮及其进度文字。 */
 function submitUi(container: HTMLElement): { button: HTMLButtonElement; hint: string } {
   const row = container.querySelector('[class*="submitRow"]')!
   return { button: row.querySelector('button')!, hint: row.textContent ?? '' }

@@ -1,5 +1,3 @@
-/** Real renderer, synthetic data. The optional host sheet comes from the
- * runner, separately from the export's standalone fallback palette. */
 import { createRoot } from 'react-dom/client'
 import { flushSync } from 'react-dom'
 import { GenuiBlock } from '../../src/client/GenuiBlock.tsx'
@@ -64,12 +62,10 @@ for (const sample of samples) {
   section.appendChild(mount)
   document.getElementById('root')!.appendChild(section)
   flushSync(() => createRoot(mount).render(<GenuiBlock spec={{ items: [sample.node] }} />))
-  // GenuiBlock also lives inside panels. Exercise the panel token declaration
-  // without a nested block masking it with its own copy of the tokens.
+
   if (sample.panel) mount.firstElementChild!.className = css.panel
 }
 
-/** Resolve modern color(srgb ...) and alpha via the actual browser parser. */
 function rgba(value: string): number[] {
   const canvas = document.createElement('canvas')
   canvas.width = canvas.height = 1

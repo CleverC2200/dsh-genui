@@ -1,8 +1,3 @@
-// @vitest-environment jsdom
-// scene3d event-driven rendering: one render after init, zero while idle,
-// one per drag move / wheel — no permanent requestAnimationFrame loop.
-// three is mocked (jsdom has no WebGL); the canvas pointer listeners and
-// the disposer are what we pin here.
 import { fireEvent } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GenuiScene3D } from '../src/client/spec.ts'
@@ -74,7 +69,7 @@ describe('scene3d event-driven rendering', () => {
     const dispose = await mountScene(container, SCENE)
     expect(renderSpy).toHaveBeenCalledTimes(1)
     renderSpy.mockClear()
-    // A static scene must not re-render on its own (no RAF loop).
+
     await new Promise(resolve => setTimeout(resolve, 60))
     expect(renderSpy).not.toHaveBeenCalled()
     dispose()
@@ -93,7 +88,7 @@ describe('scene3d event-driven rendering', () => {
     expect(renderSpy).toHaveBeenCalledTimes(2)
     fireEvent.pointerUp(canvas, { pointerId: 1 })
     fireEvent.pointerMove(canvas, { clientX: 99, clientY: 99, pointerId: 1 })
-    expect(renderSpy).toHaveBeenCalledTimes(2) // released: no re-render
+    expect(renderSpy).toHaveBeenCalledTimes(2)
     fireEvent.wheel(canvas, { deltaY: 120 })
     expect(renderSpy).toHaveBeenCalledTimes(3)
     dispose()
@@ -142,7 +137,7 @@ describe('scene3d event-driven rendering', () => {
     expect(renderSpy).toHaveBeenCalledTimes(1)
     fireEvent.pointerCancel(canvas, { pointerId: 9 })
     fireEvent.pointerMove(canvas, { clientX: 50, clientY: 0, pointerId: 9 })
-    expect(renderSpy).toHaveBeenCalledTimes(1) // cancelled: no re-render
+    expect(renderSpy).toHaveBeenCalledTimes(1)
     dispose()
   })
 
