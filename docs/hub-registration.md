@@ -1,23 +1,9 @@
-# hub 收录登记建议（供 hub 维护者 triage 时复制）
+# 上游 Hub 登记材料的历史来源
 
-按 dsh-external 规则，hub 不接受 PR：插件仓库由 hub 的 Agent Loop（每 2 小时同步）+ 管理员 triage 收录。
-本文件是给维护者的**登记建议**，同步循环把 dsh-genui 标记为「未分类」时，直接复制下面两段即可。
+本文件原为上游 `omdsh-dev/dsh-genui` 的登记建议，不是公司仓库的当前写入或发布入口。[原文固定于提交 7875eee](https://github.com/CleverC2200/dsh-genui/blob/7875eee360e834e4529887ecf1117c1dcd54eece/docs/hub-registration.md)，保留原登记文本、上游组织、topics 和当时提交的来源。
 
-## catalog.source.json（repos 数组追加一行）
+原文中的 Hub 同步频率和 `/tmp/dsh-hub` 本地提交状态仅属于原记录，未在本轮重新核验，不能按这些文字判断临时目录仍存在或直接 cherry-pick。
 
-```json
-    { "name": "dsh-genui", "category": "plugin", "tags": ["web-ui", "generative-ui", "visualization", "interactive"], "note": "对话内生成式 UI：dsh-ui 围栏渲染为可交互组件（布局/图表/函数图/测验/3D/事件循环），渲染器经主仓 fence-registry 扩展点注册，插件 + 配套 skill 独立分发" }
-```
+公司维护身份、company 产物与 GEA 装配职责以 [公司 DSH 适配](company-dsh.md) 为准，源码只维护于 CleverC2200/dsh-genui。上游历史、许可和贡献署名保留。
 
-## README.md（插件表格，按名字排序插在 dsh-gomoku 前）
-
-```
-| [dsh-genui](https://github.com/omdsh-dev/dsh-genui) | bundle · cordis | 对话内生成式 UI：模型用 `dsh-ui` 围栏把可交互组件直接画进回答流（布局/图表/函数图/测验/3D/事件循环） — DSH 对话内生成式 UI 插件：dsh-ui 围栏渲染为可交互组件，渲染器经主仓 fence-registry 扩展点注册，插件 + 配套 skill 独立分发 | TS | 2026-08-09 |
-```
-
-管理器标注：package.json 声明 `dsh.bundle.patch`（`cordis.patch.yml`）→ 自动推导 `bundle · cordis`，无需人工覆盖。
-已打 topics：`dsh`、`dsh-plugin`、`marisa-plugin`（自动进 plugins.json 通道）、`web-ui`、`generative-ui`。
-
-> 仓库位于 `omdsh-dev` 组织（公开），hub 同步循环可直接读取组织仓库。
-
-> 本地已就绪的完整 commit 在 `/tmp/dsh-hub`（`b79eb2a catalog: add dsh-genui`），管理员可 cherry-pick 或照抄。
+未来若有公司 fork 的登记任务，按该任务明确的目标和当时实际平台要求办理，不沿用旧上游登记材料作为写入授权。

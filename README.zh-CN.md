@@ -1,3 +1,11 @@
+# 独立维护版本
+
+本仓库为 [CleverC2200/dsh-genui](https://github.com/CleverC2200/dsh-genui)，保留 [omdsh-dev 上游基线](https://github.com/omdsh-dev/dsh-genui/tree/92209256d3c27f99a7b363823f4d654679e97204)、MIT 许可和贡献署名。插件本体与公司兼容检查在本仓维护，GEA 仅完成固定产物的宿主装配。
+
+公司版本从本仓 [GitHub Release](https://github.com/CleverC2200/dsh-genui/releases) 获取，维护与验证见 [公司 DSH 适配](docs/company-dsh.md)。以下公共 npm、徽章和安装迁移说明属于上游版本，不代表公司 company 产物。
+
+---
+
 <div align="center">
 
 <img src="./assets/genui-logo.svg" width="380" alt="GenUI for DeepSeek Harness">
@@ -20,7 +28,7 @@
 <p align="center">
   <a href="https://omdsh-dev.github.io/dsh-genui/"><strong>🌐 在线产品站</strong></a> · 
   <a href="#-真实界面预览"><strong>🎬 界面演示</strong></a> · 
-  <a href="#-快速开始"><strong>🚀 快速开始</strong></a> · 
+  <a href="#-上游-npm-版本快速开始"><strong>🚀 上游版本快速开始</strong></a> ·
   <a href="#-核心能力全景"><strong>🧩 核心特性</strong></a> · 
   <a href="./SKILL.md"><strong>📖 组件语法 (SKILL.md)</strong></a>
 </p>
@@ -73,12 +81,12 @@ https://github.com/user-attachments/assets/f5db33ec-7471-4d4a-a85b-79c9962ab4ef
 
 ---
 
-## 🚀 快速开始
+## 🚀 上游 npm 版本快速开始
 
 ### 1. 环境准备
 
 安装前请确认满足以下条件：
-- **DSH 版本**：`^0.2.0-rc.1 || ^0.2.1-rc.1 || ^0.2.2-alpha.2`。安装包浏览器验收覆盖 `0.2.0-rc.1`、`0.2.1-rc.3` 与 npm 精确安装的 `0.2.2-rc.1`（当前 `latest` / `next`）和 `0.2.2-alpha.2`；`0.2.1-rc.4` 与 `0.2.1-rc.5` 继续单独执行公开接口、完整单元测试与构建检查。当前 RC 与 alpha 宿主要求 **Node.js >=24.9.0**，图片集合、计算字段和地图使用官方本地回放验收；第三方侧栏接入在 rc.3 上验收。
+- **DSH 版本**：`^0.2.0-rc.1 || ^0.2.1-rc.1 || ^0.2.2-alpha.2`。安装包浏览器验收覆盖 `0.2.0-rc.1`、`0.2.1-rc.3` 与 npm 精确安装的 `0.2.2-rc.1`（上游固定验收输入）和 `0.2.2-alpha.2`；`0.2.1-rc.4` 与 `0.2.1-rc.5` 继续单独执行公开接口、完整单元测试与构建检查。当前 RC 与 alpha 宿主要求 **Node.js >=24.9.0**，图片集合、计算字段和地图使用官方本地回放验收；第三方侧栏接入在 rc.3 上验收。
 - **pnpm 处于 PATH 中**：`dsh plugin` 底层依赖 pnpm。如尚未安装，请执行 `corepack enable` 或 `npm i -g pnpm`，之后**重新打开终端**，确认 `pnpm -v` 可正常输出。
 
 ### 2. 一键安装与激活
@@ -352,7 +360,7 @@ DSH 的插件管理需要调用宿主系统的 `pnpm`。请在系统终端执行
 <details>
 <summary><strong>Q: npm install 返回 404？</strong></summary>
 
-本包是公开包（无需任何 npm 账号授权）。可先执行 `npm view @changfenhuang/dsh-genui version` 查看最新公开版本。若刚发布可能存在几分钟镜像同步延迟，请稍后重试。
+上游 npm 版本是公开包，无需 npm 账号授权；公司产物来源见[公司 DSH 适配](docs/company-dsh.md)。可用 `npm view @changfenhuang/dsh-genui version` 查询上游公开版本，不能用该结果判断 company 产物。
 </details>
 
 <details>
