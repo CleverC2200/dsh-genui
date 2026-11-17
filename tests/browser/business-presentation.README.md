@@ -51,3 +51,16 @@ These bounds come from reading the mixed numeric/text content at the requested h
 | Interactions | Each visible action works once through a real pointer or keyboard, preserves its action name and records one local event. Mounting emits none, and no business request runs. |
 
 Measure visible DOM content and geometry through the renderer. Avoid exact CSS class names, copied token formulas or full-page snapshots as the only assertions. Screenshots support the behavior assertions and allow review of typography and wrapping. Fixed browser passes cover rendering and local event dispatch; actual host, model triggering and follow-up answers need the separate session cases.
+
+## PC mixed-card regression
+
+`model-card-layout.json` preserves the row and nested-grid compatibility cases and adds the valid three-card mixed spec from the isolated 2026-11-17 model replay, `layout-20261117-post/replay-input/mixed-r1.json`. All values are synthetic. The fixture omits the session metadata and generation prompt, retains the delivered spec and required full text, and does not replace the earlier invalid two-card failure evidence.
+
+Run `node scripts/check-business-presentation-browser.mjs`, optionally setting `GENUI_BROWSER_OUT` to an evidence directory. Model-card cases use the existing PC viewport/content pairs 1024/640 and 1440/960, each at host fonts 14/17/22. The older pagination, stress, numeric/status and interaction checks remain in the same runner.
+
+The mixed fixture declares `full-width-reading-flow`: its cards must use the shared group's full content width and appear vertically in spec order without overlapping. The runner measures rendered card bounds and the shared content area with the existing 1px rounding tolerance; it does not assert CSS declarations or use a global empty-space score. A three-column mixed layout fails `model-card-reading-flow` even when its full text and containment checks pass. Screenshots and `result.json` retain the measured widths and positions before the runner exits unsuccessfully. This regression proves the baseline failure; it does not establish a renderer fix or actual-client acceptance.
+
+
+Renderer acceptance also replays short and wide numeric card groups and direct numeric row/grid groups, narrow key/value details and an explicitly extreme numeric value. Compact metrics share equal-width, equal-height visual rows, and their original column count is an upper bound. Wide numeric bodies stay whole while columns reduce; the fixture's span does not create implicit tracks. Key/value labels use content width and stack above their values in a narrow detail area.
+
+Only `metric-extreme` permits text outside the visible numeric viewport. It requires a focusable local scroll region containing the complete original value, native whole-value selection, and keyboard scrolling to both ends. Ordinary numeric cases retain all text-containment and clipping checks. Resize replay preserves input DOM identity, focus and draft, emits no action, and keeps the original columns for form and graphical cards. A subsequent submit records exactly one action with the same draft. These are local browser checks; native-client and real-model acceptance remain separate.

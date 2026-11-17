@@ -54,6 +54,21 @@ function renderBlock(spec: unknown, actions: Array<[string, Record<string, unkno
   )
 }
 
+describe('metric groups without browser layout', () => {
+  it('keeps complete values in one column when no width can be measured', () => {
+    const { container, getByText } = renderBlock({
+      items: [{ type: 'row', items: [
+        { type: 'stat', label: '收入', value: '123456789.01' },
+        { type: 'stat', label: '订单数', value: '1024' },
+      ] }],
+    })
+    const group = container.querySelector('[class*="metricGroup"]') as HTMLElement
+    expect(group.style.gridTemplateColumns).toBe('repeat(1, minmax(0, 1fr))')
+    expect(getByText('123456789.01')).toBeTruthy()
+    expect(getByText('1024')).toBeTruthy()
+  })
+})
+
 describe('v15: 导出、调色板与卡片强调色', () => {
   it('serialises a table to Markdown and CSV (escaping included)', () => {
     const columns = ['渠道', '备注']
@@ -142,11 +157,11 @@ describe('v13: hero 封面块与 bento 跨列', () => {
     expect(container.textContent).toContain('近 30 天')
   })
 
-  it('spans grid columns for bento layouts', () => {
+  it('preserves explicit grid spans for interactive cards', () => {
     const { container } = renderBlock({
       items: [{ type: 'grid', cols: 3, items: [
-        { type: 'card', span: 2, title: '宽卡', items: [{ type: 'text', content: 'a' }] },
-        { type: 'card', title: '窄卡', items: [{ type: 'text', content: 'b' }] },
+        { type: 'card', span: 2, title: '宽卡', items: [{ type: 'button', label: '查看详情' }] },
+        { type: 'card', title: '窄卡', items: [{ type: 'button', label: '刷新' }] },
       ] }],
     })
     const spanned = container.querySelector('[class*="gridSpan"]') as HTMLElement

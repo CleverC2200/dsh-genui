@@ -4,7 +4,7 @@
  * the sibling block modules. Depth-guarded against pathological specs.
  * @module @changfenhuang/dsh-genui/client/blocks/render-node
  */
-import { type ReactNode, useEffect, useState, type CSSProperties } from 'react'
+import { type ReactNode, useEffect, useRef, useState, type CSSProperties } from 'react'
 import css from '../GenuiBlock.module.css'
 import { GENUI_LIMITS } from '../genui-runtime/index.ts'
 import { renderInline } from '../inline.ts'
@@ -178,7 +178,7 @@ function AnimatedValue({ value, unitClass, animate = false }: {
   const animated = useCountUp(target ?? 0, parts.decimals, animate && target !== undefined)
   return (
     <>
-      {target === undefined || !animate ? renderInline(parts.num) : animated}
+      {parts.isNumeric ? <span className={css.statNumber}>{target === undefined || !animate ? renderInline(parts.num) : animated}</span> : renderInline(parts.num)}
       {parts.unit !== '' && <span className={unitClass ?? css.statUnit}>{renderInline(parts.unit)}</span>}
     </>
   )
@@ -196,6 +196,81 @@ function boundField(answers: AnswersState | undefined, id: string | undefined): 
   if (answers?.fields === undefined || !Object.hasOwn(answers.fields, id)) return undefined
   const value = answers?.fields[id]
   return value === undefined || value === '' ? undefined : value
+}
+
+function isReadingCardContent(node: GenuiNode): boolean {
+  if (node.when !== undefined || node.enableWhen !== undefined) return false
+  switch (node.type) {
+    case 'stat':
+    case 'text':
+    case 'badge':
+    case 'keyvalue':
+    case 'callout':
+    case 'copy':
+    case 'divider':
+      return true
+    case 'col':
+    case 'row':
+    case 'grid':
+      return node.items.every(isReadingCardContent)
+    case 'table':
+      return node.filter === undefined && node.sortField === undefined && node.details === undefined
+    case 'list':
+      return node.filter === undefined && node.items.every(item => !isListItemNode(item) || isReadingCardContent(item))
+    default:
+      return false
+  }
+}
+
+function MetricGroup({ children, maxColumns }: { children: ReactNode; maxColumns: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [columns, setColumns] = useState(1)
+  useEffect(() => {
+    const group = ref.current
+    if (!group) return
+    const numbers = [...group.querySelectorAll<HTMLElement>(`.${css.statNumber}`)]
+    const resize = () => {
+      if (group.clientWidth <= 0) return
+      const style = getComputedStyle(group)
+      const gap = parseFloat(style.columnGap) || 0
+      let minimum = parseFloat(style.fontSize) * 12
+      for (const number of numbers) {
+        let width = number.getBoundingClientRect().width
+        for (let parent = number.parentElement; parent && parent !== group; parent = parent.parentElement) {
+          const box = getComputedStyle(parent)
+          width += parseFloat(box.paddingLeft) + parseFloat(box.paddingRight)
+            + parseFloat(box.borderLeftWidth) + parseFloat(box.borderRightWidth)
+        }
+        minimum = Math.max(minimum, Math.ceil(width) + 2)
+      }
+      setColumns(Math.max(1, Math.min(maxColumns, Math.floor((group.clientWidth + gap) / (minimum + gap)))))
+    }
+    resize()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(resize)
+    observer.observe(group)
+    numbers.forEach(number => observer.observe(number))
+    return () => observer.disconnect()
+  }, [children, maxColumns])
+  return <div ref={ref} className={css.metricGroup} style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>{children}</div>
+}
+
+function isCompactMetric(node: GenuiNode): boolean {
+  return node.type === 'stat' && node.size === undefined
+    && node.when === undefined && node.enableWhen === undefined
+    && splitStatValue(node.value).isNumeric
+}
+
+function isMetricGroup(items: GenuiNode[]): boolean {
+  return items.length > 0 && (items.every(isCompactMetric)
+    || (isReadingCardGroup(items) && items.every(node => node.type === 'card'
+      && node.items.length === 1 && node.items[0] !== undefined && isCompactMetric(node.items[0]))))
+}
+
+function isReadingCardGroup(items: GenuiNode[]): boolean {
+  return items.length > 0 && items.every(node => node.type === 'card'
+    && node.when === undefined && node.enableWhen === undefined
+    && node.items.length > 0 && node.items.every(isReadingCardContent))
 }
 
 /** True when a container would paint a shell with no content in it. */
@@ -308,14 +383,17 @@ function renderNodeBody(
       )
     }
     case 'row': {
+      const readingCards = isReadingCardGroup(node.items)
+      const metricGroup = isMetricGroup(node.items)
+      if (metricGroup) return <MetricGroup key={key} maxColumns={node.items.length}>{node.items.map((c, i) => renderNode(c, i, onAction, depth + 1, answers, `${path}.items[${i}]`))}</MetricGroup>
       return (
         <div
           key={key}
-          className={css.row + (node.wrap ? ` ${css.wrap}` : '')
+          className={(readingCards ? css.readingCards : css.row) + (node.wrap ? ` ${css.wrap}` : '')
             + (node.justify === undefined || node.justify === 'start' ? '' : ` ${css[`justify${node.justify[0]!.toUpperCase()}${node.justify.slice(1)}`] ?? ''}`)}
         >
           {node.items.map((c, i) => renderNode(c, i, onAction, depth + 1, answers, `${path}.items[${i}]`))}
-          {node.spacer && <div className={css.spacer} />}
+          {node.spacer && !readingCards && <div className={css.spacer} />}
         </div>
       )
     }
@@ -334,8 +412,11 @@ function renderNodeBody(
       )
     }
     case 'grid': {
+      const readingCards = isReadingCardGroup(node.items)
+      const metricGroup = isMetricGroup(node.items)
+      if (metricGroup) return <MetricGroup key={key} maxColumns={Math.max(1, Math.min(node.cols, node.items.length))}>{node.items.map((c, i) => renderNode(c, i, onAction, depth + 1, answers, `${path}.items[${i}]`))}</MetricGroup>
       return (
-        <div key={key} className={css.grid} style={{ gridTemplateColumns: `repeat(${Math.max(1, node.cols)}, minmax(0, 1fr))` }}>
+        <div key={key} className={readingCards ? css.readingCards : css.grid} style={{ gridTemplateColumns: readingCards ? 'minmax(0, 1fr)' : `repeat(${Math.max(1, node.cols)}, minmax(0, 1fr))` }}>
           {/* `span` is the bento primitive: a child can occupy several columns,
               so one wide hero card can sit next to two narrow ones. */}
           {node.items.map((c, i) => {
@@ -343,7 +424,7 @@ function renderNodeBody(
             const span = typeof c === 'object' && c !== null && typeof (c as { span?: unknown }).span === 'number'
               ? Math.max(1, Math.min(12, (c as { span: number }).span))
               : 1
-            return span > 1 ? <div key={i} className={css.gridSpan} style={{ gridColumn: `span ${span}` }}>{child}</div> : child
+            return span > 1 && !readingCards ? <div key={i} className={css.gridSpan} style={{ gridColumn: `span ${span}` }}>{child}</div> : child
           })}
         </div>
       )
@@ -467,7 +548,7 @@ function renderNodeBody(
       return (
         <div key={key} className={`${css.stat}${node.size === 'hero' ? ` ${css.statHero}` : ''}`}>
           <span className={css.statLabel}>{renderInline(node.label, false)}</span>
-          <span className={`${css.statValue}${numeric ? '' : ` ${css.statText}`}`}>
+          <span className={`${css.statValue}${numeric ? ` ${css.statNumeric}` : ` ${css.statText}`}`} tabIndex={numeric ? 0 : undefined} role={numeric ? 'region' : undefined} aria-label={numeric ? node.value : undefined}>
             <AnimatedValue value={node.value} animate={node.size === 'hero'} />
           </span>
           {node.delta !== undefined && <span className={`${css.statDelta} ${statDeltaTone(node.delta)}`}>{renderInline(node.delta)}</span>}

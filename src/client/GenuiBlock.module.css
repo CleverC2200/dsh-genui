@@ -218,6 +218,8 @@ body[data-ds-dark-theme] .panel {
    block inside its border. Cards hug their own content; the row may end
    ragged, which reads as two objects instead of one broken object. */
 .grid { display: grid; gap: var(--dsl-g-gap-md); align-items: start; }
+.metricGroup { display: grid; gap: var(--dsl-g-gap-md); align-items: stretch; }
+.readingCards { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--dsl-g-gap-md); align-items: start; }
 /* Bento child: occupies N grid columns (the wrapper exists only so the child
    keeps its own layout). */
 .gridSpan { display: flex; flex-direction: column; min-width: 0; }
@@ -730,7 +732,11 @@ img.mediaPlayer { aspect-ratio: 16 / 9; object-fit: cover; background: var(--dsl
   line-height: 1.05;
   overflow-wrap: anywhere;
 }
+.statNumeric { overflow-x: auto; overflow-y: hidden; padding-block: 2px; }
+.statValue .statNumber { display: inline-block; white-space: nowrap; overflow-wrap: normal; }
 .statUnit {
+  display: inline-block;
+  max-inline-size: 100%;
   margin-inline-start: 3px;
   font-size: max(12px, calc(var(--dsh-content-font-size, 14px) * 0.75), 0.5em);
   font-weight: 600;
@@ -1282,9 +1288,10 @@ img.mediaPlayer { aspect-ratio: 16 / 9; object-fit: cover; background: var(--dsl
 
 /* ---------- keyvalue ---------- */
 
-.keyvalue { margin: 0; display: flex; flex-direction: column; }
+.keyvalue { margin: 0; display: flex; flex-direction: column; container: keyvalue / inline-size; }
 .kvRow {
-  display: flex;
+  display: grid;
+  grid-template-columns: fit-content(35%) minmax(0, 1fr);
   gap: var(--dsl-g-gap-md);
   padding: 7px 0;
   font-size: var(--dsl-g-font-title);
@@ -1292,8 +1299,12 @@ img.mediaPlayer { aspect-ratio: 16 / 9; object-fit: cover; background: var(--dsl
 }
 .kvRow + .kvRow { border-top: 1px solid var(--dsl-g-border); }
 .kvRow:last-child { border-bottom: none; }
-.kvKey { width: 120px; flex-shrink: 0; color: var(--dsw-alias-label-secondary); font-weight: 600; }
-.kvValue { margin: 0; color: var(--dsw-alias-label-primary); font-weight: 600; word-break: break-word; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.kvKey { inline-size: fit-content; min-inline-size: 0; color: var(--dsw-alias-label-secondary); font-weight: 600; }
+.kvValue { min-inline-size: 0; margin: 0; color: var(--dsw-alias-label-primary); font-weight: 600; word-break: break-word; line-height: 1.5; font-variant-numeric: tabular-nums; }
+
+@container keyvalue (max-width: 300px) {
+  .kvRow { grid-template-columns: minmax(0, 1fr); gap: var(--dsl-g-gap-xs); }
+}
 
 /* ---------- json scalar ---------- */
 

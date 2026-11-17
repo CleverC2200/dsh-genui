@@ -204,10 +204,54 @@ try {
     const measured = await evaluate(`(${measureCards.toString()})(${JSON.stringify(input)})`)
     const screenshot = `model-${input.id}-${width}-${hostFontSize}.png`
     const layout = await command('Page.getLayoutMetrics')
-    await writeFile(join(out, screenshot), Buffer.from((await command('Page.captureScreenshot', { captureBeyondViewport:true, clip:{ x:0, y:0, width, height:Math.ceil(layout.cssContentSize.height), scale:1 } })).data, 'base64'))
+    await writeFile(join(out, screenshot), Buffer.from((await command('Page.captureScreenshot', { captureBeyondViewport:true, clip:{ x:0, y:0, width:viewportWidth, height:Math.ceil(layout.cssContentSize.height), scale:1 } })).data, 'base64'))
     assert.deepEqual(await evaluate('window.genuiPresentation.events'), [], 'Card layout replay must not dispatch actions')
-    modelCardResults.push({ id:input.id, width, viewportWidth, hostFontSize, screenshot, ...measured })
+    modelCardResults.push({ id:input.id, provenance:input.provenance, width, viewportWidth, hostFontSize, screenshot, ...measured })
   }
+  const resizeSpec = { items:[
+    {type:'grid',cols:3,items:['12 箱','9876 箱','3.25 箱'].map((value,index) => ({type:'card',title:`指标 ${index + 1}`,items:[{type:'stat',label:'数量',value}]}))},
+    {type:'grid',cols:2,items:[{type:'card',title:'草稿',items:[{type:'input',id:'draft',label:'备注'}]},{type:'card',title:'阅读提示',items:[{type:'text',content:'保留草稿并按原顺序提交'}]}]},
+    {type:'grid',cols:2,items:[{type:'card',title:'图表',items:[{type:'chart',data:[{label:'A',value:1}]}]},{type:'card',title:'图表说明',items:[{type:'text',content:'图表原有布局'}]}]},
+    {type:'submit',label:'提交草稿',action:'submit_layout'},
+  ] }
+  await evaluate(`window.genuiPresentation.mount(${JSON.stringify(resizeSpec)}, {width:960,hostFontSize:17})`)
+  await evaluate(`(() => {
+    const input = document.querySelector('input')
+    window.layoutInput = input
+    input.focus()
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '保留的草稿')
+    input.dispatchEvent(new Event('input', {bubbles:true}))
+  })()`)
+  for (const width of [640, 960]) {
+    await evaluate(`window.genuiPresentation.mount(${JSON.stringify(resizeSpec)}, {width:${width},hostFontSize:22,reset:false})`)
+    await evaluate('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
+    assert.equal(await evaluate("document.querySelector('input') === window.layoutInput && document.activeElement === window.layoutInput && window.layoutInput.value === '保留的草稿'"), true, 'Resize preserves input identity, focus and draft')
+    assert.deepEqual(await evaluate('window.genuiPresentation.events'), [], 'Resize emits no action')
+  }
+  const layoutInteractions = await evaluate(`(() => {
+    const title = text => [...document.querySelectorAll('div')].find(element => element.textContent === text)
+    const bounds = text => title(text).parentElement.getBoundingClientRect().toJSON()
+    return {draft:window.layoutInput.value, form:[bounds('草稿'),bounds('阅读提示')], graphics:[bounds('图表'),bounds('图表说明')]}
+  })()`)
+  for (const pair of [layoutInteractions.form, layoutInteractions.graphics]) assert.ok(Math.abs(pair[0].top - pair[1].top) <= 1 && Math.abs(pair[0].width - pair[1].width) <= 1 && pair[0].width < 600, 'Interactive and graphical card layouts retain their existing columns')
+  await evaluate("[...document.querySelectorAll('button')].find(button => button.textContent === '提交草稿').click()")
+  layoutInteractions.events = await evaluate('window.genuiPresentation.events')
+  assert.equal(layoutInteractions.events.length, 1, 'One submit dispatches one action')
+  assert.equal(layoutInteractions.events[0].action, 'submit_layout')
+  assert.equal(layoutInteractions.events[0].payload.fields.draft, '保留的草稿')
+  const extreme = modelCards.cases.find(input => input.expectedNumericOverflow === true)
+  await evaluate(`window.genuiPresentation.mount(${JSON.stringify(extreme.spec)}, {width:640,hostFontSize:22})`)
+  await evaluate(`document.querySelector('[role="region"][tabindex="0"]').focus()`)
+  for (const key of ['ArrowRight','ArrowLeft']) {
+    for (let repeat = 0; repeat < 80; repeat++) {
+      await command('Input.dispatchKeyEvent', {type:'keyDown',key,code:key,windowsVirtualKeyCode:key === 'ArrowRight' ? 39 : 37})
+      await command('Input.dispatchKeyEvent', {type:'keyUp',key,code:key,windowsVirtualKeyCode:key === 'ArrowRight' ? 39 : 37})
+    }
+    await pause(300)
+    const scroll = await evaluate(`(() => {const region=document.activeElement;return {left:region.scrollLeft,max:region.scrollWidth-region.clientWidth}})()`)
+    assert.ok(key === 'ArrowRight' ? scroll.left >= scroll.max - 1 : scroll.left <= 1, 'Keyboard reaches both ends of the complete numeric value')
+  }
+  layoutInteractions.extremeKeyboardScroll = true
   await evaluate(`window.genuiPresentation.mount(${JSON.stringify({ items:[{type:'grid',cols:2,items:[{type:'text',content:'Short'},{type:'text',content:'A longer nonstat item that occupies multiple lines at this width. '.repeat(6)}]},{type:'stat',label:'Numeric prefix status',value:'2 pages remain to be read'},{type:'stat',label:'Currency amount',value:'¥1,024'},{type:'stat',label:'Compact number',value:'1.2k'},{type:'stat',label:'Scientific notation',value:'1e6'},{type:'stat',label:'Localized decimal',value:'1,6328 $'},{type:'stat',label:'Bottle count',value:'20 瓶'},{type:'stat',label:'Transfer rate',value:'8 MB/s'},{type:'stat',label:'Multiplier',value:'3.2x'}] })}, {width:960,hostFontSize:17})`)
   await evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))')
   const compatibility = await evaluate(`(() => {
@@ -270,7 +314,7 @@ try {
   for (const index of [0, 8]) assert.equal(tableBadges[index].color, 'rgb(17, 128, 68)', `${tableStates[index]} retains success semantics`)
   for (const index of [1, 2, 3, 4, 5, 6, 7]) assert.notEqual(tableBadges[index].color, 'rgb(17, 128, 68)', `${tableStates[index]} must not inherit success from a substring`)
   const failures = [...results, ...modelCardResults].flatMap(result => result.failures.map(failure => ({ id:result.id, width:result.width, hostFontSize:result.hostFontSize, ...failure })))
-  await writeFile(join(out, 'result.json'), JSON.stringify({ passed:failures.length === 0, browser:version, dataScope:fixtures.dataScope, provenance:fixtures.provenance, results, modelCardResults, compatibility, deltaResults, tableBadges, failures }, null, 2) + '\n')
+  await writeFile(join(out, 'result.json'), JSON.stringify({ passed:failures.length === 0, browser:version, dataScope:fixtures.dataScope, provenance:fixtures.provenance, results, modelCardProvenance:{dataScope:modelCards.dataScope, ...modelCards.provenance}, modelCardResults, compatibility, layoutInteractions, deltaResults, tableBadges, failures }, null, 2) + '\n')
   console.log(JSON.stringify({ passed:failures.length === 0, cells:results.length + modelCardResults.length, failures:failures.length, criteria:[...new Set(failures.map(failure => failure.criterion))], out }))
   assert.equal(failures.length, 0, `Business presentation criteria failed; see ${join(out, 'result.json')}`)
 } catch (error) {
@@ -285,7 +329,7 @@ try {
   await rm(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
 }
 
-function measureCards({ spec, expectedCards, expectedTexts }) {
+function measureCards({ spec, expectedCards, expectedTexts, expectedCardLayout, expectedKeyValueLayout, expectedNumericOverflow, expectedStatLayout }) {
   const root = document.querySelector('#root')
   const failures = []
   const titles = []
@@ -303,6 +347,7 @@ function measureCards({ spec, expectedCards, expectedTexts }) {
     if (!compact(root.textContent).includes(compact(expected))) failures.push({ criterion:'model-card-content', expected })
   }
   if (titles.length !== expectedCards) failures.push({ criterion:'model-card-count', expected:expectedCards, actual:titles.length })
+  const cardElements = []
   const cards = titles.map(title => {
     const label = [...root.querySelectorAll('*')].find(element => element.textContent === title && !element.children.length)
     let card = label?.parentElement
@@ -311,6 +356,7 @@ function measureCards({ spec, expectedCards, expectedTexts }) {
       failures.push({ criterion:'model-card-missing', title })
       return { title }
     }
+    cardElements.push(card)
     const bounds = card.getBoundingClientRect()
     if (card.scrollWidth > card.clientWidth + 1) failures.push({ criterion:'model-card-overflow', title, scroll:card.scrollWidth, client:card.clientWidth })
     const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT)
@@ -318,7 +364,11 @@ function measureCards({ spec, expectedCards, expectedTexts }) {
       if (!walker.currentNode.textContent.trim()) continue
       const range = document.createRange()
       range.selectNodeContents(walker.currentNode)
+      const region = walker.currentNode.parentElement.closest('[role="region"][tabindex="0"]')
+      const localNumericOverflow = expectedNumericOverflow === true && region?.scrollWidth > region?.clientWidth
+        && region.getAttribute('aria-label') === spec.items[0].items[0].items[0].value
       for (const rect of range.getClientRects()) {
+        if (localNumericOverflow) continue
         if (rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1) failures.push({ criterion:'model-card-text-containment', title })
         for (let parent = walker.currentNode.parentElement; parent && parent !== card; parent = parent.parentElement) {
           const clip = parent.getBoundingClientRect()
@@ -331,6 +381,70 @@ function measureCards({ spec, expectedCards, expectedTexts }) {
     }
     return { title, bounds:bounds.toJSON(), scrollWidth:card.scrollWidth, clientWidth:card.clientWidth, text:card.textContent }
   })
+  if (expectedStatLayout === 'metric-rows') {
+    for (const stat of spec.items[0].items) {
+      const label = [...root.querySelectorAll('span')].find(element => element.textContent === stat.label)
+      const card = label.parentElement
+      const value = label.nextElementSibling
+      cardElements.push(card)
+      cards.push({title:stat.label,bounds:card.getBoundingClientRect().toJSON()})
+      if (value.scrollWidth > value.clientWidth + 1) failures.push({ criterion:'ordinary-numeric-needs-fullwidth', label:stat.label })
+    }
+  }
+  let readingFlow
+  if (expectedCardLayout === 'full-width-reading-flow' && cardElements.length === expectedCards) {
+    let group = cardElements[0].parentElement
+    while (group && !cardElements.every(card => group.contains(card))) group = group.parentElement
+    const style = getComputedStyle(group)
+    const availableWidth = group.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+    const fullWidth = cards.every(card => Math.abs(card.bounds.width - availableWidth) <= 1)
+    const sequential = cards.every((card, index) => index === 0 || card.bounds.top >= cards[index - 1].bounds.bottom - 1)
+    readingFlow = { availableWidth, fullWidth, sequential }
+    if (!fullWidth || !sequential) failures.push({ criterion:'model-card-reading-flow', ...readingFlow, cards:cards.map(({ title, bounds }) => ({ title, bounds })) })
+  }
+  if (expectedCardLayout === 'metric-rows' && cards.every(card => card.bounds)) {
+    const group = cardElements[0].parentElement
+    for (let index = 0; index < cards.length; index++) {
+      const card = cards[index]
+      if (card.bounds.right > group.getBoundingClientRect().right + 1) failures.push({ criterion:'metric-implicit-track', title:card.title })
+      for (const other of cards.slice(index + 1)) if (Math.abs(card.bounds.top - other.bounds.top) <= 1) {
+        if (Math.abs(card.bounds.width - other.bounds.width) > 1 || Math.abs(card.bounds.bottom - other.bounds.bottom) > 1) failures.push({ criterion:'metric-row-alignment', title:card.title })
+      }
+      const stat = expectedStatLayout === 'metric-rows' ? spec.items[0].items[index] : spec.items[0].items[index].items[0]
+      const label = [...cardElements[index].querySelectorAll('span')].find(element => element.textContent === stat.label)
+      const value = label.nextElementSibling
+      const walker = document.createTreeWalker(value, NodeFilter.SHOW_TEXT)
+      walker.nextNode()
+      const range = document.createRange()
+      range.selectNodeContents(walker.currentNode)
+      if (range.getClientRects().length !== 1) failures.push({ criterion:'metric-numeric-body', title:card.title })
+    }
+    const firstStat = expectedStatLayout === 'metric-rows' ? spec.items[0].items[0] : spec.items[0].items[0].items[0]
+    if (firstStat.value === '12 箱' && group.clientWidth >= 600 && cards[0].bounds.top !== cards[1].bounds.top) failures.push({ criterion:'compact-metrics-share-row' })
+    if (cards[0].bounds.width > group.clientWidth + 1) failures.push({ criterion:'metric-group-containment' })
+  }
+  if (expectedNumericOverflow === true) {
+    const region = root.querySelector('[role="region"][tabindex="0"]')
+    if (!region || region.scrollWidth <= region.clientWidth || getComputedStyle(region).overflowX !== 'auto' || parseFloat(getComputedStyle(region).fontSize) < 22) failures.push({ criterion:'extreme-accessible-local-scroll' })
+    if (region) {
+      const range = document.createRange()
+      range.selectNodeContents(region)
+      getSelection().removeAllRanges()
+      getSelection().addRange(range)
+      if (getSelection().toString() !== region.textContent) failures.push({ criterion:'extreme-complete-copy-selection' })
+      getSelection().removeAllRanges()
+    }
+  }
+  if (expectedKeyValueLayout === 'responsive') {
+    const rows = [...root.querySelectorAll('dl > div')]
+    const shortKey = rows[0].querySelector('dt').getBoundingClientRect()
+    if (shortKey.width >= 100) failures.push({ criterion:'keyvalue-short-label-width', width:shortKey.width })
+    for (const row of rows) {
+      const key = row.querySelector('dt').getBoundingClientRect()
+      const value = row.querySelector('dd').getBoundingClientRect()
+      if (row.clientWidth < 300 && value.top < key.bottom - 1) failures.push({ criterion:'keyvalue-narrow-stack' })
+    }
+  }
   if (document.documentElement.scrollWidth > innerWidth + 1) failures.push({ criterion:'model-card-page-overflow' })
-  return { cards, failures }
+  return { cards, readingFlow, failures }
 }

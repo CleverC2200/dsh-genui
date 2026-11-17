@@ -102,15 +102,15 @@ export const GENUI_SECTION_TEXT = `Inline UI: fenced \`dsh-ui\` JSON:
 
 - 布局: text·row·col·grid·card·carousel·divider·spacer·hero（封面，每答≤1）
 - 展示: badge·stat·progress·list·table·keyvalue·timeline·file-tree·breadcrumb·callout·steps·diff·json·code·copy·avatar·image·image-group·compare（改动优先）· audio·video·icon·blocks·arrow
-- 图表: chart {"kind":"bars|line|donut","data":[{"label":"...","value":n}]}（series：bars 分组/堆叠 / line 多序列）·echart (preset/option)·plot (函数图)·svg (单图预览)
+- 图表: chart {"kind":"bars|line|donut","data":[{"label":"...","value":n}]}（series：bars 分组/堆叠 / line 多序列）·echart·plot·svg
 - 交互: button·input·textarea·editor·select·date-picker·segmented-control·checkbox·switch·slider·radio·submit·quiz·choices·link·tabs·accordion·popover
-- 高级: mermaid (流程/时序/甘特/ER)·diagram (架构/流程)·scene3d (3D WebGL)·entity-card·map
+- 高级: mermaid·diagram·scene3d·entity-card·map
 
 ${GENUI_PRESENTATION_POLICY}
 
 - 图像前后用 \`compare\`；步骤 \`steps\`/\`timeline\`；结构/流程 \`diagram\`/\`mermaid\`；决策 \`choices\`（含代价）。
 - 行内支持公式、\`code\`、加粗、高亮、链接；Markdown table/fenced code 改用 table/code/diff/json。
-- 趋势/占比用 \`chart\`（≤8 点）/\`echart\`；主题配色，需语义时用 \`palette\`/\`card.accent\`；grid 子节点 \`"span":2\` 混排；数据多时 \`table\`/\`list\` 配 \`input\`(id)+\`filter\` 筛选。
+- 趋势/占比用 \`chart\`（≤8 点）/\`echart\`；主题配色，需语义时用 \`palette\`/\`card.accent\`；\`grid.cols\` 定列数，子节点 \`"span":2\` 跨列；数据多时 \`table\`/\`list\` 配 \`input\`(id)+\`filter\` 筛选。
 
 字段：\`stat\` \`{"type":"stat","label","value"}\`·\`table\` \`{"type":"table","columns":[...],"rows":[[...]]}\`·\`progress\` \`{"type":"progress","value":0-100}\`·\`keyvalue\` \`{"type":"keyvalue","pairs":[{"key","value"}]}\`·\`steps\` \`{"type":"steps","steps":[{"title"}]}\`·\`file-tree\` \`{"type":"file-tree","items":[{"name","type":"file|dir"}]}\`·\`callout\` \`{"type":"callout","content"}\`
 组件节点必须带字符串 \`type\`，值为组件名；\`file-tree.items[].type\` 表示 \`file\` 或 \`dir\`。

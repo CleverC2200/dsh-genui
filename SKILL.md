@@ -53,7 +53,7 @@ description: "Render structured interactive UI inline through the dsh-ui fence. 
 - grid: `{"type":"grid","cols":n,"items":[...]}`；`columns` 可作为 `cols` 的别名，校验会提示使用规范字段。
 - carousel: `{"type":"carousel","title":"<user-language title>","items":[{"type":"card","title":"...","items":[...]}],"itemWidth":240?,"gap":3?}` — 原生节点横向滚动；最多 24 项，宽度 80–640px 且不超过轨道宽度的 85%；默认宽度 240px。`gap` 数值乘以 4px，省略时为 12px，负数按 0 处理。导航按钮每次滚动轨道宽度的 85%，仅在内容溢出时显示，触摸设备直接滑动轨道。不自动播放。轨道聚焦时支持左右键 / Home / End，卡片内表单按原提交规则工作。浏览与滑动不发 action；子组件自身声明的 action 按既有交互规则触发。流式输出只在尾部追加卡片以保留已有输入路径。
 - hero: `{"type":"hero","title":"<user-language title>","subtitle":"<user-language text>","value":"99.96%","label":"<user-language metric>","delta":"+0.02%","spark":[...],"tone":"accent|success|warning|danger"}`，用于用户需要的报告封面，最多一个。保留有依据的数值、标题和说明；实际字号由渲染器决定，普通状态总览使用下面的状态示例
-- span: 任意节点都可加 `"span":2`（grid 子节点占几列）——bento 排版的唯一原语：一张 `span:2` 宽卡配一张窄卡，比一列方块堆下去好看得多
+- span: 任意节点都可加 `"span":2`，指定 grid 子节点的跨列数；结合 `cols` 表达逻辑分区，实际列数与卡片几何由渲染器适配
 - card: `{"type":"card","title":"...","items":[...]}`；`"tone":"info|success|warning|danger"` 给卡片语义底色（用于结论卡/风险卡）；`"accent":"#f59e0b"` 指定强调色（边框 + 标题 + 极淡底色）；`"flat":true` 去掉阴影、换成极淡中性底——**图里的面板必须用 flat**，否则每层都像浮起的卡片，叠两层就脏了；`"eyebrow":"<user-language 小引题>"` 在标题上方加一行 meta 小字（把多张卡分章时用——**连续同章的卡片不要每张都加**，一段回答 ≤3 个）
 - palette: `chart` / `echart` 都支持 `"palette":["#ff8800","#3ecf8e"]` 覆盖分类色板（默认跟随宿主主题）。**只有语义上需要指定颜色时才写**（成本=红、收益=绿），否则跟随主题更稳
 - divider: `{"type":"divider"}`；**带章节名** `{"type":"divider","label":"<user-language 章节名>"}`（线 + 小标签居中，作章节切换：报告从摘要切入数据、图表册开新章时用一段；卡片/列表内部、连续同主题内容之间**不要用**，一条回答 ≤3 个）; spacer: `{"type":"spacer"}`
@@ -162,7 +162,7 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 | 数据对比 / 趋势 / 占比 | `chart`（bars/line/donut）、`echart`（ECharts 全功能）、`table` |
 | 数值指标 / 已知进度 | `stat`、`progress`，保留单位和范围 |
 | 库存对比 / 排行 | `table` 或 `chart`，保留所问字段和原始单位 |
-| 需要并排查看的不同信息 | `grid` + 子节点 `span` |
+| 同类数值指标的比较 | `grid` + `stat` |
 | 数据多、需要读者自己找 | `input`（id）+ `table`/`chart`/`list` 的 `filter` 绑定 |
 | 流程 / 步骤 / 阶段 / 时间线 | `steps`、`timeline`、`mermaid`（flowchart/sequence/gantt） |
 | 架构 / 系统拓扑 / 数据流 / 品牌图 | `diagram`（编辑级，27 种类型；自动布局需求才用 `mermaid`） |
@@ -204,6 +204,8 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 ## 回答级版式
 
 先选能承载主要问题的组件，再放必要证据和操作。同一数据不重复画表与图，普通文字不额外套卡。组件数量和调用率不作为改进目标。
+
+业务组合规则由运行时共享的 [presentation-policy](src/plugin/presentation-policy.ts) 提供给系统段和两个原生工具。下面示例说明节点组合，不另设布局配额。
 
 ### 卡片（`card`）只在有明确用途时用
 
@@ -292,6 +294,16 @@ Check CheckCircle Info InfoCircle Warning Error X Plus Minus Circle ArrowDown Ar
 ```
 
 何时不用：只有一步就别画阶段图；纯数值对比用 `chart`，别把数字塞进色块。
+
+### 库存指标与来源说明
+
+合成输入：用户要求比较甲、乙两仓的可用库存并查看来源。原文给出甲仓 120 箱、乙仓 40 箱，来源编号为 `inventory_snapshot_20261117_warehouse_A_and_B`，只包含这两仓。
+
+```dsh-ui
+{"title":"可用库存（合成示例）","items":[{"type":"grid","cols":2,"items":[{"type":"card","items":[{"type":"stat","label":"甲仓","value":"120 箱"}]},{"type":"card","items":[{"type":"stat","label":"乙仓","value":"40 箱"}]}]},{"type":"keyvalue","pairs":[{"key":"来源编号","value":"inventory_snapshot_20261117_warehouse_A_and_B"}]},{"type":"callout","tone":"info","content":"范围仅含甲、乙两仓，其他仓库库存未提供。"}]}
+```
+
+指标成组，来源与范围沿主阅读流展示。若原文另含长说明或逐项明细，将其放在后续 text/list/table 区域；只问甲仓库存时直接答 `120 箱`。
 
 ### 主表明细（需要筛选和逐行展开时）
 

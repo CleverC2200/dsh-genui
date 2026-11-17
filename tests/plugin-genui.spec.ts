@@ -5,6 +5,7 @@ import { Context } from '@deepseek-ai/cordis'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import * as GenUI from '../src/plugin/index.ts'
+import { createRenderUiTool, createValidateDshUiTool } from '../src/plugin/tool.ts'
 
 import { COMPONENT_SCHEMAS } from '../src/client/genui-runtime/schema.ts'
 
@@ -129,6 +130,20 @@ describe('genui:fence section', () => {
     expect(text).toContain('简单建议或短步骤可用正文或组件')
     expect(text).toContain('单个状态含义、差额或第一名直接短答')
     expect(text).toContain('渲染器负责字号和间距')
+  })
+
+  it('guides business composition through the assembled prompt and both native tools', async () => {
+    const assembly = await assemble()
+    const section = assembly.sections.find(s => s.name === 'genui:fence')
+    const text = typeof section?.text === 'string' ? section.text : ''
+    for (const guidance of [text, createRenderUiTool().description, createValidateDshUiTool().description]) {
+      expect(guidance).toMatch(/同类.*紧凑.*(?:数值|指标).*(?:成组|分组)/u)
+      expect(guidance).toMatch(/长说明.*标识.*明细.*(?:阅读区|分区)/u)
+      expect(guidance).toMatch(/渲染器负责.*列数.*卡宽.*对齐/u)
+      expect(guidance).toMatch(/业务.*阅读顺序/u)
+      expect(guidance).not.toMatch(/span.*混排/u)
+    }
+    expect(text).toContain('"span":2')
   })
 
   it('keeps the skill a reference instead of a menu', async () => {
