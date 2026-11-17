@@ -71,6 +71,8 @@ try {
   }
   const fixtures = JSON.parse(await readFile(join(root, 'tests/fixtures/business-presentation.json'), 'utf8'))
   const results = []
+  const modelCards = JSON.parse(await readFile(join(root, 'tests/fixtures/model-card-layout.json'), 'utf8'))
+  const modelCardResults = []
   const measure = (spec, hostFont) => {
     const failures = []
     const check = (ok, criterion, detail) => { if (!ok) failures.push({ criterion, detail }) }
@@ -195,6 +197,17 @@ try {
     }
     results.push({ id, width, hostFontSize, deviceScaleFactor:1, screenshot, input:fixtures.specs[id], ...result, clicks, events:await evaluate('window.genuiPresentation.events') })
   }
+  for (const input of modelCards.cases) for (const [viewportWidth, width] of [[1024, 640], [1440, 960]]) for (const hostFontSize of [14, 17, 22]) {
+    await command('Emulation.setDeviceMetricsOverride', { width:viewportWidth, height:1000, deviceScaleFactor:1, mobile:false })
+    await evaluate(`window.genuiPresentation.mount(${JSON.stringify(input.spec)}, ${JSON.stringify({ width, hostFontSize })})`)
+    await evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))')
+    const measured = await evaluate(`(${measureCards.toString()})(${JSON.stringify(input)})`)
+    const screenshot = `model-${input.id}-${width}-${hostFontSize}.png`
+    const layout = await command('Page.getLayoutMetrics')
+    await writeFile(join(out, screenshot), Buffer.from((await command('Page.captureScreenshot', { captureBeyondViewport:true, clip:{ x:0, y:0, width, height:Math.ceil(layout.cssContentSize.height), scale:1 } })).data, 'base64'))
+    assert.deepEqual(await evaluate('window.genuiPresentation.events'), [], 'Card layout replay must not dispatch actions')
+    modelCardResults.push({ id:input.id, width, viewportWidth, hostFontSize, screenshot, ...measured })
+  }
   await evaluate(`window.genuiPresentation.mount(${JSON.stringify({ items:[{type:'grid',cols:2,items:[{type:'text',content:'Short'},{type:'text',content:'A longer nonstat item that occupies multiple lines at this width. '.repeat(6)}]},{type:'stat',label:'Numeric prefix status',value:'2 pages remain to be read'},{type:'stat',label:'Currency amount',value:'¥1,024'},{type:'stat',label:'Compact number',value:'1.2k'},{type:'stat',label:'Scientific notation',value:'1e6'},{type:'stat',label:'Localized decimal',value:'1,6328 $'},{type:'stat',label:'Bottle count',value:'20 瓶'},{type:'stat',label:'Transfer rate',value:'8 MB/s'},{type:'stat',label:'Multiplier',value:'3.2x'}] })}, {width:960,hostFontSize:17})`)
   await evaluate('document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))))')
   const compatibility = await evaluate(`(() => {
@@ -256,9 +269,9 @@ try {
   assert.deepEqual(tableBadges.map(badge => badge.text), tableStates, 'Table badges preserve all status labels')
   for (const index of [0, 8]) assert.equal(tableBadges[index].color, 'rgb(17, 128, 68)', `${tableStates[index]} retains success semantics`)
   for (const index of [1, 2, 3, 4, 5, 6, 7]) assert.notEqual(tableBadges[index].color, 'rgb(17, 128, 68)', `${tableStates[index]} must not inherit success from a substring`)
-  const failures = results.flatMap(result => result.failures.map(failure => ({ id:result.id, width:result.width, hostFontSize:result.hostFontSize, ...failure })))
-  await writeFile(join(out, 'result.json'), JSON.stringify({ passed:failures.length === 0, browser:version, dataScope:fixtures.dataScope, provenance:fixtures.provenance, results, compatibility, deltaResults, tableBadges, failures }, null, 2) + '\n')
-  console.log(JSON.stringify({ passed:failures.length === 0, cells:results.length, failures:failures.length, criteria:[...new Set(failures.map(failure => failure.criterion))], out }))
+  const failures = [...results, ...modelCardResults].flatMap(result => result.failures.map(failure => ({ id:result.id, width:result.width, hostFontSize:result.hostFontSize, ...failure })))
+  await writeFile(join(out, 'result.json'), JSON.stringify({ passed:failures.length === 0, browser:version, dataScope:fixtures.dataScope, provenance:fixtures.provenance, results, modelCardResults, compatibility, deltaResults, tableBadges, failures }, null, 2) + '\n')
+  console.log(JSON.stringify({ passed:failures.length === 0, cells:results.length + modelCardResults.length, failures:failures.length, criteria:[...new Set(failures.map(failure => failure.criterion))], out }))
   assert.equal(failures.length, 0, `Business presentation criteria failed; see ${join(out, 'result.json')}`)
 } catch (error) {
   await writeFile(join(out, 'failure.json'), JSON.stringify({ passed:false, error:error instanceof Error ? error.stack : String(error) }, null, 2) + '\n')
@@ -270,4 +283,54 @@ try {
   if (browser?.exitCode === null) browser.kill('SIGKILL')
   await server.close()
   await rm(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
+}
+
+function measureCards({ spec, expectedCards, expectedTexts }) {
+  const root = document.querySelector('#root')
+  const failures = []
+  const titles = []
+  const collect = node => {
+    if (!node || typeof node !== 'object') return
+    if (node.type === 'card' && node.title && node.items?.length) titles.push(node.title)
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) value.forEach(collect)
+      else if (value && typeof value === 'object') collect(value)
+    }
+  }
+  collect(spec)
+  const compact = text => text.replace(/[\s,]/g, '')
+  for (const expected of expectedTexts) {
+    if (!compact(root.textContent).includes(compact(expected))) failures.push({ criterion:'model-card-content', expected })
+  }
+  if (titles.length !== expectedCards) failures.push({ criterion:'model-card-count', expected:expectedCards, actual:titles.length })
+  const cards = titles.map(title => {
+    const label = [...root.querySelectorAll('*')].find(element => element.textContent === title && !element.children.length)
+    let card = label?.parentElement
+    while (card && card !== root && !(getComputedStyle(card).display === 'flex' && parseFloat(getComputedStyle(card).borderTopWidth) > 0)) card = card.parentElement
+    if (!card || card === root) {
+      failures.push({ criterion:'model-card-missing', title })
+      return { title }
+    }
+    const bounds = card.getBoundingClientRect()
+    if (card.scrollWidth > card.clientWidth + 1) failures.push({ criterion:'model-card-overflow', title, scroll:card.scrollWidth, client:card.clientWidth })
+    const walker = document.createTreeWalker(card, NodeFilter.SHOW_TEXT)
+    while (walker.nextNode()) {
+      if (!walker.currentNode.textContent.trim()) continue
+      const range = document.createRange()
+      range.selectNodeContents(walker.currentNode)
+      for (const rect of range.getClientRects()) {
+        if (rect.left < bounds.left - 1 || rect.right > bounds.right + 1 || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1) failures.push({ criterion:'model-card-text-containment', title })
+        for (let parent = walker.currentNode.parentElement; parent && parent !== card; parent = parent.parentElement) {
+          const clip = parent.getBoundingClientRect()
+          if (['hidden', 'clip', 'auto', 'scroll'].includes(getComputedStyle(parent).overflowX) && (rect.left < clip.left - 1 || rect.right > clip.right + 1)) {
+            failures.push({ criterion:'model-card-clipped-text', title })
+            break
+          }
+        }
+      }
+    }
+    return { title, bounds:bounds.toJSON(), scrollWidth:card.scrollWidth, clientWidth:card.clientWidth, text:card.textContent }
+  })
+  if (document.documentElement.scrollWidth > innerWidth + 1) failures.push({ criterion:'model-card-page-overflow' })
+  return { cards, failures }
 }

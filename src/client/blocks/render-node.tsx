@@ -75,7 +75,7 @@ function splitStatValue(value: string): {
     ? parsed
     : undefined
   const decimals = plain.includes('.') ? (plain.split('.')[1] ?? '').length : 0
-  return { num: raw, unit, isNumeric: true, numeric, decimals: Math.min(decimals, 4) }
+  return { num: numeric === undefined ? raw : plain, unit, isNumeric: true, numeric, decimals: Math.min(decimals, 4) }
 }
 
 function statDeltaTone(delta: string | undefined) {
@@ -178,7 +178,7 @@ function AnimatedValue({ value, unitClass, animate = false }: {
   const animated = useCountUp(target ?? 0, parts.decimals, animate && target !== undefined)
   return (
     <>
-      {target === undefined ? renderInline(parts.num) : animated}
+      {target === undefined || !animate ? renderInline(parts.num) : animated}
       {parts.unit !== '' && <span className={unitClass ?? css.statUnit}>{renderInline(parts.unit)}</span>}
     </>
   )

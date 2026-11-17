@@ -72,4 +72,12 @@ describe('stat value: decimal comma is not a thousands separator', () => {
     // separators; only the comma-as-decimal case changed.
     expect(valueText(container)).toBe('1234')
   })
+  it.each([
+    ['12,345,678,901,234,567.89 箱', '12345678901234567.89箱'],
+    ['987,654,321.123456789 人民币万元', '987654321.123456789人民币万元'],
+  ])('keeps the complete static numeric value %s', (value, expected) => {
+    const { container } = renderBlock({ items: [{ type: 'stat', label: '原值', value }] })
+    expect(valueText(container)).toBe(expected)
+  })
+
 })

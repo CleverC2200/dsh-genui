@@ -286,6 +286,7 @@ body[data-ds-dark-theme] .panel {
   flex-direction: column;
   gap: var(--dsl-g-gap-md);
   min-width: 0;
+  overflow-wrap: anywhere;
   box-shadow: var(--dsl-g-shadow-card);
 }
 /* Bento rows size every card to the tallest one. Without this, a short card
@@ -717,9 +718,7 @@ img.mediaPlayer { aspect-ratio: 16 / 9; object-fit: cover; background: var(--dsl
   line-height: 1.4;
 }
 .statValue {
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
+  display: block;
   /* Same reason as .heroValue: the code face's square period. */
   font-family: inherit;
   font-feature-settings: "tnum" 1;
@@ -732,6 +731,7 @@ img.mediaPlayer { aspect-ratio: 16 / 9; object-fit: cover; background: var(--dsl
   overflow-wrap: anywhere;
 }
 .statUnit {
+  margin-inline-start: 3px;
   font-size: max(12px, calc(var(--dsh-content-font-size, 14px) * 0.75), 0.5em);
   font-weight: 600;
   letter-spacing: 0;
@@ -739,7 +739,6 @@ img.mediaPlayer { aspect-ratio: 16 / 9; object-fit: cover; background: var(--dsl
 }
 .statHero .statUnit { font-size: max(12px, calc(var(--dsh-content-font-size, 14px) * 0.75), 0.46em); }
 .statValue.statText {
-  display: block;
   font-size: max(14px, calc(var(--dsh-content-font-size, 14px) * 0.95));
   font-weight: 600;
   line-height: 1.45;

@@ -6,7 +6,7 @@ import { STANDALONE_THEME_CSS } from '../../src/client/artifact/standalone-theme
 import { parseGenuiSpec, type GenuiSpec } from '../../src/client/spec.ts'
 import data from '../fixtures/business-presentation.json'
 
-type MountOptions = { width?: 360 | 960; hostFontSize?: 14 | 17 | 22; reset?: boolean }
+type MountOptions = { width?: 360 | 640 | 960; hostFontSize?: 14 | 17 | 22; reset?: boolean }
 type FixtureId = keyof typeof data.specs
 const container = document.getElementById('root')!
 const root = createRoot(container)
