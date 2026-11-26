@@ -161,6 +161,22 @@ describe('GenuiPanel dock', () => {
     }
   })
 
+  it('keeps the template category and preview across the achievements tab', () => {
+    direct('s1', { title: 'T', items: [text('内容')] })
+    const { container } = renderPanel()
+    const templates = screen.getByRole('button', { name: '模板中心', exact: true })
+    const achievements = screen.getByRole('button', { name: '探索成就', exact: true })
+    fireEvent.click(templates)
+    const category = screen.getByRole('tab', { name: '仪表盘', exact: true })
+    fireEvent.click(category)
+    fireEvent.click(screen.getByRole('button', { name: /项目仪表盘/ }))
+    expect(container.querySelector('[data-genui-template-preview]')).not.toBeNull()
+    fireEvent.click(achievements)
+    fireEvent.click(templates)
+    expect(screen.getByRole('tab', { name: '仪表盘', exact: true }).getAttribute('aria-selected')).toBe('true')
+    expect(container.querySelector('[data-genui-template-preview]')).not.toBeNull()
+  })
+
   it('pointercancel ends the drag and leaves no listeners behind', () => {
     direct('s1', { title: 'T', items: [text('x')] })
     const { container, unmount } = renderPanel()

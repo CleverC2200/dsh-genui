@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { GenuiActionContext, type GenuiActionHandler } from './action-context.ts'
 import { withFileLinkContext, type FileLinkAvailability, type FileLinkCordisContext } from './file-link-context.tsx'
@@ -86,6 +86,10 @@ export function GenuiPanel({ sessionId, sendGenuiAction, insertTemplate, fileLin
   }, [resizing])
 
   useEffect(() => () => window.clearTimeout(flashTimer.current), [])
+
+  useLayoutEffect(() => {
+    if (bodyRef.current) bodyRef.current.scrollTop = 0
+  }, [drawer])
 
   const startResize = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -200,7 +204,6 @@ export function GenuiPanel({ sessionId, sendGenuiAction, insertTemplate, fileLin
       )}
       {!collapsed && (
         <div
-          key={drawer ?? 'panel'}
           ref={bodyRef}
           className={css.panelBody}
           data-genui-panel-body
