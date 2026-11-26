@@ -91,7 +91,7 @@ export function GenuiPanel({ sessionId, sendGenuiAction, insertTemplate, fileLin
     e.preventDefault()
     const handle = e.currentTarget
 
-    const startHeight = bodyHeight ?? 360
+    const startHeight = bodyRef.current?.clientHeight || (bodyHeight ?? 360)
     dragStart.current = { y: e.clientY, height: startHeight }
     setResizing(true)
     try {
@@ -162,6 +162,7 @@ export function GenuiPanel({ sessionId, sendGenuiAction, insertTemplate, fileLin
           type="button"
           className={`${css.panelTpl}${drawer === 'templates' ? ` ${css.panelTplActive}` : ''}`}
           aria-label={t('panel.templates.aria')}
+          aria-pressed={drawer === 'templates'}
           title={t('panel.templates.title')}
           onClick={() => { setCollapsed(false); setDrawer(d => (d === 'templates' ? null : 'templates')) }}
         >
@@ -173,6 +174,7 @@ export function GenuiPanel({ sessionId, sendGenuiAction, insertTemplate, fileLin
           type="button"
           className={`${css.panelTpl}${drawer === 'achievements' ? ` ${css.panelTplActive}` : ''}`}
           aria-label={t('panel.achievements.aria')}
+          aria-pressed={drawer === 'achievements'}
           title={t('panel.achievements.title')}
           onClick={() => { setCollapsed(false); setDrawer(d => (d === 'achievements' ? null : 'achievements')) }}
         >
@@ -198,6 +200,7 @@ export function GenuiPanel({ sessionId, sendGenuiAction, insertTemplate, fileLin
       )}
       {!collapsed && (
         <div
+          key={drawer ?? 'panel'}
           ref={bodyRef}
           className={css.panelBody}
           data-genui-panel-body

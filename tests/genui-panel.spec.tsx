@@ -148,6 +148,19 @@ describe('GenuiPanel dock', () => {
     expect(body!.style.height).toBe('120px')
   })
 
+  it('starts each panel view at the top after opening another view', () => {
+    direct('s1', { title: 'T', items: [text('内容')] })
+    const { container } = renderPanel()
+    fireEvent.click(container.querySelector('[aria-expanded="false"]')!)
+    const body = () => container.querySelector<HTMLElement>('[data-genui-panel-body]')!
+    const cases = ['模板中心', '探索成就', '探索成就']
+    for (const name of cases) {
+      body().scrollTop = 150
+      fireEvent.click(screen.getByRole('button', { name, exact: true }))
+      expect(body().scrollTop).toBe(0)
+    }
+  })
+
   it('pointercancel ends the drag and leaves no listeners behind', () => {
     direct('s1', { title: 'T', items: [text('x')] })
     const { container, unmount } = renderPanel()
