@@ -148,6 +148,35 @@ describe('GenuiPanel dock', () => {
     expect(body!.style.height).toBe('120px')
   })
 
+  it('starts each panel view at the top after opening another view', () => {
+    direct('s1', { title: 'T', items: [text('内容')] })
+    const { container } = renderPanel()
+    fireEvent.click(container.querySelector('[aria-expanded="false"]')!)
+    const body = () => container.querySelector<HTMLElement>('[data-genui-panel-body]')!
+    const cases = ['模板中心', '探索成就', '探索成就']
+    for (const name of cases) {
+      body().scrollTop = 150
+      fireEvent.click(screen.getByRole('button', { name, exact: true }))
+      expect(body().scrollTop).toBe(0)
+    }
+  })
+
+  it('keeps the template category and preview across the achievements tab', () => {
+    direct('s1', { title: 'T', items: [text('内容')] })
+    const { container } = renderPanel()
+    const templates = screen.getByRole('button', { name: '模板中心', exact: true })
+    const achievements = screen.getByRole('button', { name: '探索成就', exact: true })
+    fireEvent.click(templates)
+    const category = screen.getByRole('tab', { name: '仪表盘', exact: true })
+    fireEvent.click(category)
+    fireEvent.click(screen.getByRole('button', { name: /项目仪表盘/ }))
+    expect(container.querySelector('[data-genui-template-preview]')).not.toBeNull()
+    fireEvent.click(achievements)
+    fireEvent.click(templates)
+    expect(screen.getByRole('tab', { name: '仪表盘', exact: true }).getAttribute('aria-selected')).toBe('true')
+    expect(container.querySelector('[data-genui-template-preview]')).not.toBeNull()
+  })
+
   it('pointercancel ends the drag and leaves no listeners behind', () => {
     direct('s1', { title: 'T', items: [text('x')] })
     const { container, unmount } = renderPanel()

@@ -2155,7 +2155,9 @@ button.ftNameBtn[aria-expanded] { cursor: pointer; }
 }
 
 .panel {
-
+  display: flex;
+  flex-direction: column;
+  min-block-size: 0;
   margin: 10px auto 2px;
   width: calc(100% - var(--dsh-composer-side-clearance, 16px) * 2 - var(--dsh-composer-dock-inset, 8px) * 4);
   max-width: calc(var(--dsh-composer-card-max-width, 780px) - var(--dsh-composer-dock-inset, 8px) * 4);
@@ -2163,6 +2165,13 @@ button.ftNameBtn[aria-expanded] { cursor: pointer; }
   border-radius: 12px;
   background: var(--dsw-alias-bg-layer-1, rgba(255, 255, 255, 0.04));
   overflow: hidden;
+}
+
+.panelHeader,
+.panelResizeHandle,
+.panelHint,
+.panelFlash {
+  flex: none;
 }
 
 .panelHeader {
@@ -2353,7 +2362,8 @@ button.ftNameBtn[aria-expanded] { cursor: pointer; }
 }
 
 .panelBody {
-
+  flex: 1 1 auto;
+  min-block-size: 0;
   height: 360px;
   overflow-y: auto;
   padding: 0 16px var(--dsl-g-gap-lg);
